@@ -1,0 +1,35 @@
+/**
+ * Every environment-dependent value in the app, resolved once at import time.
+ *
+ * Nothing else in the codebase reads `process.env` or hardcodes a path. If you
+ * need a new knob, add it here with a default that lets the app boot.
+ */
+import { resolve } from 'node:path';
+
+const env = (key: string, fallback: string) => process.env[key]?.trim() || fallback;
+
+/** Repo root, so relative paths don't depend on where `bun` was invoked. */
+export const ROOT = resolve(import.meta.dir, '..');
+
+export const config = {
+  host: env('HOST', '127.0.0.1'),
+  port: Number(env('PORT', '8767')),
+
+  db: {
+    url: env('DATABASE_URL', `file:${resolve(ROOT, 'data/lab.db')}`),
+    /** Set both to turn the local file into a Turso embedded replica. */
+    syncUrl: process.env.TURSO_SYNC_URL || undefined,
+    authToken: process.env.TURSO_AUTH_TOKEN || undefined,
+  },
+
+  gym: {
+    /** The NeMo Gym checkout we shell into. All gym paths are relative to it. */
+    root: env('GYM_ROOT', '/home/chris/Documents/recursive'),
+  },
+} as const;
+
+/** Absolute path to the gym CLI, falling back to whatever is on PATH. */
+export const gymBin = () => resolve(config.gym.root, '.venv/bin/gym');
+
+/** Where a benchmark run's inputs and rollouts live, e.g. results/lab/BR-12. */
+export const runDir = (runCode: string) => resolve(config.gym.root, 'results/lab', runCode);

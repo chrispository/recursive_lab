@@ -1,0 +1,376 @@
+-- ============================================================================
+-- 0001_init — the whole domain.
+--
+-- Conventions (AGENTS.md § Database conventions):
+--   * id INTEGER PRIMARY KEY AUTOINCREMENT; display codes come from ids.ts
+--   * timestamps are TEXT ISO-8601 UTC, named created_at/updated_at/
+--     started_at/finished_at and nothing else
+--   * JSON columns end in _json and are NOT NULL DEFAULT '{}' + json_valid
+--   * execution status lives on `jobs`; entities carry lifecycle status only
+--   * no views
+--
+-- Lineage:  BR -> FM -> (FI*, TX -> TP*) -> DF -> DOC* -> VF/ENV
+-- ============================================================================
+
+-- Execution ------------------------------------------------------------------
+-- One table for every long-running thing. Replaces six near-identical tables in
+-- the previous schema, each with its own runner and its own log column.
+
+CREATE TABLE jobs (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  -- What kind of work this is. Widen this list rather than adding a table.
+  kind         TEXT    NOT NULL CHECK (kind IN (
+                 'benchmark_run','failure_map','forge_run',
+                 'env_build','env_eval','env_publish','training')),
+  -- The domain row this job acts on: table name + its integer id.
+  subject_type TEXT    NOT NULL,
+  subject_id   INTEGER NOT NULL,
+  status       TEXT    NOT NULL CHECK (status IN
+                 ('queued','running','succeeded','failed','cancelled')),
+  step         TEXT    NOT NULL DEFAULT '',   -- human label of the current phase
+  progress     REAL    NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 1),
+  pgid         INTEGER,                       -- process group, so cancel can kill children
+  exit_code    INTEGER,
+  error        TEXT,
+  params_json  TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(params_json)),
+  result_json  TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(result_json)),
+  created_at   TEXT    NOT NULL,
+  started_at   TEXT,
+  finished_at  TEXT
+);
+CREATE INDEX idx_jobs_subject ON jobs(subject_type, subject_id, created_at DESC);
+CREATE INDEX idx_jobs_active  ON jobs(status, created_at DESC);
+
+-- Log lines as rows, not an appended TEXT column: tailing is a LIMIT, and
+-- incremental fetch is `seq > ?`, so appending never rewrites a large string.
+CREATE TABLE job_log_lines (
+  job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  seq    INTEGER NOT NULL,
+  at     TEXT    NOT NULL,
+  stream TEXT    NOT NULL CHECK (stream IN ('out','err')),
+  line   TEXT    NOT NULL,
+  PRIMARY KEY (job_id, seq)
+);
+
+-- Prompt provenance ----------------------------------------------------------
+-- Every LLM call records which prompt revision produced it, so a result can
+-- always be traced back to the exact text that generated it.
+
+CREATE TABLE prompt_templates (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  prompt_key TEXT    NOT NULL UNIQUE,   -- 'failure-analysis' | 'document-generation'
+  name       TEXT    NOT NULL,
+  purpose    TEXT    NOT NULL CHECK (purpose IN ('analysis','generation','verifier')),
+  description TEXT   NOT NULL DEFAULT '',
+  created_at TEXT    NOT NULL,
+  updated_at TEXT    NOT NULL
+);
+
+CREATE TABLE prompt_revisions (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  template_id     INTEGER NOT NULL REFERENCES prompt_templates(id) ON DELETE CASCADE,
+  revision_number INTEGER NOT NULL CHECK (revision_number > 0),
+  body            TEXT    NOT NULL CHECK (length(trim(body)) > 0),
+  model_hint      TEXT    NOT NULL DEFAULT '',
+  is_active       INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0,1)),
+  created_at      TEXT    NOT NULL,
+  UNIQUE (template_id, revision_number)
+);
+-- Exactly one active revision per template.
+CREATE UNIQUE INDEX idx_prompt_active ON prompt_revisions(template_id) WHERE is_active = 1;
+
+-- Benchmarks -----------------------------------------------------------------
+
+CREATE TABLE benchmarks (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  name              TEXT    NOT NULL,
+  lab               TEXT    NOT NULL DEFAULT '',
+  source_url        TEXT    NOT NULL DEFAULT '',
+  source_kind       TEXT    NOT NULL CHECK (source_kind IN ('github','huggingface','builtin')),
+  source_identifier TEXT    NOT NULL DEFAULT '',
+  revision          TEXT    NOT NULL DEFAULT '',
+  detected_format   TEXT    NOT NULL DEFAULT '',   -- e.g. 'harbor'
+  adapter           TEXT    NOT NULL,              -- gym resources server / agent to use
+  status            TEXT    NOT NULL CHECK (status IN ('importing','ready','failed')),
+  runnable          INTEGER NOT NULL DEFAULT 0 CHECK (runnable IN (0,1)),
+  snapshot_path     TEXT,
+  input_path        TEXT,
+  description       TEXT    NOT NULL DEFAULT '',
+  metadata_json     TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json)),
+  created_at        TEXT    NOT NULL,
+  updated_at        TEXT    NOT NULL
+);
+
+CREATE TABLE benchmark_tasks (
+  benchmark_id  INTEGER NOT NULL REFERENCES benchmarks(id) ON DELETE CASCADE,
+  dataset       TEXT    NOT NULL DEFAULT 'validation',
+  task_id       TEXT    NOT NULL,           -- the benchmark's own opaque id
+  name          TEXT    NOT NULL,
+  source_path   TEXT    NOT NULL DEFAULT '',
+  position      INTEGER NOT NULL DEFAULT 0,
+  metadata_json TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json)),
+  PRIMARY KEY (benchmark_id, dataset, task_id)
+);
+
+-- Leakage control: fingerprints of the benchmark's own source documents, so the
+-- forge can prove a generated document is not a paraphrase of one.
+CREATE TABLE benchmark_sources (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id           TEXT    NOT NULL,
+  relative_path     TEXT    NOT NULL,
+  content_sha256    TEXT    NOT NULL UNIQUE,
+  normalized_sha256 TEXT    NOT NULL,
+  word_count        INTEGER NOT NULL CHECK (word_count >= 0),
+  shingles_json     TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(shingles_json)),
+  created_at        TEXT    NOT NULL,
+  UNIQUE (task_id, relative_path)
+);
+CREATE INDEX idx_sources_task ON benchmark_sources(task_id);
+
+-- BR — benchmark run ---------------------------------------------------------
+-- Exactly one model per run. See AGENTS.md § Domain rules.
+
+CREATE TABLE benchmark_runs (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  benchmark_id  INTEGER NOT NULL REFERENCES benchmarks(id) ON DELETE RESTRICT,
+  label         TEXT    NOT NULL DEFAULT '',   -- human name, e.g. "harvey_001"
+  model         TEXT    NOT NULL,              -- the single model under test
+  task_count    INTEGER NOT NULL DEFAULT 0,
+  -- Sampling knobs, judge parallelism, agent budget. No credentials, ever.
+  settings_json TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(settings_json)),
+  -- Rolled up from the rollout JSONL once the job finishes.
+  metrics_json  TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metrics_json)),
+  output_path   TEXT,                          -- gym-relative path to the rollouts
+  created_at    TEXT    NOT NULL,
+  updated_at    TEXT    NOT NULL
+);
+CREATE INDEX idx_runs_created ON benchmark_runs(created_at DESC);
+
+-- FM — failure map -----------------------------------------------------------
+
+CREATE TABLE failure_maps (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id             INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE RESTRICT,
+  prompt_revision_id INTEGER NOT NULL REFERENCES prompt_revisions(id) ON DELETE RESTRICT,
+  provider_model     TEXT    NOT NULL,          -- the analyst model that grouped the failures
+  usage_json         TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(usage_json)),
+  raw_output_json    TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(raw_output_json)),
+  created_at         TEXT    NOT NULL,
+  updated_at         TEXT    NOT NULL
+);
+-- One failure map per benchmark run.
+CREATE UNIQUE INDEX idx_fm_one_per_run ON failure_maps(run_id);
+
+-- TX — taxonomy. One per failure map.
+CREATE TABLE taxonomies (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  failure_map_id INTEGER NOT NULL UNIQUE REFERENCES failure_maps(id) ON DELETE CASCADE,
+  name           TEXT    NOT NULL,
+  status         TEXT    NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','ready')),
+  created_at     TEXT    NOT NULL,
+  updated_at     TEXT    NOT NULL
+);
+
+-- TP — topic. Topics are global rows; membership is only ever via
+-- taxonomy_topics. Never infer membership from the topics table alone.
+CREATE TABLE topics (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  name              TEXT    NOT NULL,
+  slug              TEXT    NOT NULL UNIQUE,
+  description       TEXT    NOT NULL DEFAULT '',
+  -- The observable behaviour a verifier should check. This, the name and the
+  -- description are the ONLY things the document generator may see.
+  verifier_strategy TEXT    NOT NULL DEFAULT '',
+  status            TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active','archived')),
+  created_at        TEXT    NOT NULL,
+  updated_at        TEXT    NOT NULL
+);
+
+CREATE TABLE taxonomy_topics (
+  taxonomy_id INTEGER NOT NULL REFERENCES taxonomies(id) ON DELETE CASCADE,
+  topic_id    INTEGER NOT NULL REFERENCES topics(id) ON DELETE RESTRICT,
+  created_at  TEXT    NOT NULL,
+  PRIMARY KEY (taxonomy_id, topic_id)
+);
+CREATE INDEX idx_taxonomy_topics_topic ON taxonomy_topics(topic_id, taxonomy_id);
+
+-- FI — failure item. One failed grading criterion on one task.
+CREATE TABLE failure_items (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  failure_map_id  INTEGER NOT NULL REFERENCES failure_maps(id) ON DELETE CASCADE,
+  topic_id        INTEGER REFERENCES topics(id) ON DELETE SET NULL,
+  task_id         TEXT    NOT NULL,
+  trial_name      TEXT    NOT NULL DEFAULT '',
+  criterion_id    TEXT    NOT NULL,
+  criterion_title TEXT    NOT NULL,
+  reasoning       TEXT    NOT NULL,           -- the judge's prose for this miss
+  capability      TEXT    NOT NULL DEFAULT '',
+  severity        TEXT    NOT NULL DEFAULT 'medium'
+                    CHECK (severity IN ('low','medium','high','critical')),
+  status          TEXT    NOT NULL DEFAULT 'open'
+                    CHECK (status IN ('open','approved','ignored')),
+  occurrences     INTEGER NOT NULL DEFAULT 1 CHECK (occurrences > 0),
+  source_json     TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(source_json)),
+  created_at      TEXT    NOT NULL,
+  updated_at      TEXT    NOT NULL,
+  UNIQUE (failure_map_id, task_id, criterion_id)
+);
+CREATE INDEX idx_failure_items_map   ON failure_items(failure_map_id);
+CREATE INDEX idx_failure_items_topic ON failure_items(topic_id, status);
+
+-- DF — data forge run --------------------------------------------------------
+
+CREATE TABLE forge_runs (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  failure_map_id     INTEGER NOT NULL REFERENCES failure_maps(id) ON DELETE RESTRICT,
+  taxonomy_id        INTEGER NOT NULL REFERENCES taxonomies(id) ON DELETE RESTRICT,
+  prompt_revision_id INTEGER NOT NULL REFERENCES prompt_revisions(id) ON DELETE RESTRICT,
+  backend            TEXT    NOT NULL DEFAULT 'data_designer'
+                       CHECK (backend IN ('data_designer','frontier')),
+  provider_model     TEXT    NOT NULL,
+  docs_per_topic     INTEGER NOT NULL DEFAULT 3 CHECK (docs_per_topic BETWEEN 1 AND 100),
+  -- A generated document scoring above this similarity to any known source is
+  -- rejected outright and can never be approved.
+  novelty_threshold  REAL    NOT NULL DEFAULT 0.22
+                       CHECK (novelty_threshold > 0 AND novelty_threshold < 1),
+  auto_approve       INTEGER NOT NULL DEFAULT 0 CHECK (auto_approve IN (0,1)),
+  requested_documents INTEGER NOT NULL DEFAULT 0,
+  usage_json         TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(usage_json)),
+  created_at         TEXT    NOT NULL,
+  updated_at         TEXT    NOT NULL
+);
+-- One data forge run per failure map.
+CREATE UNIQUE INDEX idx_df_one_per_map ON forge_runs(failure_map_id);
+
+-- Which failure items this forge run was asked to address.
+CREATE TABLE forge_run_items (
+  forge_run_id    INTEGER NOT NULL REFERENCES forge_runs(id) ON DELETE CASCADE,
+  failure_item_id INTEGER NOT NULL REFERENCES failure_items(id) ON DELETE RESTRICT,
+  PRIMARY KEY (forge_run_id, failure_item_id)
+);
+
+-- DOC — synthetic document ---------------------------------------------------
+
+CREATE TABLE documents (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  forge_run_id          INTEGER NOT NULL REFERENCES forge_runs(id) ON DELETE CASCADE,
+  failure_item_id       INTEGER NOT NULL REFERENCES failure_items(id) ON DELETE RESTRICT,
+  topic_id              INTEGER REFERENCES topics(id) ON DELETE SET NULL,
+  ordinal               INTEGER NOT NULL CHECK (ordinal > 0),
+
+  title                 TEXT    NOT NULL,
+  document_type         TEXT    NOT NULL,     -- memo | email | contract | record | ...
+  content               TEXT    NOT NULL,     -- the synthetic source document
+  task_instruction      TEXT    NOT NULL,
+  reference_answer      TEXT    NOT NULL,     -- never shown to the agent
+  verifier_targets_json TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(verifier_targets_json)),
+
+  -- Novelty fingerprint.
+  content_sha256        TEXT    NOT NULL,
+  normalized_sha256     TEXT    NOT NULL,
+  shingles_json         TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(shingles_json)),
+  word_count            INTEGER NOT NULL CHECK (word_count > 0),
+  max_similarity        REAL    NOT NULL DEFAULT 0 CHECK (max_similarity BETWEEN 0 AND 1),
+  nearest_source        TEXT,
+  -- One-way gate: 'rejected' can never become approved. See AGENTS.md.
+  novelty_status        TEXT    NOT NULL CHECK (novelty_status IN ('passed','rejected','review')),
+  novelty_json          TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(novelty_json)),
+
+  -- Human gate, then the split it lands in.
+  review_status         TEXT    NOT NULL DEFAULT 'pending'
+                          CHECK (review_status IN ('pending','approved','rejected')),
+  role                  TEXT    NOT NULL DEFAULT 'train'
+                          CHECK (role IN ('train','canary','heldout','excluded')),
+
+  generation_attempt    INTEGER NOT NULL DEFAULT 1 CHECK (generation_attempt > 0),
+  retry_of_document_id  INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+  retry_reason          TEXT,
+  created_at            TEXT    NOT NULL,
+  reviewed_at           TEXT,
+  UNIQUE (forge_run_id, failure_item_id, ordinal)
+);
+CREATE INDEX idx_documents_run   ON documents(forge_run_id);
+CREATE INDEX idx_documents_topic ON documents(topic_id, novelty_status, review_status, role);
+CREATE INDEX idx_documents_hash  ON documents(content_sha256);
+
+-- VF / ENV — verifiers and environments --------------------------------------
+-- One topic = one verifier = one environment package.
+
+CREATE TABLE verifiers (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  topic_id       INTEGER NOT NULL REFERENCES topics(id) ON DELETE RESTRICT,
+  name           TEXT    NOT NULL,
+  version        INTEGER NOT NULL DEFAULT 1 CHECK (version > 0),
+  kind           TEXT    NOT NULL CHECK (kind IN ('rules','llm','hybrid','python')),
+  status         TEXT    NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','ready','archived')),
+  description    TEXT    NOT NULL DEFAULT '',
+  rubric_json    TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(rubric_json)),
+  code           TEXT    NOT NULL DEFAULT '',   -- optional python score(task, state)
+  -- A floor, not a quality bar. The learnability signal is the real gate.
+  pass_threshold REAL    NOT NULL DEFAULT 0.3 CHECK (pass_threshold BETWEEN 0 AND 1),
+  created_at     TEXT    NOT NULL,
+  updated_at     TEXT    NOT NULL,
+  UNIQUE (topic_id, name, version)
+);
+
+CREATE TABLE environments (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id          INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE RESTRICT,
+  topic_id        INTEGER NOT NULL REFERENCES topics(id) ON DELETE RESTRICT,
+  verifier_id     INTEGER NOT NULL REFERENCES verifiers(id) ON DELETE RESTRICT,
+  name            TEXT    NOT NULL,
+  slug            TEXT    NOT NULL UNIQUE,
+  status          TEXT    NOT NULL DEFAULT 'draft'
+                    CHECK (status IN ('draft','built','ready','failed')),
+  base_model      TEXT    NOT NULL DEFAULT '',
+  inference_model TEXT    NOT NULL DEFAULT '',
+  harness         TEXT    NOT NULL DEFAULT 'endpoint',
+  local_path      TEXT,
+  package_hash    TEXT,
+  -- Set only once local validation shows a learnable reward signal.
+  scale_ready     INTEGER NOT NULL DEFAULT 0 CHECK (scale_ready IN (0,1)),
+  scale_ready_at  TEXT,
+  taskset_json    TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(taskset_json)),
+  training_toml   TEXT    NOT NULL DEFAULT '',
+  created_at      TEXT    NOT NULL,
+  updated_at      TEXT    NOT NULL
+);
+CREATE INDEX idx_environments_run ON environments(run_id, updated_at DESC);
+
+CREATE TABLE environment_documents (
+  environment_id INTEGER NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
+  document_id    INTEGER NOT NULL REFERENCES documents(id) ON DELETE RESTRICT,
+  role           TEXT    NOT NULL CHECK (role IN ('train','canary','heldout')),
+  PRIMARY KEY (environment_id, document_id)
+);
+
+-- The outcome of one local proof pass over a set of environments. Execution
+-- state lives on the owning job; this table holds only results.
+CREATE TABLE environment_evaluations (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id               INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE CASCADE,
+  kind                 TEXT    NOT NULL CHECK (kind IN ('rl_test','validation')),
+  model                TEXT    NOT NULL,
+  endpoint_label       TEXT    NOT NULL DEFAULT '',
+  rollouts_per_example INTEGER NOT NULL DEFAULT 1 CHECK (rollouts_per_example BETWEEN 1 AND 20),
+  max_concurrent       INTEGER NOT NULL DEFAULT 1 CHECK (max_concurrent BETWEEN 1 AND 32),
+  environment_ids_json TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(environment_ids_json)),
+  -- Includes the learnability signal: within_task_std, saturated_fraction, ...
+  metrics_json         TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metrics_json)),
+  result_paths_json    TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(result_paths_json)),
+  created_at           TEXT    NOT NULL,
+  updated_at           TEXT    NOT NULL
+);
+CREATE INDEX idx_env_evals_run ON environment_evaluations(run_id, created_at DESC);
+
+-- Audit ----------------------------------------------------------------------
+
+CREATE TABLE audit_events (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity_type  TEXT    NOT NULL,
+  entity_id    INTEGER NOT NULL,
+  action       TEXT    NOT NULL,
+  details_json TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(details_json)),
+  created_at   TEXT    NOT NULL
+);
+CREATE INDEX idx_audit_entity ON audit_events(entity_type, entity_id, created_at DESC);

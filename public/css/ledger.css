@@ -1,0 +1,447 @@
+/* ============================================================================
+   The Ledger components. Class prefix `m-` throughout.
+
+   Shape of a page:
+
+     .ledger  ──  .m-rail (186px)  +  .m-main
+                                        .m-title
+                                        .m-tablebox  ( .m-cap + .m-table )
+                                        .m-split     ( .m-panel × 2 )
+
+   Rounding is zero on purpose. Everything is 1px hairlines: --line frames,
+   --line-soft internal dividers, --edge control bounds.
+   ========================================================================= */
+
+.ledger {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* Rail ---------------------------------------------------------------------
+   The app's only navigation. Identity on top, five numbered stages, gates at
+   the foot pinned by margin-top:auto. */
+
+.m-rail {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  background: var(--deeper);
+}
+
+.m-railhead {
+  padding: 16px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.m-wordmark {
+  display: block;
+  color: var(--text-1);
+  font: 500 15px/1 var(--mono);
+}
+.m-wordmark b {
+  color: var(--brand);
+  font-weight: 700;
+}
+.m-railhead small {
+  display: block;
+  margin-top: 7px;
+  color: var(--text-4);
+  font: 500 9px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.m-rail > a {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  font: 600 var(--t-label) / 1.3 var(--sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: 0.16s var(--ease);
+}
+.m-rail > a .n {
+  color: var(--text-4);
+  font: 500 9px/1 var(--mono);
+  letter-spacing: 0.1em;
+}
+.m-rail > a:hover {
+  color: var(--text-1);
+  background: var(--wash);
+}
+.m-rail > a.on {
+  color: var(--text-1);
+  background: var(--wash-2);
+  box-shadow: inset 2px 0 0 var(--brand);
+}
+.m-rail > a.on .n {
+  color: var(--brand-ink);
+}
+/* A stage the lineage has not reached yet reads as unavailable, not disabled —
+   you can still open it to see what it wants. */
+.m-rail > a[data-status='locked'] {
+  color: var(--text-4);
+}
+
+.m-railfoot {
+  margin-top: auto;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+.m-railsettings {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--text-3);
+  font: 600 var(--t-label) / 1.3 var(--sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.m-railsettings:hover,
+.m-railsettings.on {
+  color: var(--text-1);
+}
+.m-gates {
+  color: var(--text-4);
+  font: 500 9px/1.7 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.m-gates i {
+  color: var(--pass);
+  font-style: normal;
+}
+
+/* Main column -------------------------------------------------------------- */
+
+.m-main {
+  min-width: 0;
+  padding: var(--s5);
+}
+
+.m-title {
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+.m-title p {
+  max-width: 64ch;
+  margin-top: 8px;
+}
+
+/* Tablebox ----------------------------------------------------------------
+   A bordered box whose caption carries the counts for the rows inside it. The
+   count lives with the rows it counts, so the two can never disagree. */
+
+.m-tablebox {
+  margin-top: var(--s4);
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.m-cap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s3);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--deep);
+}
+.m-cap h3 {
+  color: var(--text-1);
+}
+
+/* Tally line — replaces the old five-box metric strip everywhere. */
+.m-tally {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+}
+.m-tally span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0 12px;
+  border-right: 1px solid var(--line-soft);
+}
+.m-tally span:first-child {
+  padding-left: 0;
+}
+.m-tally span:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+.m-tally b {
+  color: var(--text-1);
+  font: 500 var(--t-data) / 1 var(--mono);
+}
+.m-tally i {
+  color: var(--text-3);
+  font-style: normal;
+  font-size: var(--t-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* The one number that matters on this screen. */
+.m-tally span.hot b {
+  color: var(--brand-ink);
+}
+
+/* Table -------------------------------------------------------------------- */
+
+.m-tablewrap {
+  overflow-x: auto;
+}
+.m-table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: var(--t-body);
+}
+.m-table th {
+  padding: 7px 12px;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font: 500 9px/1.4 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.m-table td {
+  padding: 9px 12px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+.m-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.m-table tbody tr:hover td {
+  background: var(--wash);
+}
+.m-table tr.selected td {
+  background: var(--wash-2);
+}
+.m-table th.n,
+.m-table td.n {
+  text-align: right;
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.m-table .nm {
+  color: var(--text-1);
+  font-weight: 500;
+}
+.m-table .sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--t-micro);
+}
+/* A row flagged as the interesting one tints its first numeric cell. */
+.m-table tr[data-hot='1'] td.n:first-of-type {
+  color: var(--warn);
+}
+/* 3px left state stripe — the app's signature for run/job state. */
+.m-table td:first-child {
+  border-left: 3px solid transparent;
+}
+.m-table tr[data-state='succeeded'] td:first-child,
+.m-table tr[data-state='ready'] td:first-child,
+.m-table tr[data-state='approved'] td:first-child {
+  border-left-color: var(--pass);
+}
+.m-table tr[data-state='failed'] td:first-child,
+.m-table tr[data-state='rejected'] td:first-child {
+  border-left-color: var(--fail);
+}
+.m-table tr[data-state='queued'] td:first-child,
+.m-table tr[data-state='running'] td:first-child {
+  border-left-color: var(--run);
+}
+.m-table tr[data-state='cancelled'] td:first-child,
+.m-table tr[data-state='pending'] td:first-child {
+  border-left-color: var(--warn);
+}
+
+/* Panels ------------------------------------------------------------------- */
+
+.m-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s4);
+  margin-top: var(--s4);
+}
+.m-panel {
+  min-width: 0;
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--inset);
+}
+.m-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s4);
+  margin-bottom: var(--s3);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.m-body {
+  display: grid;
+  gap: var(--s3);
+}
+
+/* Small parts -------------------------------------------------------------- */
+
+/* Entity ids: FM-4, TP-12. Always mono, always quiet. */
+.m-id {
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1 var(--mono);
+  letter-spacing: 0.08em;
+}
+/* The uppercase caption on the right of a panel head. */
+.m-code {
+  color: var(--text-3);
+  font-size: var(--t-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.m-note {
+  color: var(--text-3);
+  font-size: var(--t-micro);
+  line-height: 1.5;
+}
+
+.m-field {
+  display: grid;
+  gap: 5px;
+}
+.m-field label {
+  color: var(--text-2);
+  font-size: var(--t-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.m-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+/* Status badge. Boxed with a square dot — colour comes from the state. */
+.m-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  color: var(--text-3);
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+  font: 500 9px/1.7 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.m-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+}
+.m-badge[data-state='succeeded'],
+.m-badge[data-state='ready'],
+.m-badge[data-state='approved'],
+.m-badge[data-state='passed'],
+.m-badge[data-state='built'] {
+  color: var(--pass);
+}
+.m-badge[data-state='failed'],
+.m-badge[data-state='rejected'] {
+  color: var(--fail);
+}
+.m-badge[data-state='queued'],
+.m-badge[data-state='running'] {
+  color: var(--run);
+}
+.m-badge[data-state='running']::before {
+  animation: m-pulse 1.6s ease-in-out infinite;
+}
+.m-badge[data-state='pending'],
+.m-badge[data-state='review'],
+.m-badge[data-state='draft'],
+.m-badge[data-state='cancelled'] {
+  color: var(--warn);
+}
+@keyframes m-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Inline progress bar, used for verifier reward in the topic table. */
+.m-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.m-bar-track {
+  flex: 1;
+  min-width: 60px;
+  height: 4px;
+  background: var(--raised-2);
+}
+.m-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--pass);
+}
+.m-bar-fill[data-below='1'] {
+  background: var(--warn);
+}
+
+/* Empty state. */
+.m-empty {
+  padding: var(--s5);
+  color: var(--text-4);
+  text-align: center;
+  font-size: var(--t-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Responsive ---------------------------------------------------------------
+   Below 900px the rail lies down across the top and drops its context lines. */
+
+@media (max-width: 900px) {
+  .ledger {
+    grid-template-columns: 1fr;
+  }
+  .m-rail {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .m-rail > a {
+    border-bottom: 0;
+  }
+  .m-split {
+    grid-template-columns: 1fr;
+  }
+  .m-railfoot,
+  .m-railhead small {
+    display: none;
+  }
+}

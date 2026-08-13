@@ -1,0 +1,27 @@
+{
+  "name": "recursive-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "db:migrate": "bun scripts/migrate.ts",
+    "db:seed": "bun scripts/seed.ts",
+    "db:reset": "rm -f data/lab.db data/lab.db-* && bun scripts/migrate.ts && bun scripts/seed.ts",
+    "check": "bun run check:types && bun run check:size",
+    "check:types": "tsc --noEmit",
+    "check:size": "bun scripts/check-size.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@elysiajs/html": "^1.4.2",
+    "@elysiajs/static": "^1.4.10",
+    "@libsql/client": "^0.17.4",
+    "elysia": "^1.4.29"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "typescript": "^5.9.3"
+  }
+}

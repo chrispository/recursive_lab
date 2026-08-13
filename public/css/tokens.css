@@ -1,0 +1,199 @@
+/* ============================================================================
+   Design tokens. Every colour, space, and type size in the app comes from here.
+   No component file may hardcode a colour.
+
+   Two themes: Ink (light, default) and the dark instrument palette. The theme
+   is chosen by `data-theme` on <html>, which the pre-paint script in
+   Document.tsx always sets. The @media block is the no-JS fallback.
+
+   NOTE: the dark palette appears twice — once under [data-theme="dark"] and
+   once under the media query. CSS has no way to share one declaration block
+   between a selector and a media query. If you edit one, edit both.
+   ========================================================================= */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* Text ramp. Four steps, each clearing 4.5:1 on --raised. */
+  --text-1: #101314;
+  --text-2: #3f4749;
+  --text-3: #636c6e;
+  --text-4: #868f91;
+
+  /* Borders, split by job. */
+  --line-soft: #dfe3e2;   /* decorative divider between rows */
+  --line: #cfd5d3;        /* panel frame */
+  --edge: #7f8886;        /* control bounds, 3:1 */
+
+  /* Grounds, darkest to lightest surface. */
+  --black: #eff2f0;       /* page ground */
+  --deeper: #e3e8e5;      /* rail */
+  --deep: #eaeeec;        /* table caption bar */
+  --panel: #fafbfa;
+  --raised: #e6ebe8;      /* inputs */
+  --raised-2: #dbe1de;    /* input hover, bar track */
+  --code-bg: #dfe5e2;
+  --focus-bg: #fdfffe;
+
+  /* Accent + status. */
+  --brand: #c8452a;
+  --brand-ink: #9b3520;   /* brand as text, where the fill is too light */
+  --brand-press: #a8371f;
+  --btn-ink: #fdf7f5;     /* text on a brand fill — light, because Ink's brand is dark */
+  --pass: #26654a;
+  --fail: #9c3126;
+  --run: #1c6178;
+  --warn: #7f5610;
+  --good: #1b2122;
+  --bad: #8c2a1f;
+
+  /* Overlays and washes. */
+  --grid: rgba(16, 19, 20, 0.05);
+  --scanline: rgba(16, 19, 20, 0.02);
+  --glow: rgba(16, 19, 20, 0.16);
+  --inset: rgba(16, 19, 20, 0.025);
+  --wash: rgba(16, 19, 20, 0.045);      /* row hover */
+  --wash-2: rgba(16, 19, 20, 0.08);     /* row selected */
+  --shadow: rgba(25, 45, 40, 0.18);
+  --panel-bg: rgba(250, 251, 250, 0.97);
+  --notice-bg: rgba(250, 251, 250, 0.95);
+  --focus-ring: rgba(16, 19, 20, 0.12);
+  --hover-border: #6b7472;
+  --primary-hover: #2c3436;
+  --card-hover: #7c8583;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --text-1: #f2f2f0;
+  --text-2: #b3b3af;
+  --text-3: #7c7c79;
+  --text-4: #60605d;
+
+  --line-soft: #1a1a18;
+  --line: #232321;
+  --edge: #5d5d59;
+
+  --black: #050505;
+  --deeper: #070707;
+  --deep: #080808;
+  --panel: #0a0a0a;
+  --raised: #101010;
+  --raised-2: #151515;
+  --code-bg: #060606;
+  --focus-bg: #0c0c0c;
+
+  --brand: #ff5c35;
+  --brand-ink: #ff5c35;
+  --brand-press: #d9481f;
+  --btn-ink: #160a05;
+  --pass: #4fa76f;
+  --fail: #e46452;
+  --run: #5aa9d6;
+  --warn: #d9a441;
+  --good: #e8e8e4;
+  --bad: #ffffff;
+
+  --grid: rgba(255, 255, 255, 0.027);
+  --scanline: rgba(255, 255, 255, 0.025);
+  --glow: rgba(255, 255, 255, 0.75);
+  --inset: rgba(255, 255, 255, 0.012);
+  --wash: rgba(255, 255, 255, 0.04);
+  --wash-2: rgba(255, 255, 255, 0.07);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --panel-bg: rgba(9, 9, 9, 0.95);
+  --notice-bg: rgba(5, 5, 5, 0.9);
+  --focus-ring: rgba(255, 255, 255, 0.09);
+  --hover-border: #777777;
+  --primary-hover: #bdbdb8;
+  --card-hover: #4b4b48;
+}
+
+/* No-JS fallback. Keep identical to [data-theme="dark"] above. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --text-1: #f2f2f0;
+    --text-2: #b3b3af;
+    --text-3: #7c7c79;
+    --text-4: #60605d;
+
+    --line-soft: #1a1a18;
+    --line: #232321;
+    --edge: #5d5d59;
+
+    --black: #050505;
+    --deeper: #070707;
+    --deep: #080808;
+    --panel: #0a0a0a;
+    --raised: #101010;
+    --raised-2: #151515;
+    --code-bg: #060606;
+    --focus-bg: #0c0c0c;
+
+    --brand: #ff5c35;
+    --brand-ink: #ff5c35;
+    --brand-press: #d9481f;
+    --btn-ink: #160a05;
+    --pass: #4fa76f;
+    --fail: #e46452;
+    --run: #5aa9d6;
+    --warn: #d9a441;
+    --good: #e8e8e4;
+    --bad: #ffffff;
+
+    --grid: rgba(255, 255, 255, 0.027);
+    --scanline: rgba(255, 255, 255, 0.025);
+    --glow: rgba(255, 255, 255, 0.75);
+    --inset: rgba(255, 255, 255, 0.012);
+    --wash: rgba(255, 255, 255, 0.04);
+    --wash-2: rgba(255, 255, 255, 0.07);
+    --shadow: rgba(0, 0, 0, 0.5);
+    --panel-bg: rgba(9, 9, 9, 0.95);
+    --notice-bg: rgba(5, 5, 5, 0.9);
+    --focus-ring: rgba(255, 255, 255, 0.09);
+    --hover-border: #777777;
+    --primary-hover: #bdbdb8;
+    --card-hover: #4b4b48;
+  }
+}
+
+/* Theme-independent scales. ------------------------------------------------ */
+
+:root {
+  /* Reading UI is sans. Mono is a stamp: ids, numerals, code, prompts. */
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: 'Avenir Next', 'Segoe UI', Inter, 'Adwaita Sans', 'Noto Sans', system-ui, sans-serif;
+
+  /* 4px rhythm. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+
+  /* Six-step type scale. */
+  --t-micro: 10px;
+  --t-label: 11px;
+  --t-body: 12.5px;
+  --t-data: 13px;
+  --t-sub: 17px;
+
+  --measure: 62ch;
+  --radius: 0; /* on purpose — this is an instrument, not a card UI */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --pad-panel: var(--s5);
+  --pad-row: var(--s4);
+  --rail-w: 186px;
+}
+
+:root[data-density='compact'] {
+  --pad-panel: var(--s3);
+  --pad-row: 10px;
+}
