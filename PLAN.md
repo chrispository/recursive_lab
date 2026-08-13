@@ -7,6 +7,8 @@
 > save/test actions, and dark/light plus density controls. Phase 3 has the page
 > routes and the Settings JSON surface; tab fragments and the remaining JSON
 > GETs are still pending.
+> Display codes are five-digit padded (`BR-00001`, `TX-00001`, `FM-00001`, etc.)
+> through the central `code()` helper; `parse()` accepts legacy unpadded input.
 >
 > **The app boots and serves all six pages; `/failures` renders seeded topics.**
 > `bun run db:reset && bun run dev` → http://127.0.0.1:8767
@@ -76,7 +78,7 @@ all static assets 200, `/` → `/benchmarks` 302, unknown tab 404, `tsc` clean.
 - [x] `src/db/migrate.ts` — uses `executeMultiple` inside an explicit
       transaction (the array form of `db.migrate()` treats a whole file as one
       statement and silently creates only the first table — don't go back to it)
-- [x] `src/db/ids.ts` — `PREFIX`, `code()`, `parse()`; **INTEGER PKs**, no random hex
+- [x] `src/db/ids.ts` — `PREFIX`, five-digit `code()`, `parse()`; **INTEGER PKs**, no random hex
 - [x] `scripts/{migrate,seed,seed-data}.ts`
 - [ ] `docs/DATA-MODEL.md` ← **not written yet**
 
@@ -113,24 +115,25 @@ dropped: two themes, not eight.
 - [ ] Every `/api/v1` JSON GET (Settings GET/POST/test exists)
 - [ ] `docs/API.md` — every route and what it does ← **explicitly requested**
 
-## Phase 4 — Jobs ⬜
+## Phase 4 — Jobs 🟡 read model done, runner pending
 
 Schema is ready (`jobs` + `job_log_lines`); no runner yet.
 
-- [ ] `src/domain/jobs/{model,repo,service,runner}.ts`
+- [x] `src/domain/jobs/{model,repo,service}.ts` — seeded execution ledger read model
+- [ ] `src/domain/jobs/runner.ts`
 - [ ] `/ui/jobs/strip` polled fragment (`hx-trigger="every 3s"`)
 - [ ] Incremental log tail `/ui/jobs/:id/log?after=<seq>` + `hx-swap="beforeend"`
 - [ ] Cancel by **process group**, not pid
 - [ ] Startup sweep: force-fail orphaned `queued`/`running` jobs
 
-## Phase 5 — Mutations ⬜
+## Phase 5 — Mutations 🟡 settings mutation done, workflow mutations pending
 
 - [ ] Create failure map
 - [ ] Create / resume forge run (resume refills only missing `(item, ordinal)` slots)
 - [ ] Document review + approve-all + undo
 - [ ] Topic reassignment (taxonomy-scoped only)
 - [ ] Verifier save, environment build
-- [ ] Settings save + connection test (presence booleans only, never key values)
+- [x] Settings save + connection test (presence booleans only, never key values)
 
 ## Phase 6 — Gym wiring ⬜
 
@@ -160,6 +163,10 @@ src/index.ts                         composition only
 src/db/{client,ids,migrate}.ts       + migrations/0001_init.sql
 src/domain/lineage/{model,repo,service}.ts    BR→FM→TX→DF→ENV, gate counting
 src/domain/topics/{model,repo,service}.ts     taxonomy table rows + tally
+src/domain/runs/{model,repo,service}.ts       benchmark/run read model
+src/domain/forge/{model,repo,service}.ts      forge/document read model
+src/domain/environments/{model,repo,service}.ts  environment/evaluation read model
+src/domain/jobs/{model,repo,service}.ts       execution ledger read model
 src/http/{respond.tsx,pages.tsx}     six seeded page views
 src/views/ui/*.tsx                  shared ledger primitives
 src/views/tabs/*.tsx                six seeded tab views
