@@ -1,9 +1,12 @@
 # PLAN.md — build plan and handoff
 
 > **Current state (2026-08-13):** Phases 0 and 1 are **done and verified**.
-> Phase 2's CSS, shared UI primitives, rail wiring, and the read-only failures
-> tab are done and verified against the seeded database. The other five page
-> bodies are still stubs. Phase 3 still has only `respond.tsx`.
+> Phase 2's CSS, shared UI primitives, rail wiring, and all six seeded page
+> views are done and verified against the seeded database. The Settings tab now
+> includes the five original provider groups, safe credential presence states,
+> save/test actions, and dark/light plus density controls. Phase 3 has the page
+> routes and the Settings JSON surface; tab fragments and the remaining JSON
+> GETs are still pending.
 >
 > **The app boots and serves all six pages; `/failures` renders seeded topics.**
 > `bun run db:reset && bun run dev` → http://127.0.0.1:8767
@@ -18,11 +21,9 @@ above before ending a session. Rules live in `AGENTS.md`; don't duplicate them.
 ## Next three steps (start here)
 
 1. **Add the remaining read paths.** Create every `/ui/{tab}/{region}` fragment
-   and `/api/v1` JSON GET, starting with the failures regions now that the page
-   has real data.
-2. **Build the remaining five tab views.** Keep the shared primitives in
-   `src/views/ui/` and add one view module per tab region; the current page
-   stubs are still in `src/http/pages.tsx`.
+   and `/api/v1` JSON GET for the seeded page read models.
+2. **Check the ledger visually.** Open the app in a browser, switch dark/light
+   and density under Settings, and confirm controls survive HTMX navigation.
 3. **Write the handoff docs.** `docs/DATA-MODEL.md`, `docs/API.md`, and
    `docs/DESIGN.md` should describe the schema, read surfaces, and rendered
    ledger conventions before mutations land.
@@ -62,7 +63,7 @@ server-rendered fragments. Harbor integration is deliberately deferred.
 - [x] Vendored: htmx **2.0.10**, IBM Plex Mono woff2 ×2
 - [x] `src/views/layout/{Document,Rail}.tsx`, `tabs.ts`
 - [x] `src/http/respond.tsx` — full document vs HTMX fragment (+ OOB rail)
-- [x] `src/http/pages.tsx` — six routes, failures view plus stubs
+- [x] `src/http/pages.tsx` — six seeded views
 - [x] `src/index.ts`
 
 Verified: full doc on cold load, bare fragment + OOB rail under `HX-Request`,
@@ -84,7 +85,7 @@ Seed produces the real run's proportions: 1 BR → 1 FM → 16 FI → 1 TX → 6
 lineage joins to one row, and the one-FM-per-run unique index rejects a second
 insert.
 
-## Phase 2 — Ledger layout 🟡 failures slice done, five tabs remain
+## Phase 2 — Ledger layout ✅ seeded views done
 
 - [x] `public/css/tokens.css` — **Ink** light (default) + dark, three-layer theming
 - [x] `public/css/base.css` — graph paper, scanlines, typography, buttons, inputs
@@ -92,9 +93,9 @@ insert.
 - [x] `public/js/app.js` — theme/density + hold-to-confirm, **delegated from
       `document`** so it survives HTMX swaps
 - [x] `src/views/ui/*` — TableBox, Cap, Tally, Table, Panel, Field, Badge, Bar, Id, Btn
-- [x] `failures` tab renders seeded topics and lineage data
-- [ ] Five remaining tab views rendering seeded data
+- [x] Six tab views rendering seeded data
 - [x] Rail wired to `lineage.currentWithRail()`
+- [x] Settings provider groups, safe save/test API, and appearance controls
 - [ ] `docs/DESIGN.md`
 - [ ] **Never visually checked in a browser.** Markup and CSS are correct by
       construction but no screenshot has been taken. Do this first once a real
@@ -109,7 +110,7 @@ dropped: two themes, not eight.
 
 - [x] `src/http/respond.tsx`
 - [ ] Every `/ui/{tab}/{region}` fragment route
-- [ ] Every `/api/v1` JSON GET
+- [ ] Every `/api/v1` JSON GET (Settings GET/POST/test exists)
 - [ ] `docs/API.md` — every route and what it does ← **explicitly requested**
 
 ## Phase 4 — Jobs ⬜
@@ -159,16 +160,18 @@ src/index.ts                         composition only
 src/db/{client,ids,migrate}.ts       + migrations/0001_init.sql
 src/domain/lineage/{model,repo,service}.ts    BR→FM→TX→DF→ENV, gate counting
 src/domain/topics/{model,repo,service}.ts     taxonomy table rows + tally
-src/http/{respond.tsx,pages.tsx}     failures is real; other bodies are stubs
+src/http/{respond.tsx,pages.tsx}     six seeded page views
 src/views/ui/*.tsx                  shared ledger primitives
-src/views/tabs/Failures.tsx         seeded taxonomy and failure-map view
+src/views/tabs/*.tsx                six seeded tab views
+src/gym/settings.ts                 safe env.yaml settings service
+src/http/api/settings.ts            Settings JSON GET/POST/test routes
 src/views/layout/{Document,Rail}.tsx, tabs.ts
 public/css/{tokens,base,ledger}.css  public/js/{app.js,htmx.min.js}
 scripts/{migrate,seed,seed-data,check-size}.ts
 ```
 
-No `docs/*.md` written yet. `src/gym/`, `src/http/{ui,api}/`, `src/lib/`, and
-`tests/` are empty directories.
+No `docs/*.md` written yet. `src/http/ui/`, `src/lib/`, and `tests/` are empty
+directories.
 
 ## Verify
 
