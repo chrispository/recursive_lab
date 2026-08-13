@@ -1,11 +1,12 @@
 # PLAN.md — build plan and handoff
 
 > **Current state (2026-08-13):** Phases 0 and 1 are **done and verified**.
-> Phase 2's CSS landed early because the shell needed it. Phase 3 has only
-> `respond.tsx`.
+> Phase 2's CSS, shared UI primitives, rail wiring, and the read-only failures
+> tab are done and verified against the seeded database. The other five page
+> bodies are still stubs. Phase 3 still has only `respond.tsx`.
 >
-> **The app boots and serves all six pages, but every page body is still a
-> stub.** `bun run db:reset && bun run dev` → http://127.0.0.1:8767
+> **The app boots and serves all six pages; `/failures` renders seeded topics.**
+> `bun run db:reset && bun run dev` → http://127.0.0.1:8767
 >
 > **Pick up here → see "Next three steps" below.**
 
@@ -16,19 +17,15 @@ above before ending a session. Rules live in `AGENTS.md`; don't duplicate them.
 
 ## Next three steps (start here)
 
-1. **Wire the rail to real data.** `src/http/pages.tsx` still passes
-   `EMPTY_RAIL`, so the rail shows "no run / Gates 0 / 5" even though the seed
-   has a full lineage. Replace it with
-   `await lineage.currentWithRail()` from `src/domain/lineage/service.ts` —
-   that service is written, tested by hand, and ready.
-2. **Build the `src/views/ui/` primitives**, then the failures tab. The topics
-   domain (`src/domain/topics/`) is already written and returns exactly what the
-   taxonomy table needs, including per-topic reward and pass threshold. The
-   Ledger markup to reproduce is in
-   `~/Documents/recursive_htmx/static/redesign.html` lines **634–720**
-   (`#stage-led`); the CSS for it is already in `public/css/ledger.css`.
-3. **Then the remaining domain modules**, three files each, in this order:
-   `runs` → `failure-maps` → `forge` → `documents` → `environments` → `jobs`.
+1. **Add the remaining read paths.** Create every `/ui/{tab}/{region}` fragment
+   and `/api/v1` JSON GET, starting with the failures regions now that the page
+   has real data.
+2. **Build the remaining five tab views.** Keep the shared primitives in
+   `src/views/ui/` and add one view module per tab region; the current page
+   stubs are still in `src/http/pages.tsx`.
+3. **Write the handoff docs.** `docs/DATA-MODEL.md`, `docs/API.md`, and
+   `docs/DESIGN.md` should describe the schema, read surfaces, and rendered
+   ledger conventions before mutations land.
 
 Nothing is half-finished. Every file that exists is complete and type-checks.
 
@@ -65,7 +62,7 @@ server-rendered fragments. Harbor integration is deliberately deferred.
 - [x] Vendored: htmx **2.0.10**, IBM Plex Mono woff2 ×2
 - [x] `src/views/layout/{Document,Rail}.tsx`, `tabs.ts`
 - [x] `src/http/respond.tsx` — full document vs HTMX fragment (+ OOB rail)
-- [x] `src/http/pages.tsx` — six routes, **stub bodies**
+- [x] `src/http/pages.tsx` — six routes, failures view plus stubs
 - [x] `src/index.ts`
 
 Verified: full doc on cold load, bare fragment + OOB rail under `HX-Request`,
@@ -87,16 +84,17 @@ Seed produces the real run's proportions: 1 BR → 1 FM → 16 FI → 1 TX → 6
 lineage joins to one row, and the one-FM-per-run unique index rejects a second
 insert.
 
-## Phase 2 — Ledger layout 🟡 CSS done, views not
+## Phase 2 — Ledger layout 🟡 failures slice done, five tabs remain
 
 - [x] `public/css/tokens.css` — **Ink** light (default) + dark, three-layer theming
 - [x] `public/css/base.css` — graph paper, scanlines, typography, buttons, inputs
 - [x] `public/css/ledger.css` — rail, tablebox, **tally**, table, panel, badge, bar
 - [x] `public/js/app.js` — theme/density + hold-to-confirm, **delegated from
       `document`** so it survives HTMX swaps
-- [ ] `src/views/ui/*` — TableBox, Cap, Tally, Table, Panel, Field, Badge, Bar, Id, Btn
-- [ ] Six tab views rendering seeded data (start with `failures`)
-- [ ] Rail wired to `lineage.currentWithRail()` (step 1 above)
+- [x] `src/views/ui/*` — TableBox, Cap, Tally, Table, Panel, Field, Badge, Bar, Id, Btn
+- [x] `failures` tab renders seeded topics and lineage data
+- [ ] Five remaining tab views rendering seeded data
+- [x] Rail wired to `lineage.currentWithRail()`
 - [ ] `docs/DESIGN.md`
 - [ ] **Never visually checked in a browser.** Markup and CSS are correct by
       construction but no screenshot has been taken. Do this first once a real
@@ -161,14 +159,16 @@ src/index.ts                         composition only
 src/db/{client,ids,migrate}.ts       + migrations/0001_init.sql
 src/domain/lineage/{model,repo,service}.ts    BR→FM→TX→DF→ENV, gate counting
 src/domain/topics/{model,repo,service}.ts     taxonomy table rows + tally
-src/http/{respond.tsx,pages.tsx}     pages.tsx bodies are stubs
+src/http/{respond.tsx,pages.tsx}     failures is real; other bodies are stubs
+src/views/ui/*.tsx                  shared ledger primitives
+src/views/tabs/Failures.tsx         seeded taxonomy and failure-map view
 src/views/layout/{Document,Rail}.tsx, tabs.ts
 public/css/{tokens,base,ledger}.css  public/js/{app.js,htmx.min.js}
 scripts/{migrate,seed,seed-data,check-size}.ts
 ```
 
-No `docs/*.md` written yet. `src/gym/`, `src/http/{ui,api}/`, `src/views/ui/`,
-`src/views/tabs/`, `src/lib/`, `tests/` are empty directories.
+No `docs/*.md` written yet. `src/gym/`, `src/http/{ui,api}/`, `src/lib/`, and
+`tests/` are empty directories.
 
 ## Verify
 

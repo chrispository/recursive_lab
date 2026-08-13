@@ -7,8 +7,10 @@
  */
 import { Elysia } from 'elysia';
 import { page } from './respond.tsx';
-import { EMPTY_RAIL } from '../views/layout/Rail.tsx';
 import { isTab, TABS, titleOf, type Tab } from '../views/layout/tabs.ts';
+import * as lineage from '../domain/lineage/service.ts';
+import * as topics from '../domain/topics/service.ts';
+import { Failures } from '../views/tabs/Failures.tsx';
 
 /** Placeholder body until each tab's views land in phase 2. */
 const Stub = ({ tab }: { tab: Tab }) => (
@@ -31,9 +33,30 @@ const Stub = ({ tab }: { tab: Tab }) => (
 
 export const pages = new Elysia({ name: 'pages' })
   .get('/', ({ redirect }) => redirect('/benchmarks', 302))
-  .get('/:tab', ({ params, request, status }) => {
+  .get('/:tab', async ({ params, request, status }) => {
     if (!isTab(params.tab)) return status(404, 'Not found');
-    return page(request, params.tab, EMPTY_RAIL, <Stub tab={params.tab} />);
+
+    const current = await lineage.currentWithRail();
+    const body =
+      params.tab === 'failures' ? (
+        <Failures
+          lineage={current.lineage}
+          topics={
+            current.lineage?.taxonomyId
+              ? await topics.listByTaxonomy(current.lineage.taxonomyId)
+              : []
+          }
+          uncategorised={
+            current.lineage?.taxonomyId
+              ? await topics.countUncategorised(current.lineage.taxonomyId)
+              : 0
+          }
+        />
+      ) : (
+        <Stub tab={params.tab} />
+      );
+
+    return page(request, params.tab, current.rail, body);
   });
 
 export { TABS };

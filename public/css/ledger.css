@@ -338,6 +338,22 @@
   gap: var(--s2);
 }
 
+.m-input,
+.m-ta {
+  padding: 8px 10px;
+  color: var(--text-1);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  font: 500 var(--t-data) / 1.4 var(--mono);
+}
+.m-ta {
+  color: var(--text-2);
+  background: var(--deeper);
+  font-size: var(--t-micro);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
 /* Status badge. Boxed with a square dot — colour comes from the state. */
 .m-badge {
   display: inline-flex;

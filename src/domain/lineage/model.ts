@@ -20,6 +20,7 @@ export type Lineage = {
   label: string;
   model: string;
   passRate: number | null;
+  taxonomyId: number | null;
 
   failureMap: LineageStep;
   taxonomy: LineageStep;

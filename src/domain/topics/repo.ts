@@ -56,3 +56,15 @@ export async function listByTaxonomy(taxonomyId: number): Promise<TopicRow[]> {
   );
   return rows.map(toTopic);
 }
+
+/** Failed criteria that have not been assigned to a topic in this taxonomy. */
+export async function countUncategorised(taxonomyId: number): Promise<number> {
+  const row = await all<{ count: number }>(
+    `SELECT count(*) AS count
+       FROM failure_items fi
+       JOIN taxonomies tx ON tx.failure_map_id = fi.failure_map_id
+      WHERE tx.id = ? AND fi.topic_id IS NULL`,
+    [taxonomyId],
+  );
+  return row[0]?.count ?? 0;
+}

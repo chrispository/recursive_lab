@@ -7,6 +7,7 @@ export type { TopicRow } from './model.ts';
 export { isBelowThreshold } from './model.ts';
 
 export const listByTaxonomy = repo.listByTaxonomy;
+export const countUncategorised = repo.countUncategorised;
 
 /** The counts the taxonomy table's caption shows. */
 export type TopicTally = {

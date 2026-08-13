@@ -47,6 +47,7 @@ function toLineage(row: LineageRow): Lineage {
     label: row.label,
     model: row.model,
     passRate: metrics.pass_rate ?? null,
+    taxonomyId: row.taxonomy_id,
     failureMap: step('failure_maps', row.failure_map_id, row.failure_count),
     taxonomy: step('taxonomies', row.taxonomy_id, row.topic_count),
     forgeRun: step('forge_runs', row.forge_run_id, row.document_count),
