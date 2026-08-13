@@ -1,16 +1,18 @@
 # PLAN.md — build plan and handoff
 
 > **Current state (2026-08-13):** Phases 0 and 1 are **done and verified**.
-> Phase 2's CSS, shared UI primitives, rail wiring, and all six seeded page
-> views are done and verified against the seeded database. The Settings tab now
+> Phase 2's CSS, shared UI primitives, rail wiring, and all six page views are
+> done and verified against the migrated legacy run. The Settings tab now
 > includes the five original provider groups, safe credential presence states,
 > save/test actions, and dark/light plus density controls. Phase 3 has the page
 > routes and the Settings JSON surface; tab fragments and the remaining JSON
-> GETs are still pending.
+> GETs are still pending. The requested legacy run is now in `data/lab.db` as
+> `BR-00001`, with its original result artifact path preserved.
 > Display codes are five-digit padded (`BR-00001`, `TX-00001`, `FM-00001`, etc.)
 > through the central `code()` helper; `parse()` accepts legacy unpadded input.
 >
-> **The app boots and serves all six pages; `/failures` renders seeded topics.**
+> **The app boots and serves all six pages; `/failures` renders the migrated
+> 16-item failure map.**
 > `bun run db:reset && bun run dev` → http://127.0.0.1:8767
 >
 > **Pick up here → see "Next three steps" below.**
@@ -80,12 +82,28 @@ all static assets 200, `/` → `/benchmarks` 302, unknown tab 404, `tsc` clean.
       statement and silently creates only the first table — don't go back to it)
 - [x] `src/db/ids.ts` — `PREFIX`, five-digit `code()`, `parse()`; **INTEGER PKs**, no random hex
 - [x] `scripts/{migrate,seed,seed-data}.ts`
+- [x] `scripts/migrate-legacy.ts` — repeatable read-only import of the requested
+      legacy run, including benchmark sources, results, lineage, documents,
+      environments, evaluations, jobs, and audit provenance
 - [ ] `docs/DATA-MODEL.md` ← **not written yet**
 
-Seed produces the real run's proportions: 1 BR → 1 FM → 16 FI → 1 TX → 6 TP →
-1 DF → 12 DOC → 6 VF → 6 ENV → 10 jobs. Verified: `foreign_key_check` clean,
-lineage joins to one row, and the one-FM-per-run unique index rejects a second
-insert.
+The seed fixture produces the real run's proportions: 1 BR → 1 FM → 16 FI →
+1 TX → 6 TP → 1 DF → 12 DOC → 6 VF → 6 ENV → 10 jobs. The migrated legacy
+database has the same lineage plus 12 benchmark sources, 3 evaluations, and
+13 execution jobs. Verified: `foreign_key_check` clean, lineage joins to one
+row, and the one-FM-per-run unique index rejects a second insert.
+
+### Legacy import ✅ requested run migrated
+
+- [x] Located the source at `~/Documents/recursive/results/lab_dashboard/lab_dashboard.sqlite3`
+- [x] Imported `BR-20260811-214922-3B1546` / `harvey_001` / `glm-5.2`
+- [x] Imported task `trusts-estates-private-client__extract-distribution-requirements-from-trust-agreement`
+- [x] Preserved 69 criteria, 53 diagnostic passes, 16 failure items, and the
+      original full-task pass rate of `0`
+- [x] Preserved the model output path under
+      `results/lab_dashboard/BR-20260811-214922-3B1546/`
+- [x] Normalized nested environment metrics into the Env Lab summary while
+      retaining the original nested JSON
 
 ## Phase 2 — Ledger layout ✅ seeded views done
 
@@ -174,7 +192,7 @@ src/gym/settings.ts                 safe env.yaml settings service
 src/http/api/settings.ts            Settings JSON GET/POST/test routes
 src/views/layout/{Document,Rail}.tsx, tabs.ts
 public/css/{tokens,base,ledger}.css  public/js/{app.js,htmx.min.js}
-scripts/{migrate,seed,seed-data,check-size}.ts
+scripts/{migrate,seed,seed-data,migrate-legacy,check-size}.ts
 ```
 
 No `docs/*.md` written yet. `src/http/ui/`, `src/lib/`, and `tests/` are empty
@@ -184,9 +202,13 @@ directories.
 
 ```bash
 bun run db:reset && bun run dev     # http://127.0.0.1:8767
-bunx tsc --noEmit                   # clean as of this writing
-bun scripts/check-size.ts           # no file over 500 lines
+bun run check:types                 # clean
+bun run check:size                  # no file over 500 lines
 ```
+
+To recreate the migrated target from a clean schema, move the current local DB
+to a backup path, then run `bun run db:migrate && bun run db:import:legacy`.
+`bun run db:reset` intentionally recreates the development seed instead.
 
 Note: `bun run check` chains both but exits 144 under some shells — run the two
 commands separately if that bites.
