@@ -1,0 +1,13 @@
+<nav class="pipe" id="workflow-pipe" aria-label="Workflow stages" hx-target="#workspace" hx-swap="innerHTML" hx-push-url="true">
+  {% for key, (num, name, status, fill) in tab_labels.items() %}
+  <a class="stage{% if tab == key %} on{% endif %}"
+     href="/{{ key }}"
+     data-tab="{{ key }}"
+     data-status="{{ status }}"
+     style="--fill:{{ '%.3f'|format(fill) }}"
+     aria-label="{{ name }} — {{ 'ready' if status == 'done' else 'in progress' }}">
+    <span class="stage-num">{{ num }}</span>
+    <span class="stage-name">{{ name }}</span>
+  </a>
+  {% endfor %}
+</nav>

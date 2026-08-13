@@ -1,0 +1,9 @@
+a.stage {
+  text-decoration: none;
+  box-sizing: border-box;
+}
+a.stage:visited { color: inherit; }
+.htmx-indicator { display: none; }
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator { display: inline; }
+#view { min-height: 40vh; }

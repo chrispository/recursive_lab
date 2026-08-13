@@ -1,0 +1,100 @@
+<section class="view">
+  <div class="section-head">
+    <div><h2>Verified benchmark results</h2></div>
+    <p>Criterion-level failures become the only inputs to capability analysis.</p>
+  </div>
+  <div class="stack">
+    <section class="panel">
+      <div class="panel-head"><h3>Benchmark ledger</h3><span class="panel-code">1 RUNS</span></div>
+      <div class="ledger-wrap">
+        <table class="ledger">
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Model</th>
+              <th class="n">Tasks</th>
+              <th class="n">Pass rate</th>
+              <th class="n">Time</th>
+              <th>Status</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-state="completed" class="selected">
+              <td class="run-cell">
+                <div class="run-title"><span>harvey_001</span></div>
+                <div class="subline">Aug 11, 9:49 PM</div>
+              </td>
+              <td class="model-cell">glm-5.2<div class="subline" title="Criterion rate">1 rollout · 781k tokens</div></td>
+              <td class="n">1</td>
+              <td class="n"><span class="rate"><b>76.8%</b><span class="rate-split" style="--rate:76.8%" aria-hidden="true"><i></i></span></span></td>
+              <td class="n">15 min</td>
+              <td><span class="badge completed">completed</span></td>
+              <td class="col-actions">
+                <div class="ledger-actions">
+                  <button class="secondary compact" type="button">Inspect</button>
+                  <button class="danger compact" type="button">Delete</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h3>Output inspection</h3><span class="panel-code">HARBOR.VERIFIER</span></div>
+      <div class="inspection-toolbar">
+        <label>Run
+          <select>
+            <option selected>harvey_001 / glm-5.2 / Aug 11, 2026, 9:49 PM</option>
+          </select>
+        </label>
+      </div>
+      <div class="panel-head"><h3>glm-5.2</h3><span class="badge completed">completed</span></div>
+      <div class="inspection-summary">
+        <div class="inspection-stat"><small>Criteria passed</small><strong>53/69</strong></div>
+        <div class="inspection-stat"><small>Pass rate</small><strong>76.8%</strong></div>
+        <div class="inspection-stat"><small>Rollouts</small><strong>1</strong></div>
+      </div>
+      <div class="rollout">
+        <div class="rollout-head">
+          <div>
+            <strong>trusts-estates-private-client__extract-distribution-requirements-from-trust-agreement</strong>
+            <div class="subline">trusts-estates-private-client__e__TmU7THT</div>
+          </div>
+          <span class="data-label">53/69 criteria passed. Missed 16 — task FAIL.</span>
+        </div>
+        <details class="criterion pass">
+          <summary><span class="criterion-verdict">PASS</span><span>C-001</span><span>Identifies Section 5.1 mandatory annual distribution provision</span></summary>
+          <p class="criterion-reasoning">The memorandum includes a dedicated subsection (Section III.A) that explicitly identifies Section 5.1 as the mandatory annual distribution provision.</p>
+        </details>
+        <details class="criterion pass">
+          <summary><span class="criterion-verdict">PASS</span><span>C-002</span><span>Calculates Gerald Share 3% FMV mandatory distribution amount</span></summary>
+          <p class="criterion-reasoning">The memorandum states that 3% of the Gerald Share's $26.1 million FMV equals $783,000.</p>
+        </details>
+        <details class="criterion fail" open>
+          <summary><span class="criterion-verdict">FAIL</span><span>C-014</span><span>Applies the lesser-of net income cap to the Gerald Share</span></summary>
+          <p class="criterion-reasoning">The calculation uses the 3% FMV figure without comparing it to prior-year net income under Subsection 5.1(b), so the lesser-of cap is never applied.</p>
+          <details>
+            <summary>View Task / Judge Score</summary>
+            <div class="inspection-source-empty">Harbor task files and judge output would load here.</div>
+          </details>
+        </details>
+        <details class="criterion fail">
+          <summary><span class="criterion-verdict">FAIL</span><span>C-022</span><span>Flags successor-fiduciary conflict of interest</span></summary>
+          <p class="criterion-reasoning">The memo notes the law-firm affiliation but does not identify the conflict or discuss its implications for trust administration.</p>
+        </details>
+      </div>
+    </section>
+
+    <details class="panel">
+      <summary><span>Selected run log</span><span class="panel-code">STDOUT</span></summary>
+      <pre>gym eval run --resources-server legal_agent_bench --model glm-5.2
+NeMo Gym is starting a new Ray cluster...
+Started Ray cluster at 10.0.0.95:39037
+Evaluating trusts-estates-private-client__extract-distribution-requirements-from-trust-agreement
+53/69 criteria passed. Task FAIL.</pre>
+    </details>
+  </div>
+</section>

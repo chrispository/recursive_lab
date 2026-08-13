@@ -1,0 +1,113 @@
+<section class="view">
+  <div class="section-head">
+    <div><h2>Turn misses into capability topics</h2></div>
+    <p>The frontier analyst sees failed criteria and judge reasoning—never benchmark source documents.</p>
+  </div>
+  <div class="metric-strip">
+    <div class="metric"><small>Failure maps</small><strong>1</strong></div>
+    <div class="metric"><small>Selected failures</small><strong>16</strong></div>
+    <div class="metric"><small>Taxonomy topics</small><strong>6</strong></div>
+    <div class="metric"><small>Open failures</small><strong>16</strong></div>
+    <div class="metric"><small>Uncategorized</small><strong>0</strong></div>
+  </div>
+  <div class="layout-main-aside failure-config-grid">
+    <section class="panel">
+      <div class="panel-head">
+        <h3>Create failure map</h3>
+        <div class="panel-head-actions">
+          <span class="panel-code">ONE PER BENCHMARK</span>
+          <button class="icon-button" type="button" aria-label="Open Failure Analyst settings">
+            <svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 1 0-2 3.46l.15.08a2 2 0 0 1 1 1.73v.5a2 2 0 0 1-1 1.73l-.15.08a2 2 0 1 0 2 3.46l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 1 0 2-3.46l-.15-.08a2 2 0 0 1-1-1.73v-.5a2 2 0 0 1 1-1.73l.15-.08a2 2 0 1 0-2-3.46l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="full">
+          <label>Benchmark run</label>
+          <select>
+            <option>harvey_001 / glm-5.2 / BR-20260811-214922-3B1546 / FM-1E1A9BEE1A8E</option>
+          </select>
+        </div>
+        <div class="full">
+          <label>Failure Analyst Model</label>
+          <input value="deepseek-v4-pro">
+          <div class="field-note">deepseek-v4-pro · API key saved · https://api.deepseek.com</div>
+        </div>
+      </div>
+      <div class="actions"><button type="button" disabled>Connected to FM-1E1A9BEE1A8E</button></div>
+    </section>
+    <section class="panel prompt-panel">
+      <div class="panel-head">
+        <h3>Failure analysis prompt</h3>
+        <div class="revision-picker">
+          <span class="panel-code">ACTIVE</span>
+          <select class="revision-select"><option>Rev. 1</option></select>
+        </div>
+      </div>
+      <textarea class="prompt-editor">You are grouping criterion-level benchmark failures into capability topics.
+
+Input is JSON: failed criteria, judge reasoning, and occurrence counts.
+Never request or use original task instructions, source documents, answers, names, dates, or figures.
+
+Return a taxonomy of abstract capabilities. Each topic needs a name, description, and an observable verifier strategy.</textarea>
+      <div class="actions"><button class="secondary" type="button">Save new revision</button></div>
+    </section>
+  </div>
+  <section class="panel failure-ledger-panel">
+    <div class="panel-head"><h3>Failure map ledger</h3><span class="panel-code">MAPS</span></div>
+    <div class="compact-list">
+      <div class="ledger-row selected">
+        <div class="ledger-main">
+          <div class="ledger-title">FM-1E1A9BEE1A8E · glm-5.2</div>
+          <div class="ledger-meta">harvey_001 · BR-20260811-214922-3B1546 → TX-4A50EE9BBE3E · 16 failures · prompt rev 1</div>
+        </div>
+        <div class="ledger-actions">
+          <span class="badge completed">completed</span>
+          <button class="secondary compact" type="button">Hide map</button>
+          <a href="/data" hx-get="/data" hx-target="#workspace" hx-push-url="true"><button class="secondary compact" type="button">Use in forge</button></a>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h3>Topic taxonomy</h3><span class="panel-code">TX-4A50EE9BBE3E · FM-1E1A9BEE1A8E</span></div>
+    <div class="topic-grid">
+      <article class="topic-card">
+        <span class="entity-id">TP-232282C0EB8F</span>
+        <h4>Provision-Fact Matching and Governing Section Identification</h4>
+        <p>Match factual circumstances to the trust provisions that govern or modify the outcome. Failures overlook a provision, miss a monetary threshold, or fail to see that a beneficiary qualifies for an incentive.</p>
+        <div class="spec"><div><small>Fails</small><strong>3</strong></div><div><small>Novel docs</small><strong>2</strong></div></div>
+      </article>
+      <article class="topic-card">
+        <span class="entity-id">TP-42A3A7ABCB45</span>
+        <h4>Provision Substance and Obligation Extraction</h4>
+        <p>Extract operative language — triggers, requirements, powers — rather than listing a heading or a partial paraphrase.</p>
+        <div class="spec"><div><small>Fails</small><strong>4</strong></div><div><small>Novel docs</small><strong>2</strong></div></div>
+      </article>
+      <article class="topic-card">
+        <span class="entity-id">TP-787F96782B20</span>
+        <h4>Static Reference Ambiguity Flagging</h4>
+        <p>Recognize when a reference to an external standard is frozen as of a date, so later amendments do not automatically apply.</p>
+        <div class="spec"><div><small>Fails</small><strong>2</strong></div><div><small>Novel docs</small><strong>2</strong></div></div>
+      </article>
+      <article class="topic-card">
+        <span class="entity-id">TP-91033A840DEE</span>
+        <h4>Conflict of Interest Detection</h4>
+        <p>Flag conflicts that arise from disclosed relationships, such as a successor fiduciary affiliated with the trustee’s law firm.</p>
+        <div class="spec"><div><small>Fails</small><strong>2</strong></div><div><small>Novel docs</small><strong>2</strong></div></div>
+      </article>
+      <article class="topic-card">
+        <span class="entity-id">TP-96A5EFAD5AD3</span>
+        <h4>Prudent Actionable Next Steps Recommendation</h4>
+        <p>Recommend concrete next steps when analysis reveals ambiguity or risk, instead of closing with a definitive legal conclusion.</p>
+        <div class="spec"><div><small>Fails</small><strong>3</strong></div><div><small>Novel docs</small><strong>2</strong></div></div>
+      </article>
+      <article class="topic-card">
+        <span class="entity-id">TP-A8930290AFA9</span>
+        <h4>Indexed Value Computation</h4>
+        <p>Compute values that depend on an index, base-year figure, or stated adjustment method, and show the arithmetic.</p>
+        <div class="spec"><div><small>Fails</small><strong>2</strong></div><div><small>Novel docs</small><strong>2</strong></div></div>
+      </article>
+    </div>
+  </section>
+</section>

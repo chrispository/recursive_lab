@@ -1,0 +1,186 @@
+<section class="view">
+  <div class="section-head">
+    <div><h2>Forge novel training documents</h2></div>
+    <p>Generation receives abstract capability specs only. Every artifact is fingerprinted against its benchmark lineage.</p>
+  </div>
+  <div class="metric-strip">
+    <div class="metric"><small>Forge runs</small><strong>1</strong></div>
+    <div class="metric"><small>Generated</small><strong>12</strong></div>
+    <div class="metric"><small>Remaining</small><strong>0</strong></div>
+    <div class="metric"><small>Novel</small><strong>12</strong></div>
+    <div class="metric"><small>Approved</small><strong>12</strong></div>
+  </div>
+  <div class="layout-main-aside data-forge-grid">
+    <section class="panel">
+      <div class="panel-head">
+        <h3>Data forge run</h3>
+        <div class="panel-head-actions">
+          <span class="panel-code">RECOMMENDED PATH</span>
+          <button class="icon-button" type="button" aria-label="Open frontier synthetic data API settings">
+            <svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 1 0-2 3.46l.15.08a2 2 0 0 1 1 1.73v.5a2 2 0 0 1-1 1.73l-.15.08a2 2 0 1 0 2 3.46l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 1 0 2-3.46l-.15-.08a2 2 0 0 1-1-1.73v-.5a2 2 0 0 1 1-1.73l.15-.08a2 2 0 1 0-2-3.46l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
+      </div>
+      <div class="run-stack-note">
+        <p>Set the Frontier LLM API settings, then choose NVIDIA Data Designer. Data Designer will call the frontier model and format the generated documents correctly for the novelty gate, review queue, and later environment packaging.</p>
+        <p>After generation, the app—not another LLM—checks each document locally using normalized hashes and 3-/5-word shingles. <strong>Novel</strong> means it passed that source-similarity check; it is not a correctness or quality score.</p>
+      </div>
+      <div class="form-grid">
+        <div class="full">
+          <label>Completed failure map + taxonomy</label>
+          <select>
+            <option>harvey_001 / FM-1E1A9BEE1A8E → TX-4A50EE9BBE3E / glm-5.2 / 16 failures</option>
+          </select>
+        </div>
+        <div>
+          <label>Generation backend</label>
+          <select>
+            <option selected>NVIDIA Data Designer</option>
+            <option>Direct frontier model (Not Recommended)</option>
+          </select>
+        </div>
+        <div>
+          <label>Frontier API model</label>
+          <input value="deepseek-v4-flash">
+        </div>
+        <div>
+          <label>Documents per failure topic</label>
+          <input type="number" value="3">
+          <div class="field-note">Each selected failure topic receives this many documents.</div>
+        </div>
+        <div>
+          <label>Max source similarity</label>
+          <input type="number" value="0.22">
+        </div>
+        <label class="checkbox-choice full">
+          <input type="checkbox">
+          <span><strong>Auto-approve novel documents</strong><small>Documents that pass the local novelty gate skip the manual review queue. Non-novel documents still require attention.</small></span>
+        </label>
+      </div>
+      <div class="actions"><button type="button" disabled>Connected to DF-CB67887FB4CD</button></div>
+    </section>
+    <section class="panel prompt-panel">
+      <div class="panel-head">
+        <h3>Document generation prompt</h3>
+        <div class="revision-picker">
+          <span class="panel-code">ACTIVE</span>
+          <select class="revision-select"><option>Rev. 1</option></select>
+        </div>
+      </div>
+      <textarea class="prompt-editor">Write novel synthetic legal training tasks from an abstract capability topic.
+
+You receive JSON: topic name, description, verifier strategy, requested document count.
+Do not imitate benchmark source documents, names, dates, figures, or answers.
+
+Each document needs a source text, a task instruction, a hidden reference answer, and observable verifier targets.</textarea>
+      <div class="actions"><button class="secondary" type="button">Save new revision</button></div>
+    </section>
+  </div>
+  <section class="panel">
+    <div class="panel-head"><h3>Data forge ledger</h3><span class="panel-code">FORGE RUNS</span></div>
+    <div class="compact-list">
+      <div class="ledger-row forge-ledger-row">
+        <div class="ledger-main">
+          <div class="ledger-title">DF-CB67887FB4CD · 12 requested · 2 per failure topic</div>
+          <div class="ledger-meta">deepseek-v4-pro</div>
+        </div>
+        <div class="ledger-actions">
+          <span class="badge completed">completed</span>
+          <div class="forge-outcome-summary" aria-label="Forge document outcomes">
+            <span class="forge-outcome created"><strong>12</strong><small>created</small></span>
+            <span class="forge-outcome remaining"><strong>0</strong><small>remaining</small></span>
+            <span class="forge-outcome novel"><strong>12</strong><small>novel</small></span>
+            <span class="forge-outcome rejected"><strong>0</strong><small>rejected</small></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head">
+      <h3>Document review queue</h3>
+      <div class="panel-head-actions">
+        <span class="panel-code">12 DOCUMENTS</span>
+        <button class="secondary compact" type="button" disabled>Approve all</button>
+      </div>
+    </div>
+    <div class="document-grid">
+      <article class="document-card" data-review="approved">
+        <div class="card-head">
+          <div>
+            <h4>Investigation Memo: Ellison Distribution Request and Trust Fund Reconciliation</h4>
+            <div class="subline">Provision-Fact Matching and Governing Section Identification / memo</div>
+          </div>
+          <span class="badge passed">Novel</span>
+        </div>
+        <details>
+          <summary>Inspect generated task</summary>
+          <div class="document-content">SOURCE DOCUMENT
+
+MEMORANDUM — Internal investigation of beneficiary distribution request, Mara Ellison.
+
+TASK
+Reconcile the requested academic-year amounts against Sections 4.1–4.4 and 9.1.
+
+HIDDEN REFERENCE
+Net education expenses $18,200 after the $2,000 scholarship offset.</div>
+        </details>
+        <div class="review-controls">
+          <button class="compact review-approve" type="button" aria-pressed="true">Approve</button>
+          <button class="compact review-reject" type="button">Reject</button>
+        </div>
+      </article>
+      <article class="document-card" data-review="approved">
+        <div class="card-head">
+          <div>
+            <h4>Trustee Checklist: Static Incorporation of the 2019 Prudent Investor Rule</h4>
+            <div class="subline">Static Reference Ambiguity Flagging / checklist</div>
+          </div>
+          <span class="badge passed">Novel</span>
+        </div>
+        <details>
+          <summary>Inspect generated task</summary>
+          <div class="document-content">The trust incorporates the 2019 edition of the state prudent-investor statute “as then in effect,” with no later-amendment clause.</div>
+        </details>
+        <div class="review-controls">
+          <button class="compact review-approve" type="button" aria-pressed="true">Approve</button>
+          <button class="compact review-reject" type="button">Reject</button>
+        </div>
+      </article>
+      <article class="document-card" data-review="approved">
+        <div class="card-head">
+          <div>
+            <h4>Opinion Outline: Successor Fiduciary Affiliated With Counsel</h4>
+            <div class="subline">Conflict of Interest Detection / opinion</div>
+          </div>
+          <span class="badge passed">Novel</span>
+        </div>
+        <details>
+          <summary>Inspect generated task</summary>
+          <div class="document-content">The nominated successor trustee is a partner at the firm that currently advises the sitting trustee.</div>
+        </details>
+        <div class="review-controls">
+          <button class="compact review-approve" type="button" aria-pressed="true">Approve</button>
+          <button class="compact review-reject" type="button">Reject</button>
+        </div>
+      </article>
+      <article class="document-card" data-review="approved">
+        <div class="card-head">
+          <div>
+            <h4>Computation Worksheet: CPI-Adjusted Unitrust Floor</h4>
+            <div class="subline">Indexed Value Computation / worksheet</div>
+          </div>
+          <span class="badge passed">Novel</span>
+        </div>
+        <details>
+          <summary>Inspect generated task</summary>
+          <div class="document-content">Apply the stated CPI method to the 2020 unitrust floor and show the 2025 figure.</div>
+        </details>
+        <div class="review-controls">
+          <button class="compact review-approve" type="button" aria-pressed="true">Approve</button>
+          <button class="compact review-reject" type="button">Reject</button>
+        </div>
+      </article>
+    </div>
+  </section>
+</section>

@@ -1,0 +1,143 @@
+<section class="view">
+  <div class="section-head">
+    <div><h2>Run the model through NeMo Gym + Harbor</h2></div>
+    <p>NeMo Gym orchestrates the rollout; Harbor executes the task, records the trajectory, and scores every criterion. Failed criteria become the input to the failure map.</p>
+  </div>
+  <div class="layout-main-aside">
+    <section class="panel">
+      <div class="panel-head">
+        <h3>Run configuration</h3>
+        <div class="panel-head-actions">
+          <span class="panel-code">NEMO GYM × HARBOR</span>
+          <button class="icon-button" type="button" aria-label="Open quick API settings" title="Quick API settings">
+            <svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 1 0-2 3.46l.15.08a2 2 0 0 1 1 1.73v.5a2 2 0 0 1-1 1.73l-.15.08a2 2 0 1 0 2 3.46l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 1 0 2-3.46l-.15-.08a2 2 0 0 1-1-1.73v-.5a2 2 0 0 1 1-1.73l.15-.08a2 2 0 1 0-2-3.46l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="full">
+          <details class="benchmark-import">
+            <summary>Import from GitHub or Hugging Face</summary>
+            <div class="benchmark-import-body">
+              <p class="field-note">The source is downloaded at a pinned revision, inspected as data, and saved with provenance. Known formats are cataloged automatically; execution still requires a compatible adapter.</p>
+              <div class="benchmark-import-controls">
+                <input placeholder="https://github.com/org/benchmark or https://huggingface.co/datasets/org/name" autocomplete="off">
+                <button class="secondary compact" type="button">Inspect source</button>
+                <button class="secondary compact" type="button" disabled>Import benchmark</button>
+              </div>
+            </div>
+          </details>
+        </div>
+        <div class="full">
+          <label>Benchmark <span class="field-help" tabindex="0" data-tooltip="Choose the benchmark directly. Its lab, source repository, pinned revision, and detected format remain attached as provenance.">?</span></label>
+          <select aria-label="Benchmark">
+            <option selected>Legal Agent Bench · 1749 tasks</option>
+            <option>Long-Horizon-Terminal-Bench · 38 tasks</option>
+          </select>
+          <div class="field-note">Legal Agent Bench · Harvey Labs · Runnable through the configured adapter.</div>
+        </div>
+        <div class="full">
+          <label>Model under test <span class="field-help" tabindex="0" data-tooltip="The policy model NeMo Gym sends through the Harbor agent. Runs contain exactly one model so their failures stay attributable.">?</span></label>
+          <input value="glm-5.2">
+          <div class="field-note">glm-5.2 · API key saved · https://api.z.ai/api/coding/paas/v4</div>
+        </div>
+        <div class="full">
+          <label>Benchmark tasks <span class="field-help" tabindex="0" data-tooltip="Choose the immutable validation tasks this run will evaluate. The selected task snapshot is saved with the run.">?</span></label>
+          <input placeholder="Filter 1,749 tasks by ID">
+          <div class="inline-toolbar">
+            <span class="data-label">0 selected / 8 shown / 1749 total</span>
+            <button class="secondary compact" type="button">Check visible</button>
+            <button class="ghost compact" type="button">Clear</button>
+          </div>
+          <div class="task-picker">
+            <label class="task-choice"><input type="checkbox"><span>antitrust-competition__analyze-antitrust-hsr-strategy</span></label>
+            <label class="task-choice"><input type="checkbox"><span>antitrust-competition__analyze-counterparty-markup-of-protective-order</span></label>
+            <label class="task-choice"><input type="checkbox"><span>antitrust-competition__analyze-iss-antitrust-transaction-structure</span></label>
+            <label class="task-choice"><input type="checkbox"><span>corporate-ma__analyze-transition-services-agreement-markup</span></label>
+            <label class="task-choice"><input type="checkbox"><span>funds-investment__review-side-letter-mfn-election</span></label>
+            <label class="task-choice"><input type="checkbox"><span>litigation-ediscovery__privilege-log-sampling-protocol</span></label>
+            <label class="task-choice"><input type="checkbox"><span>regulatory-compliance__map-cross-border-data-transfer-clauses</span></label>
+            <label class="task-choice"><input type="checkbox"><span>trusts-estates-private-client__extract-distribution-requirements-from-trust-agreement</span></label>
+          </div>
+        </div>
+        <div>
+          <label>Repeats per test <span class="field-help" tabindex="0" data-tooltip="Run each selected task this many times. More repeats make criterion failure rates more stable, but increase cost linearly.">?</span></label>
+          <input type="number" min="1" max="20" value="1">
+        </div>
+        <div>
+          <label>Rollout concurrency <span class="field-help" tabindex="0" data-tooltip="Maximum number of Harbor rollouts running at once. Keep this at 1 for a smoke test or when protecting provider and Docker capacity.">?</span></label>
+          <input type="number" min="1" max="32" value="1">
+        </div>
+        <details class="advanced-settings full">
+          <summary><span><span class="details-mark" aria-hidden="true"></span> Advanced run settings</span></summary>
+          <div class="advanced-settings-body">
+            <p class="advanced-intro">These settings are saved with the run and affect output variability, adaptive agent budget, judge cost, and timeout behavior. The defaults are tuned for the current LAB workflow.</p>
+            <div class="advanced-group">
+              <div class="advanced-group-head"><h4>Model sampling</h4><span>NeMo Gym → Harbor</span></div>
+              <div class="form-grid">
+                <div><label>Temperature</label><input type="number" value="1"></div>
+                <div><label>Top-p</label><input type="number" value="0.95"></div>
+                <div class="full"><label>Output budget strategy</label><select><option selected>Adaptive — 24k standard / 32k long task</option><option>Fixed — use the standard cap for every task</option></select></div>
+                <div><label>Standard task cap</label><input type="number" value="24576"></div>
+                <div><label>Long-task cap</label><input type="number" value="32768"></div>
+              </div>
+            </div>
+            <div class="advanced-group">
+              <div class="advanced-group-head"><h4>Harbor agent budget</h4><span>TRAJECTORY / TOOLS</span></div>
+              <div class="form-grid">
+                <div><label>Max agent turns</label><input type="number" value="60"></div>
+                <div><label>Shell timeout (seconds)</label><input type="number" value="60"></div>
+                <div class="full"><label>Model request timeout (seconds)</label><input type="number" value="1800"></div>
+              </div>
+            </div>
+            <div class="advanced-group">
+              <div class="advanced-group-head"><h4>Harbor verifier judge</h4><span>CRITERION SCORING</span></div>
+              <div class="form-grid">
+                <div><label>Judge parallelism</label><input type="number" value="6"></div>
+                <div><label>Judge timeout (seconds)</label><input type="number" value="90"></div>
+                <div><label>Judge max tokens</label><input type="number" value="4096"></div>
+                <div><label>Judge retries</label><input type="number" value="1"></div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div class="run-actions">
+        <div class="manual-run-action">
+          <div class="recurse-copy">
+            <span class="run-action-kicker">MANUAL RUN</span>
+            <strong>Run one benchmark</strong>
+            <span class="recurse-sequence">Benchmark → Harbor → LAB verifier</span>
+          </div>
+          <button class="manual-run-button" type="button">Manually Benchmark</button>
+        </div>
+        <div class="recurse-box">
+          <div class="recurse-copy">
+            <span class="run-action-kicker">FULL PROCESS</span>
+            <label class="recurse-count"><span>RUN</span><span class="recurse-count-field"><input id="recurse-count" type="number" min="1" max="99" value="1" aria-label="Number of full-process runs"><span aria-hidden="true">x</span></span></label>
+            <span class="recurse-sequence">Benchmark → Tune → Benchmark</span>
+          </div>
+          <div class="recurse-button-wrap">
+            <button id="recurse-button" class="recurse-button is-ready" type="button" aria-label="Recurse — click and hold" title="Click and hold to recurse">
+              <span class="recurse-label"><span class="recurse-sparkle" aria-hidden="true">✦</span>Recurse</span>
+              <span class="recurse-fill" aria-hidden="true"><span class="recurse-label"><span class="recurse-sparkle">✦</span>Recurse</span></span>
+            </button>
+            <span class="recurse-hold" aria-hidden="true">click and hold</span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <aside class="stack">
+      <section class="panel">
+        <div class="panel-head"><h3>System preflight</h3><span class="panel-code">STATUS</span></div>
+        <div class="status-list">
+          <div class="status-row"><span>Python</span><strong>3.13.14</strong></div>
+          <div class="status-row"><span>Docker</span><strong>ready</strong></div>
+          <div class="status-row"><span>LAB assets</span><strong>ready</strong></div>
+          <div class="status-row"><span>Prime CLI</span><strong>ready</strong></div>
+          <div class="status-row"><span>SQLite</span><strong>schema v14</strong></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>

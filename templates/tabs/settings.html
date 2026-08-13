@@ -1,0 +1,60 @@
+<section class="view">
+  <div class="section-head">
+    <div><h2>Provider and platform settings</h2></div>
+    <p>Secrets remain in the repository’s gitignored <code>env.yaml</code> and are never returned to the browser.</p>
+  </div>
+  <section class="panel">
+    <div class="panel-head"><h3>Endpoints and credentials (OpenAI format)</h3><span class="panel-code">LOCAL SECRET STORE</span></div>
+    <div class="settings-grid">
+      <fieldset>
+        <legend>Model under test router</legend>
+        <label>OpenAI-compatible base URL</label>
+        <input value="https://api.z.ai/api/coding/paas/v4">
+        <label>Router API key</label>
+        <input type="password" placeholder="Blank keeps current key">
+        <label>Default model under test</label>
+        <input value="glm-5.2">
+      </fieldset>
+      <fieldset>
+        <legend>Benchmark judge</legend>
+        <label>Base URL</label>
+        <input value="https://api.deepseek.com">
+        <label>API key</label>
+        <input type="password" placeholder="Blank keeps current key">
+        <label>Judge model</label>
+        <input value="deepseek-v4-pro">
+      </fieldset>
+      <fieldset>
+        <legend>Failure analyst</legend>
+        <label>Base URL</label>
+        <input value="https://api.deepseek.com">
+        <label>API key</label>
+        <input type="password" placeholder="Blank reuses judge key">
+        <label>Failure Analyst Model</label>
+        <input value="deepseek-v4-pro">
+      </fieldset>
+      <fieldset>
+        <legend>Frontier Synthetic Data Generation API</legend>
+        <label>OpenAI-compatible base URL</label>
+        <input value="https://api.deepseek.com">
+        <label>API key</label>
+        <input type="password" placeholder="Blank reuses the saved key">
+        <label>Model</label>
+        <input value="deepseek-v4-flash">
+        <p class="field-note">Shared by the recommended local NVIDIA Data Designer path and the direct fallback.</p>
+        <div class="credential-state">API key: <span class="badge ready">saved</span><br><br>Library: <span class="badge ready">ready</span></div>
+      </fieldset>
+      <fieldset>
+        <legend>Prime Intellect</legend>
+        <label>API key</label>
+        <input type="password" placeholder="Blank keeps current key">
+        <div class="credential-state">API key: <span class="badge ready">saved</span><br><br>CLI: <span class="badge ready">ready</span></div>
+      </fieldset>
+    </div>
+    <div class="actions">
+      <button type="button">Save settings</button>
+      <button class="secondary" type="button">Test APIs</button>
+    </div>
+    <p class="api-test-note">Tests use current form values without saving. Model tests send one eight-token completion and may incur minimal provider usage.</p>
+  </section>
+</section>

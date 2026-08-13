@@ -1,0 +1,65 @@
+{% set gear %}
+<svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 1 0-2 3.46l.15.08a2 2 0 0 1 1 1.73v.5a2 2 0 0 1-1 1.73l-.15.08a2 2 0 1 0 2 3.46l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 1 0 2-3.46l-.15-.08a2 2 0 0 1-1-1.73v-.5a2 2 0 0 1 1-1.73l.15-.08a2 2 0 1 0-2-3.46l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+{% endset %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recursive Benchmark Lab</title>
+  <script>
+    (() => {
+      const saved = localStorage.getItem('recursive-theme');
+      const theme = saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.dataset.theme = theme;
+      const density = localStorage.getItem('recursive-density');
+      if (density) document.documentElement.dataset.density = density;
+    })();
+  </script>
+  <link rel="stylesheet" href="/assets/dashboard.css">
+  <link rel="stylesheet" href="/assets/layout.css">
+  <script src="/assets/htmx.min.js"></script>
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+  <main>
+    <header class="masthead">
+      <div>
+        <a class="app-wordmark" href="/" aria-label="Recursive home">recursive<b>( )</b></a>
+      </div>
+      <div class="masthead-actions">
+        <div class="popout-anchor">
+          <button class="secondary popout-trigger" id="prefs-open" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="prefs-popout">
+            {{ gear }}
+            <span>Menu</span>
+          </button>
+          <div class="popout" id="prefs-popout" role="menu" aria-label="Dashboard preferences" hidden>
+            <div class="popout-group">
+              <span class="popout-label">Theme</span>
+              <div class="segmented" role="group" aria-label="Theme">
+                <button type="button" data-theme-choice="dark" aria-pressed="true">Dark</button>
+                <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+              </div>
+            </div>
+            <div class="popout-group">
+              <span class="popout-label">Density</span>
+              <div class="segmented" role="group" aria-label="Density">
+                <button type="button" data-density-choice="comfort" aria-pressed="true">Comfort</button>
+                <button type="button" data-density-choice="compact" aria-pressed="false">Compact</button>
+              </div>
+            </div>
+            <div class="popout-divider" role="separator"></div>
+            <a class="popout-item" href="/" role="menuitem">Refresh state<small>Re-read runs, maps and environments</small></a>
+            <a class="popout-item settings-open{% if tab == 'settings' %} active{% endif %}" href="/settings" hx-get="/settings" hx-target="#workspace" hx-push-url="true" role="menuitem">Provider settings<small>Endpoints, keys and models</small></a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div id="workspace">
+      {% include "workspace.html" %}
+    </div>
+  </main>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

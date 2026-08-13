@@ -1,0 +1,210 @@
+<section class="view">
+  <div class="section-head">
+    <div><h2>Prove environments locally, then hand them to the cluster</h2></div>
+    <p>Prime runs the local package and model evaluation here. A passing local validation unlocks the immutable training handoff; publishing to Prime is optional.</p>
+  </div>
+  <div class="metric-strip">
+    <div class="metric"><small>Packages</small><strong>6</strong></div>
+    <div class="metric"><small>Local RL tests</small><strong>6</strong></div>
+    <div class="metric"><small>Local validation</small><strong>6</strong></div>
+    <div class="metric"><small>Scale ready</small><strong>0</strong></div>
+    <div class="metric"><small>Cluster runs</small><strong>0</strong></div>
+  </div>
+
+  <details class="panel collapsible-panel" open>
+    <summary class="panel-head">
+      <span class="panel-head-title"><span class="collapse-arrow" aria-hidden="true"></span><h3>Topics, verifiers and environments</h3></span>
+      <span class="panel-code">ONE TOPIC · ONE VERIFIER · ONE PACKAGE</span>
+    </summary>
+    <div class="topic-verifier-grid">
+      {% for name, tid, fails, reward, note in [
+        ("Provision-Fact Matching and Governing Section Identification", "TP-232282C0EB8F", "3", "1.000", "2 of 2 tasks sampled · ±0.000"),
+        ("Provision Substance and Obligation Extraction", "TP-42A3A7ABCB45", "4", "1.000", "2 of 2 tasks sampled · ±0.000"),
+        ("Static Reference Ambiguity Flagging", "TP-787F96782B20", "2", "1.000", "2 of 2 tasks sampled · ±0.000"),
+        ("Conflict of Interest Detection", "TP-91033A840DEE", "2", "1.000", "2 of 2 tasks sampled · ±0.000"),
+        ("Prudent Actionable Next Steps Recommendation", "TP-96A5EFAD5AD3", "3", "0.746", "2 of 2 tasks sampled · ±0.180"),
+        ("Indexed Value Computation", "TP-A8930290AFA9", "2", "1.000", "2 of 2 tasks sampled · ±0.000"),
+      ] %}
+      <article class="topic-verifier-card">
+        <div class="card-head">
+          <div>
+            <h4>{{ name }}</h4>
+            <div class="subline">{{ tid }} · {{ fails }} failures abstracted</div>
+          </div>
+          <span class="badge built">built</span>
+        </div>
+        <div class="verifier-block">
+          <div class="verifier-line">
+            <span class="verifier-mode" title="A judge model reads the answer against each verifier target. Reward is the fraction satisfied.">Judge coverage</span>
+            <span>pass ≥ <b>0.300</b></span>
+            <span>verifier v1</span>
+          </div>
+          <p class="verifier-strategy">Score observable behavior in the model’s answer against the topic’s verifier targets.</p>
+        </div>
+        <div class="spec">
+          <div><small>Tasks</small><strong>2</strong></div>
+          <div><small>Train</small><strong>2</strong></div>
+          <div><small>Canary</small><strong>0</strong></div>
+          <div><small>Heldout</small><strong>0</strong></div>
+        </div>
+        <div class="verifier-measure">
+          <div class="measure-row">
+            <span class="measure-label">RL test</span>
+            <span class="meter is-pass" style="--value:100%;--threshold:30%" role="img" aria-label="reward 1.000 against threshold 0.300"><i></i><b></b></span>
+            <span class="measure-value">1.000</span>
+            <span class="measure-verdict"><span class="badge passed">PASS</span></span>
+          </div>
+          <div class="measure-row">
+            <span class="measure-label">Validation</span>
+            <span class="meter {{ 'is-fail' if reward == '0.746' else 'is-pass' }}" style="--value:{{ '74.6%' if reward == '0.746' else '100%' }};--threshold:30%" role="img"><i></i><b></b></span>
+            <span class="measure-value">{{ reward }}</span>
+            <span class="measure-verdict"><span class="badge passed">PASS</span></span>
+          </div>
+          <div class="measure-note">{{ note }}</div>
+          <div class="verifier-signal is-weak">
+            <span>No trainable signal</span>
+            <em>within-task spread 0.000</em>
+          </div>
+        </div>
+        <div class="topic-verifier-proof">
+          <div class="proof-line">
+            <span class="ticks" aria-label="Next scale"><i class="done" title="Package"></i><i class="done" title="RL test"></i><i class="done" title="Validation"></i><i class="now" title="Scale"></i><i title="Cluster"></i></span>
+            <span class="proof-copy">Next scale</span>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </details>
+
+  <section class="panel environment-automation">
+    <div class="panel-head"><h3>Prove locally</h3><span class="panel-code">RUN SETTINGS · COVERAGE</span></div>
+    <details class="environment-config-drawer">
+      <summary>
+        <span class="panel-head-title"><span class="collapse-arrow" aria-hidden="true"></span><span>Run settings</span></span>
+        <span class="panel-code">GLM-5.2 · LOCAL WORKSPACE</span>
+      </summary>
+      <div class="environment-config-grid">
+        <div>
+          <label>Benchmark run</label>
+          <select><option>harvey_001 / glm-5.2 / Aug 11, 2026, 9:49 PM</option></select>
+        </div>
+        <div>
+          <label>Local inference model</label>
+          <input value="glm-5.2">
+        </div>
+        <div>
+          <label>Local inference endpoint</label>
+          <input value="https://api.z.ai/api/coding/paas/v4">
+          <p class="field-note">The API key stays in the local secret store.</p>
+        </div>
+        <div>
+          <label>Rollouts per task</label>
+          <input type="number" value="4">
+          <p class="field-note">Local only. <b>The cluster always runs 4 per example.</b></p>
+        </div>
+        <div>
+          <label>Local concurrency</label>
+          <input type="number" value="1">
+        </div>
+        <div class="environment-publish-target">
+          <span class="data-label">Primary destination</span>
+          <strong>Local workspace</strong>
+          <span class="badge ready">LOCAL ONLY</span>
+        </div>
+      </div>
+    </details>
+    <div class="readiness-band">
+      <p class="readiness-headline state-warn">12 approved tasks across 6 topics — thin. Local validation would gate the cluster handoff on very few examples.</p>
+      <div class="readiness-detail">
+        <div class="readiness-chain">
+          <small>Coverage</small>
+          <div class="chain"><span><b>6</b> topics</span><i aria-hidden="true">→</i><span><b>6</b> verifiers</span><i aria-hidden="true">→</i><span><b>6</b> packages</span></div>
+        </div>
+        <div class="readiness-split">
+          <small>Taskset splits · data/*.jsonl</small>
+          <table class="split-table">
+            <thead><tr><th>Topic</th><th>train.jsonl</th><th>canary.jsonl</th><th>heldout.jsonl</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Provision-Fact Matching…</th><td>2</td><td class="short">0</td><td class="short">0</td><td>2</td></tr>
+              <tr><th scope="row">Provision Substance…</th><td>2</td><td class="short">0</td><td class="short">0</td><td>2</td></tr>
+              <tr><th scope="row">Static Reference Ambiguity…</th><td>2</td><td class="short">0</td><td class="short">0</td><td>2</td></tr>
+            </tbody>
+            <tfoot><tr><th scope="row">Total</th><td>12</td><td class="short">0</td><td class="short">0</td><td>12</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel proof-report-panel">
+    <div class="panel-head"><h3>Local proof report</h3><span class="panel-code">GLM-5.2 · AUG 12</span></div>
+    <nav class="subway" aria-label="Local proof stages">
+      <button type="button" class="subway-stop is-passed"><span class="subway-rail" aria-hidden="true"><i class="subway-dot"></i></span><span class="subway-num">01</span><span class="subway-name">Package</span><span class="subway-state">Built</span></button>
+      <button type="button" class="subway-stop is-passed"><span class="subway-rail" aria-hidden="true"><i class="subway-dot"></i></span><span class="subway-num">02</span><span class="subway-name">Local RL test</span><span class="subway-state">Pass</span></button>
+      <button type="button" class="subway-stop is-passed is-active" aria-current="step"><span class="subway-rail" aria-hidden="true"><i class="subway-dot"></i></span><span class="subway-num">03</span><span class="subway-name">Local validation</span><span class="subway-state">Pass</span></button>
+    </nav>
+    <div class="report-tiles">
+      <div><small>Mean reward</small><strong>0.958</strong></div>
+      <div><small>Above threshold</small><strong>6/6</strong></div>
+      <div><small>Tasks scored</small><strong>12</strong></div>
+      <div><small>Rollouts per task</small><strong>4</strong></div>
+      <div><small>Trainable signal</small><strong>1/6</strong></div>
+    </div>
+    <div class="report-charts">
+      <section class="report-chart">
+        <div class="report-chart-head"><h4>Reward by environment</h4><span>Bar is the mean reward; the notch is that verifier's pass threshold.</span></div>
+        <div class="reward-chart">
+          <div class="reward-chart-row"><span class="reward-chart-name">Static Reference Ambiguity Flagging</span><span class="meter is-pass" style="--value:100%;--threshold:30%"><i></i><b></b></span><span class="reward-chart-value">1.000</span></div>
+          <div class="reward-chart-row"><span class="reward-chart-name">Conflict of Interest Detection</span><span class="meter is-pass" style="--value:100%;--threshold:30%"><i></i><b></b></span><span class="reward-chart-value">1.000</span></div>
+          <div class="reward-chart-row"><span class="reward-chart-name">Indexed Value Computation</span><span class="meter is-pass" style="--value:100%;--threshold:30%"><i></i><b></b></span><span class="reward-chart-value">1.000</span></div>
+          <div class="reward-chart-row"><span class="reward-chart-name">Prudent Actionable Next Steps</span><span class="meter is-pass" style="--value:74.6%;--threshold:30%"><i></i><b></b></span><span class="reward-chart-value">0.746</span></div>
+        </div>
+      </section>
+      <section class="report-chart">
+        <div class="report-chart-head"><h4>Reward distribution</h4><span>Every rollout across every environment, bucketed.</span></div>
+        <div class="empty">This evaluation predates reward-shape capture. Re-run it to chart the distribution.</div>
+      </section>
+    </div>
+  </section>
+
+  <section class="panel cluster-handoff">
+    <div class="panel-head"><h3>Hand off to the cluster</h3><span class="panel-code">UNLOCKED BY LOCAL VALIDATION</span></div>
+    <p class="cluster-handoff-gate is-meta">Local validation passed. Preparing writes the immutable taskset and cluster TOML; the cluster then trains on all of train.jsonl.</p>
+    <div class="compact-list">
+      <div class="ledger-row">
+        <div class="ledger-main">
+          <div class="ledger-title">Static Reference Ambiguity Flagging</div>
+          <div class="ledger-meta">validation 1.000 / threshold 0.300 · 2 tasks</div>
+        </div>
+        <div class="ledger-actions"><button class="secondary compact" type="button">Prepare cluster</button></div>
+      </div>
+      <div class="ledger-row">
+        <div class="ledger-main">
+          <div class="ledger-title">Prudent Actionable Next Steps Recommendation</div>
+          <div class="ledger-meta">validation 0.746 / threshold 0.300 · 2 tasks</div>
+        </div>
+        <div class="ledger-actions"><button class="secondary compact" type="button">Prepare cluster</button></div>
+      </div>
+    </div>
+    <div class="cluster-handoff-actions">
+      <button type="button">Prepare 6 environments for cluster</button>
+      <button class="ghost compact" type="button">Optional: publish private</button>
+    </div>
+  </section>
+
+  <div class="layout-split">
+    <section class="panel">
+      <div class="panel-head"><h3>Cluster training runs</h3><span class="panel-code">SCALE HANDOFF</span></div>
+      <div class="compact-list"><div class="empty">No cluster runs</div></div>
+    </section>
+    <details class="panel environment-optional-remote">
+      <summary><span>Optional Prime-hosted operations</span><span class="panel-code">NOT A GATE</span></summary>
+      <div class="optional-remote-body">
+        <p class="field-note">Use these only when we want a private Hub copy or a hosted comparison. Local proof and cluster readiness do not depend on them.</p>
+        <div class="panel-head"><h3>Hosted evaluations</h3><button class="secondary compact" type="button">Sync Prime</button></div>
+        <div class="compact-list"><div class="empty">No hosted evaluations</div></div>
+      </div>
+    </details>
+  </div>
+</section>
