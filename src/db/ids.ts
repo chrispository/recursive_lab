@@ -2,7 +2,7 @@
  * Display codes for entity ids.
  *
  * Primary keys are plain autoincrementing integers. The code a human sees —
- * `FM-4`, `TP-12`, `DOC-31` — is a pure function of the table and that integer,
+ * `FM-00004`, `TP-00012`, `DOC-00031` — is a pure function of the table and that integer,
  * defined here and nowhere else.
  *
  * The previous app generated twelve random hex characters per row
@@ -35,11 +35,12 @@ const BY_PREFIX = new Map<string, Entity>(
   Object.entries(PREFIX).map(([entity, prefix]) => [prefix, entity as Entity]),
 );
 
-/** `code('failure_maps', 4)` → `'FM-4'`. */
-export const code = (entity: Entity, id: number): string => `${PREFIX[entity]}-${id}`;
+/** `code('failure_maps', 4)` → `'FM-00004'`. */
+export const code = (entity: Entity, id: number): string =>
+  `${PREFIX[entity]}-${String(id).padStart(5, '0')}`;
 
 /**
- * `parse('FM-4')` → `{ entity: 'failure_maps', id: 4 }`, or null if the string
+ * `parse('FM-00004')` → `{ entity: 'failure_maps', id: 4 }`, or null if the string
  * is not a code we mint. Callers must handle null — it is user input.
  */
 export function parse(value: string): { entity: Entity; id: number } | null {

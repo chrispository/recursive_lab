@@ -31,5 +31,5 @@ export const config = {
 /** Absolute path to the gym CLI, falling back to whatever is on PATH. */
 export const gymBin = () => resolve(config.gym.root, '.venv/bin/gym');
 
-/** Where a benchmark run's inputs and rollouts live, e.g. results/lab/BR-12. */
+/** Where a benchmark run's inputs and rollouts live, e.g. results/lab/BR-00012. */
 export const runDir = (runCode: string) => resolve(config.gym.root, 'results/lab', runCode);

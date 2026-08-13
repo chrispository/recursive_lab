@@ -302,7 +302,7 @@
 
 /* Small parts -------------------------------------------------------------- */
 
-/* Entity ids: FM-4, TP-12. Always mono, always quiet. */
+/* Entity ids: FM-00004, TP-00012. Always mono, always quiet. */
 .m-id {
   color: var(--text-3);
   font: 500 var(--t-micro) / 1 var(--mono);

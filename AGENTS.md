@@ -94,8 +94,8 @@ module's data, it calls that module's service.
 
 ## Database conventions
 
-- **IDs are `INTEGER PRIMARY KEY AUTOINCREMENT`.** The display form (`FM-4`,
-  `TP-12`) is produced by `code()` in `src/db/ids.ts` and parsed by `parse()`.
+- **IDs are `INTEGER PRIMARY KEY AUTOINCREMENT`.** The display form (`FM-00004`,
+  `TP-00012`) is produced by `code()` in `src/db/ids.ts` and parsed by `parse()`.
   Those two functions are the *only* place an ID prefix appears. Never build an
   ID string inline, and never generate a random one.
 - **Timestamps** are `TEXT`, ISO-8601 UTC. Only these four names:

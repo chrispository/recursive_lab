@@ -9,7 +9,7 @@ import { STAGES, stageNumber, type Tab } from './tabs.ts';
 
 /** How far the current lineage reaches, for the stage ticks and the foot. */
 export type RailState = {
-  /** Display code of the run in context, e.g. "BR-12". Null when there is none. */
+  /** Display code of the run in context, e.g. "BR-00012". Null when there is none. */
   runCode: string | null;
   /** Model under test, shown in the rail foot. */
   model: string | null;

@@ -9,6 +9,7 @@
 import { createHash } from 'node:crypto';
 import { db, insert, now, value } from '../src/db/client.ts';
 import { migrate } from '../src/db/migrate.ts';
+import { code } from '../src/db/ids.ts';
 import {
   ANALYSIS_PROMPT,
   DOCUMENT_TYPES,
@@ -99,11 +100,15 @@ const runId = await insert(
     RUN.model,
     JSON.stringify(RUN.settings),
     JSON.stringify(RUN.metrics),
-    `results/lab/BR-1/${RUN.model}.jsonl`,
+    null,
     at,
     at,
   ],
 );
+await db.execute({
+  sql: 'UPDATE benchmark_runs SET output_path = ? WHERE id = ?',
+  args: [`results/lab/${code('benchmark_runs', runId)}/${RUN.model}.jsonl`, runId],
+});
 await job('benchmark_run', 'benchmark_runs', runId, 'collect rollouts');
 
 // FM + TX — the failure map and its taxonomy.
@@ -320,7 +325,7 @@ await job('env_eval', 'environment_evaluations', evaluationId, 'local validation
 
 const count = async (table: string) => (await value<number>(`SELECT count(*) FROM ${table}`)) ?? 0;
 
-console.log(`✓ seeded BR-${runId} "${RUN.label}" / ${RUN.model}`);
+console.log(`✓ seeded ${code('benchmark_runs', runId)} "${RUN.label}" / ${RUN.model}`);
 for (const table of [
   'failure_maps',
   'failure_items',
