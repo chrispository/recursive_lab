@@ -1,4 +1,4 @@
-import type { RunSummary } from '../../domain/runs/model.ts';
+import type { BenchmarkCriterionResult, BenchmarkRunSummary } from '../../domain/runs/model.ts';
 import type { JobRow } from '../../domain/jobs/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Cap } from '../ui/Cap.tsx';
@@ -10,18 +10,37 @@ import { Tally } from '../ui/Tally.tsx';
 
 const numberOf = (value: unknown) => (typeof value === 'number' ? value : Number(value ?? 0));
 
-export function Results({ run, jobs }: { run: RunSummary | null; jobs: JobRow[] }) {
-  const metrics = run?.metrics ?? {};
-  const total = numberOf(metrics.criteria_total);
-  const passed = numberOf(metrics.criteria_passed);
-  const failed = Math.max(0, total - passed);
-  const rate = numberOf(metrics.pass_rate);
+export function Results({ benchmarkRun, jobs, criteria, availableRuns }: {
+  benchmarkRun: BenchmarkRunSummary | null;
+  jobs: JobRow[];
+  criteria: BenchmarkCriterionResult[];
+  availableRuns: BenchmarkRunSummary[];
+}) {
+  const metrics = benchmarkRun?.metrics ?? {};
+  const total = numberOf(benchmarkRun?.resultCriteriaTotal ?? metrics.criteria_total);
+  const passed = numberOf(benchmarkRun?.resultCriteriaPassed ?? metrics.criteria_passed);
+  const failed = numberOf(benchmarkRun?.resultCriteriaFailed ?? Math.max(0, total - passed));
+  const rate = total > 0 ? passed / total : 0;
+  const resultStatus = benchmarkRun?.resultOutcome ?? 'pending';
 
   return (
     <>
       <div class="m-title">
-        <h2>Verified benchmark results</h2>
+        <h2>Benchmark results</h2>
         <p>Criterion-level failures become the only inputs to capability analysis.</p>
+        {availableRuns.length ? (
+          <form class="m-run-picker" method="get">
+            <label for="results-run">Benchmark run</label>
+            <select id="results-run" name="run">
+              {availableRuns.map((run) => (
+                <option value={String(run.benchmarkRunId)} selected={run.benchmarkRunId === benchmarkRun?.benchmarkRunId}>
+                  {run.benchmarkRunCode} · {run.label} · {run.model}
+                </option>
+              ))}
+            </select>
+            <button class="compact" type="submit">Show results</button>
+          </form>
+        ) : null}
       </div>
 
       <TableBox>
@@ -33,21 +52,48 @@ export function Results({ run, jobs }: { run: RunSummary | null; jobs: JobRow[] 
             { value: `${(rate * 100).toFixed(1)}%`, label: 'pass rate' },
           ]} />
         </Cap>
-        {run ? (
+        {benchmarkRun ? (
           <Table>
             <thead><tr><th>Run</th><th>Model</th><th class="n">Rollouts</th><th class="n">Input tokens</th><th class="n">Output tokens</th><th>Status</th></tr></thead>
             <tbody>
-              <tr data-state="succeeded">
-                <td><span class="nm">{run.label}</span><span class="sub">{run.runCode} · {run.benchmarkName}</span></td>
-                <td>{run.model}</td>
+              <tr data-state={resultStatus}>
+                <td><span class="nm">{benchmarkRun.label}</span><span class="sub">{benchmarkRun.benchmarkRunCode} · {benchmarkRun.benchmarkName}</span></td>
+                <td>{benchmarkRun.model}</td>
                 <td class="n">{numberOf(metrics.rollouts)}</td>
                 <td class="n">{numberOf(metrics.input_tokens).toLocaleString()}</td>
                 <td class="n">{numberOf(metrics.output_tokens).toLocaleString()}</td>
-                <td><Badge state="succeeded">verified</Badge></td>
+                <td><Badge state={resultStatus}>{resultStatus}</Badge></td>
               </tr>
             </tbody>
           </Table>
         ) : <div class="m-empty">No verified benchmark results.</div>}
+      </TableBox>
+
+      <TableBox class="m-criteria-box">
+        <Cap title="Criterion inspection" code={`${criteria.length} criteria`} />
+        {criteria.length ? (
+          <div class="m-criteria-list">
+            {criteria.map((criterion) => (
+              <details class={`m-criterion ${criterion.verdict}`} open={criterion.verdict === 'fail'}>
+                <summary>
+                  <span class="m-criterion-verdict">{criterion.verdict.toUpperCase()}</span>
+                  <span class="m-id">{criterion.criterionId}</span>
+                  <span class="m-criterion-title">{criterion.title}</span>
+                </summary>
+                <div class="m-criterion-body">
+                  <p class="m-criterion-reasoning">{criterion.reasoning}</p>
+                  <details class="m-criterion-source">
+                    <summary>View task / judge score</summary>
+                    <div class="m-criterion-source-body">
+                      <div><span class="m-code">Task criterion</span><p>{criterion.matchCriteria || 'No task criterion text was recorded.'}</p></div>
+                      <div><span class="m-code">Judge</span><p>{criterion.judgeModel || 'Model not recorded'}{criterion.judgeError ? ` · ${criterion.errorType ?? 'judge error'}` : ''}</p></div>
+                    </div>
+                  </details>
+                </div>
+              </details>
+            ))}
+          </div>
+        ) : <div class="m-empty">No criterion-level inspection was imported.</div>}
       </TableBox>
 
       <TableBox>
@@ -73,8 +119,8 @@ export function Results({ run, jobs }: { run: RunSummary | null; jobs: JobRow[] 
           <p class="m-note">The result is a criterion pass rate, not a document-quality score. The {failed} failed criteria are the source of the current failure map.</p>
         </Panel>
         <Panel title="Run settings" code="saved with BR">
-          <Field label="Repeats"><div class="m-input">{String(run?.settings.repeats ?? '—')}</div></Field>
-          <Field label="Judge parallelism"><div class="m-input">{String(run?.settings.judge_parallelism ?? '—')}</div></Field>
+          <Field label="Repeats"><div class="m-input">{String(benchmarkRun?.settings.repeats ?? '—')}</div></Field>
+          <Field label="Judge parallelism"><div class="m-input">{String(benchmarkRun?.settings.judge_parallelism ?? '—')}</div></Field>
         </Panel>
       </div>
     </>

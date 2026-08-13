@@ -1,66 +1,37 @@
-# TODO — benchmark results
+# TODO — benchmark result hierarchy
 
-## What exists now
+## Current model
 
-`benchmarks_results` is now the run-specific task-result table.
-`benchmark_tasks` remains the benchmark catalog: it says which tasks exist, not
-whether a particular model passed them.
-
-Each row in `benchmarks_results` represents one task execution within one
-benchmark run and one trial. Its authoritative result is `outcome`:
-
-- `passed` — the task's benchmark-level pass condition was satisfied
-- `failed` — the task ran, but did not satisfy the benchmark-level condition
-- `error` — execution or judging prevented a valid result
-- `skipped` — the task was intentionally not run
-
-The row also carries reward, criteria rollup counts, the raw per-task metrics,
-and the result artifact path. `jobs.status` remains execution status; it is not
-a model pass/fail result.
-
-Topics are scoped directly to their `failure_map_id`. That keeps the model
-honest for this app: the analyst extracts topics only from one result's failed
-criteria, and `failure_items.topic_id` assigns each failure to one of those
-topics. There is no separate taxonomy container or membership table.
-
-## Code updates still needed
-
-- [ ] Add `src/domain/benchmarks_results/{model,repo,service}.ts`.
-- [ ] Read task-result rows for the current `benchmark_run_id`.
-- [ ] Update `src/views/tabs/Results.tsx` to show one row per task with its
-      `outcome`, reward, criteria counts, trial, and result artifact link.
-- [ ] Derive the Results page rollup from `benchmarks_results`, rather
-      than treating `benchmark_runs.metrics_json` as the authoritative source.
-- [ ] Add the result read route/API when the remaining read surfaces are built.
-- [ ] Update the benchmark runner/importer so every selected task and trial
-      writes exactly one result row, including `error` and `skipped` outcomes.
-- [ ] Add tests for multiple tasks, repeated trials, task errors, and a run
-      where one task passes while another fails.
-
-## What `criterion_results` would mean
-
-We are **not adding this table yet**. It would be a lower-level table beneath
-`benchmarks_results`, with one row for every individual grading criterion:
+The benchmark data model now separates definitions, execution metadata, and
+results at the level where each concept actually lives:
 
 ```text
-benchmarks_results (one task outcome)
-  └── criterion_results (one criterion outcome)
+benchmarks
+└── benchmark_tasks
+    └── benchmark_task_criteria
+
+benchmark_runs
+└── benchmark_results                 one aggregate result per run
+    └── benchmark_task_results        one result per task/trial
+        └── benchmark_task_criterion_results
 ```
 
-For the current migrated task, it would contain 69 rows: 53 `passed` and 16
-`failed`. The existing `failure_items` table contains only those 16 failures,
-plus analysis prose, severity, and topic assignment. It is
-not a replacement for `criterion_results` because passing criteria never become
-failure items.
+`benchmark_results` is the benchmark-wide rollup: task counts, criterion
+counts, pass rate, reward, outcome, and artifact path. `benchmark_runs` keeps
+the model, settings, label, and execution metadata. `failure_maps` attach to
+the aggregate result; `failure_items` attach directly to a failed
+`benchmark_task_criterion_results` row.
 
-When we need criterion-level drill-down, add:
+The migrated local run preserves 1 aggregate result, 1 task result, 69
+criterion results, and 16 failure items. The schema, seed path, repositories,
+Results page, failure map, data forge, progress read model, and interactive
+schema map all use this hierarchy.
 
-- [ ] `criterion_results` with `benchmark_result_id`, `criterion_id`,
-      `criterion_title`, `outcome`, score, and `details_json`.
-- [ ] Link each `failure_items` row to its corresponding failed criterion
-      result, while keeping `failure_items` as the analysis layer.
-- [ ] Backfill all 69 criterion rows from the raw legacy result before exposing
-      criterion-level UI.
+## Next implementation work
 
-Until then, `benchmarks_results` is enough to answer the immediate
-question: did this task pass or fail in this run?
+- [ ] Add task-result list/detail read surfaces to the Results page.
+- [ ] Update the benchmark runner/importer so every selected task and trial
+      writes exactly one task result and its criterion results, including
+      `error` and `skipped` outcomes.
+- [ ] Add tests for multiple tasks, repeated trials, task errors, aggregate
+      rollups, and a run where one task passes while another fails.

@@ -9,16 +9,22 @@
 > GETs are still pending. The requested legacy run is now in `data/lab.db` as
 > `BR-00001`, with its original result artifact path preserved.
 > A standalone interactive schema map is available at `/schema.html`; it
-> exposes all 22 tables (including `data_forge_runs` / `data_forge_run_items`)
+> exposes all 23 tables (including `benchmark_task_criteria`,
+> `data_forge_runs` / `data_forge_run_items`)
 > plus derived `progress`, with fields and FK/logical connections.
 > The data-forge tables are named `data_forge_runs` and
 > `data_forge_run_items`; their owning document FK is `data_forge_run_id`.
 > The matching domain module/read model is `src/domain/data_forge`, with
 > `DataForgeSummary`, `dataForgeCode`, and `DataForge` names throughout.
-> `benchmarks_results` now records one task outcome per run/trial; the
+> `benchmark_results` now stores the aggregate rollup for one benchmark run;
+> `benchmark_task_results` stores one outcome per run/task/trial,
+> `benchmark_task_criteria` stores the static criteria belonging to each task,
+> `benchmark_task_criterion_results` stores each task-result verdict against
+> those criteria, and `failure_items` points directly to that criterion result; the
 > follow-up implementation work is documented in `todo.md`.
-> The downstream chain is `benchmark_runs → benchmarks_results → failure_maps
-> → topics → failure_items`; topics are scoped to the failure map that produced
+> The downstream chain is `benchmark_runs → benchmark_results → failure_maps
+> → topics → failure_items`; task and criterion result detail hangs below the
+> aggregate result, and topics are scoped to the failure map that produced
 > them.
 > Pipeline progress (how far a run has travelled) lives in `src/domain/progress`,
 > not a table — it is derived on every read. Display codes are five-digit padded
@@ -27,6 +33,12 @@
 >
 > **The app boots and serves all six pages; `/failures` renders the migrated
 > 16-item failure map.**
+> The local legacy execution ledger now carries source-derived descriptions and
+> failure text, and Results derives the benchmark outcome from its imported
+> task result instead of hardcoding `verified`.
+> Results now selects a benchmark run, computes pass rate from its
+> `benchmark_results` row, and renders the imported 69-criterion inspection
+> records with judge explanations.
 > `bun run db:reset && bun run dev` → http://127.0.0.1:8767
 >
 > **Pick up here → see "Next three steps" below.**
@@ -112,6 +124,8 @@ row, and the one-FM-per-result unique index rejects a second insert.
       `results/lab_dashboard/BR-20260811-214922-3B1546/`
 - [x] Normalized nested environment metrics into the Env Lab summary while
       retaining the original nested JSON
+- [x] Imported the original 69 criterion-level score records (53 pass, 16 fail),
+      including task criteria and judge explanations
 
 ## Phase 2 — Ledger layout ✅ seeded views done
 

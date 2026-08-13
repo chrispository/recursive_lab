@@ -112,6 +112,31 @@ CREATE TABLE benchmark_tasks (
   PRIMARY KEY (benchmark_id, dataset, task_id)
 );
 
+-- Criterion catalog ---------------------------------------------------------
+-- Criteria are part of a task definition, not of a run result. A task may
+-- have dozens of criteria, and criterion ids such as C-001 are only unique
+-- within that task.
+
+CREATE TABLE benchmark_task_criteria (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  benchmark_id  INTEGER NOT NULL,
+  dataset       TEXT    NOT NULL DEFAULT 'validation',
+  task_id       TEXT    NOT NULL,
+  criterion_id  TEXT    NOT NULL,
+  title         TEXT    NOT NULL,
+  match_criteria TEXT   NOT NULL DEFAULT '',
+  position      INTEGER NOT NULL DEFAULT 0,
+  source_json   TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(source_json)),
+  created_at    TEXT    NOT NULL,
+  updated_at    TEXT    NOT NULL,
+  FOREIGN KEY (benchmark_id, dataset, task_id)
+    REFERENCES benchmark_tasks(benchmark_id, dataset, task_id)
+    ON DELETE CASCADE,
+  UNIQUE (benchmark_id, dataset, task_id, criterion_id)
+);
+CREATE INDEX idx_task_criteria_task
+  ON benchmark_task_criteria(benchmark_id, dataset, task_id, position);
+
 -- Leakage control: fingerprints of the benchmark's own source documents, so the
 -- forge can prove a generated document is not a paraphrase of one.
 CREATE TABLE benchmark_sources (
@@ -138,47 +163,96 @@ CREATE TABLE benchmark_runs (
   task_count    INTEGER NOT NULL DEFAULT 0,
   -- Sampling knobs, judge parallelism, agent budget. No credentials, ever.
   settings_json TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(settings_json)),
-  -- Rolled up from the rollout JSONL once the job finishes.
-  metrics_json  TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metrics_json)),
-  output_path   TEXT,                          -- gym-relative path to the rollouts
   created_at    TEXT    NOT NULL,
   updated_at    TEXT    NOT NULL
 );
 CREATE INDEX idx_runs_created ON benchmark_runs(created_at DESC);
 
--- One task outcome per benchmark run and trial. The catalog task row above
+-- BR — aggregate result -----------------------------------------------------
+-- One normalized result envelope belongs to one benchmark run. It is the
+-- benchmark-wide sum of all task results and the owner of failure analysis.
+CREATE TABLE benchmark_results (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  benchmark_run_id INTEGER NOT NULL UNIQUE REFERENCES benchmark_runs(id) ON DELETE CASCADE,
+  benchmark_id    INTEGER NOT NULL REFERENCES benchmarks(id) ON DELETE CASCADE,
+  outcome         TEXT    NOT NULL CHECK (outcome IN ('passed','failed','error','skipped')),
+  tasks_total     INTEGER NOT NULL DEFAULT 0 CHECK (tasks_total >= 0),
+  tasks_passed    INTEGER NOT NULL DEFAULT 0 CHECK (tasks_passed >= 0),
+  tasks_failed    INTEGER NOT NULL DEFAULT 0 CHECK (tasks_failed >= 0),
+  tasks_error     INTEGER NOT NULL DEFAULT 0 CHECK (tasks_error >= 0),
+  tasks_skipped   INTEGER NOT NULL DEFAULT 0 CHECK (tasks_skipped >= 0),
+  criteria_total  INTEGER CHECK (criteria_total IS NULL OR criteria_total >= 0),
+  criteria_passed INTEGER CHECK (criteria_passed IS NULL OR criteria_passed >= 0),
+  criteria_failed INTEGER CHECK (criteria_failed IS NULL OR criteria_failed >= 0),
+  pass_rate       REAL CHECK (pass_rate IS NULL OR (pass_rate >= 0 AND pass_rate <= 1)),
+  reward          REAL,
+  result_path     TEXT,
+  metrics_json    TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metrics_json)),
+  created_at      TEXT    NOT NULL,
+  updated_at      TEXT    NOT NULL
+);
+CREATE INDEX idx_benchmark_results_run ON benchmark_results(benchmark_run_id);
+
+-- One task outcome per aggregate result and trial. The catalog task row above
 -- says what exists; this row says what happened for a particular run.
-CREATE TABLE benchmarks_results (
-  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-  benchmark_run_id   INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE CASCADE,
-  benchmark_id       INTEGER NOT NULL REFERENCES benchmarks(id) ON DELETE CASCADE,
-  dataset            TEXT    NOT NULL DEFAULT 'validation',
-  task_id            TEXT    NOT NULL,
-  trial_name         TEXT    NOT NULL DEFAULT 'trial-1',
-  outcome            TEXT    NOT NULL CHECK (outcome IN ('passed','failed','error','skipped')),
-  reward             REAL,
-  criteria_total     INTEGER CHECK (criteria_total IS NULL OR criteria_total >= 0),
-  criteria_passed    INTEGER CHECK (criteria_passed IS NULL OR criteria_passed >= 0),
-  criteria_failed    INTEGER CHECK (criteria_failed IS NULL OR criteria_failed >= 0),
-  result_path        TEXT,
-  metrics_json       TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metrics_json)),
-  created_at         TEXT    NOT NULL,
-  updated_at         TEXT    NOT NULL,
+CREATE TABLE benchmark_task_results (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  benchmark_result_id INTEGER NOT NULL REFERENCES benchmark_results(id) ON DELETE CASCADE,
+  benchmark_id    INTEGER NOT NULL REFERENCES benchmarks(id) ON DELETE CASCADE,
+  dataset         TEXT    NOT NULL DEFAULT 'validation',
+  task_id         TEXT    NOT NULL,
+  trial_name      TEXT    NOT NULL DEFAULT 'trial-1',
+  outcome         TEXT    NOT NULL CHECK (outcome IN ('passed','failed','error','skipped')),
+  reward          REAL,
+  criteria_total  INTEGER CHECK (criteria_total IS NULL OR criteria_total >= 0),
+  criteria_passed INTEGER CHECK (criteria_passed IS NULL OR criteria_passed >= 0),
+  criteria_failed INTEGER CHECK (criteria_failed IS NULL OR criteria_failed >= 0),
+  result_path     TEXT,
+  metrics_json    TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metrics_json)),
+  created_at      TEXT    NOT NULL,
+  updated_at      TEXT    NOT NULL,
   FOREIGN KEY (benchmark_id, dataset, task_id)
     REFERENCES benchmark_tasks(benchmark_id, dataset, task_id)
     ON DELETE CASCADE,
-  UNIQUE (benchmark_run_id, dataset, task_id, trial_name)
+  UNIQUE (benchmark_result_id, dataset, task_id, trial_name)
 );
-CREATE INDEX idx_benchmarks_results_run
-  ON benchmarks_results(benchmark_run_id, created_at DESC);
-CREATE INDEX idx_benchmarks_results_task
-  ON benchmarks_results(benchmark_id, dataset, task_id, created_at DESC);
+CREATE INDEX idx_benchmark_task_results_result
+  ON benchmark_task_results(benchmark_result_id, created_at DESC);
+CREATE INDEX idx_benchmark_task_results_task
+  ON benchmark_task_results(benchmark_id, dataset, task_id, created_at DESC);
+
+-- Criterion inspection ------------------------------------------------------
+-- Preserve the judge's verdict and explanation for one task result against
+-- one static task criterion.
+CREATE TABLE benchmark_task_criterion_results (
+  id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+  benchmark_task_result_id    INTEGER NOT NULL REFERENCES benchmark_task_results(id) ON DELETE CASCADE,
+  benchmark_task_criterion_id INTEGER NOT NULL REFERENCES benchmark_task_criteria(id) ON DELETE RESTRICT,
+  task_id                    TEXT    NOT NULL,
+  trial_name                 TEXT    NOT NULL DEFAULT '',
+  criterion_id               TEXT    NOT NULL,
+  criterion_title             TEXT    NOT NULL,
+  verdict                    TEXT    NOT NULL CHECK (verdict IN ('pass','fail','error')),
+  reasoning                  TEXT    NOT NULL DEFAULT '',
+  match_criteria             TEXT    NOT NULL DEFAULT '',
+  judge_model                TEXT    NOT NULL DEFAULT '',
+  judge_error                INTEGER NOT NULL DEFAULT 0 CHECK (judge_error IN (0,1)),
+  error_type                 TEXT,
+  source_json                TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(source_json)),
+  created_at                 TEXT    NOT NULL,
+  updated_at                 TEXT    NOT NULL,
+  UNIQUE (benchmark_task_result_id, benchmark_task_criterion_id)
+);
+CREATE INDEX idx_task_criterion_results_task_result
+  ON benchmark_task_criterion_results(benchmark_task_result_id, criterion_id);
+CREATE INDEX idx_task_criterion_results_criterion
+  ON benchmark_task_criterion_results(benchmark_task_criterion_id);
 
 -- FM — failure map -----------------------------------------------------------
 
 CREATE TABLE failure_maps (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-  benchmark_result_id INTEGER NOT NULL REFERENCES benchmarks_results(id) ON DELETE CASCADE,
+  benchmark_result_id INTEGER NOT NULL REFERENCES benchmark_results(id) ON DELETE CASCADE,
   prompt_revision_id INTEGER NOT NULL REFERENCES prompt_revisions(id) ON DELETE RESTRICT,
   provider_model     TEXT    NOT NULL,          -- the analyst model that grouped the failures
   usage_json         TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(usage_json)),
@@ -210,7 +284,8 @@ CREATE INDEX idx_topics_failure_map ON topics(failure_map_id);
 CREATE TABLE failure_items (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   failure_map_id  INTEGER NOT NULL REFERENCES failure_maps(id) ON DELETE CASCADE,
-  benchmark_result_id INTEGER NOT NULL REFERENCES benchmarks_results(id) ON DELETE CASCADE,
+  benchmark_result_id INTEGER NOT NULL REFERENCES benchmark_results(id) ON DELETE CASCADE,
+  benchmark_task_criterion_result_id INTEGER NOT NULL REFERENCES benchmark_task_criterion_results(id) ON DELETE RESTRICT,
   topic_id        INTEGER REFERENCES topics(id) ON DELETE SET NULL,
   task_id         TEXT    NOT NULL,
   trial_name      TEXT    NOT NULL DEFAULT '',
@@ -226,10 +301,11 @@ CREATE TABLE failure_items (
   source_json     TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(source_json)),
   created_at      TEXT    NOT NULL,
   updated_at      TEXT    NOT NULL,
-  UNIQUE (failure_map_id, task_id, criterion_id)
+  UNIQUE (failure_map_id, benchmark_task_criterion_result_id)
 );
 CREATE INDEX idx_failure_items_map   ON failure_items(failure_map_id);
 CREATE INDEX idx_failure_items_result ON failure_items(benchmark_result_id);
+CREATE INDEX idx_failure_items_criterion_result ON failure_items(benchmark_task_criterion_result_id);
 CREATE INDEX idx_failure_items_topic ON failure_items(topic_id, status);
 
 -- DF — data forge run --------------------------------------------------------
@@ -328,7 +404,7 @@ CREATE TABLE verifiers (
 
 CREATE TABLE environments (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  run_id          INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE RESTRICT,
+  benchmark_run_id INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE RESTRICT,
   topic_id        INTEGER NOT NULL REFERENCES topics(id) ON DELETE RESTRICT,
   verifier_id     INTEGER NOT NULL REFERENCES verifiers(id) ON DELETE RESTRICT,
   name            TEXT    NOT NULL,
@@ -348,7 +424,7 @@ CREATE TABLE environments (
   created_at      TEXT    NOT NULL,
   updated_at      TEXT    NOT NULL
 );
-CREATE INDEX idx_environments_run ON environments(run_id, updated_at DESC);
+CREATE INDEX idx_environments_benchmark_run ON environments(benchmark_run_id, updated_at DESC);
 
 CREATE TABLE environment_documents (
   environment_id INTEGER NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
@@ -361,7 +437,7 @@ CREATE TABLE environment_documents (
 -- state lives on the owning job; this table holds only results.
 CREATE TABLE environment_evaluations (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-  run_id               INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE CASCADE,
+  benchmark_run_id     INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE CASCADE,
   kind                 TEXT    NOT NULL CHECK (kind IN ('rl_test','validation')),
   model                TEXT    NOT NULL,
   endpoint_label       TEXT    NOT NULL DEFAULT '',
@@ -374,7 +450,7 @@ CREATE TABLE environment_evaluations (
   created_at           TEXT    NOT NULL,
   updated_at           TEXT    NOT NULL
 );
-CREATE INDEX idx_env_evals_run ON environment_evaluations(run_id, created_at DESC);
+CREATE INDEX idx_env_evals_benchmark_run ON environment_evaluations(benchmark_run_id, created_at DESC);
 
 -- Audit ----------------------------------------------------------------------
 

@@ -25,7 +25,7 @@ type EvaluationDb = Row & {
   metrics_json: string;
 };
 
-export async function listByRun(runId: number): Promise<EnvironmentRow[]> {
+export async function listByBenchmarkRun(benchmarkRunId: number): Promise<EnvironmentRow[]> {
   const rows = await all<EnvironmentDb>(
     `SELECT e.id, e.topic_id, tp.name AS topic_name, e.status, e.base_model,
             e.inference_model, v.name AS verifier_name, v.pass_threshold,
@@ -33,9 +33,9 @@ export async function listByRun(runId: number): Promise<EnvironmentRow[]> {
        FROM environments e
        JOIN topics tp ON tp.id = e.topic_id
        JOIN verifiers v ON v.id = e.verifier_id
-      WHERE e.run_id = ?
+      WHERE e.benchmark_run_id = ?
       ORDER BY e.id ASC`,
-    [runId],
+    [benchmarkRunId],
   );
   return rows.map((row) => ({
     environmentCode: code('environments', row.id),
@@ -51,13 +51,13 @@ export async function listByRun(runId: number): Promise<EnvironmentRow[]> {
   }));
 }
 
-export async function latestEvaluation(runId: number): Promise<EvaluationSummary | null> {
+export async function latestEvaluation(benchmarkRunId: number): Promise<EvaluationSummary | null> {
   const row = await one<EvaluationDb>(
     `SELECT id, kind, model, endpoint_label, rollouts_per_example, max_concurrent, metrics_json
        FROM environment_evaluations
-      WHERE run_id = ?
+      WHERE benchmark_run_id = ?
       ORDER BY created_at DESC, id DESC LIMIT 1`,
-    [runId],
+    [benchmarkRunId],
   );
   if (!row) return null;
   const metrics = json<{

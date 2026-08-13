@@ -64,14 +64,14 @@ const toDataForge = (row: DataForgeDb): DataForgeSummary => {
   };
 };
 
-export async function findByRun(runId: number): Promise<DataForgeSummary | null> {
+export async function findByBenchmarkRun(benchmarkRunId: number): Promise<DataForgeSummary | null> {
   const row = await one<DataForgeDb>(
     `${DATA_FORGE_SELECT}
        JOIN failure_maps fm ON fm.id = df.failure_map_id
-       JOIN benchmarks_results brs ON brs.id = fm.benchmark_result_id
+       JOIN benchmark_results brs ON brs.id = fm.benchmark_result_id
       WHERE brs.benchmark_run_id = ?
       ORDER BY df.created_at DESC, df.id DESC`,
-    [runId],
+    [benchmarkRunId],
   );
   return row ? toDataForge(row) : null;
 }

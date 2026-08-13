@@ -7,8 +7,10 @@
  * database already has a run, this refuses rather than duplicating.
  */
 import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
 import { db, insert, now, value } from '../src/db/client.ts';
 import { code } from '../src/db/ids.ts';
+import { config } from '../src/config.ts';
 
 const RUN = {
   label: 'harvey_001',
@@ -23,6 +25,15 @@ const RUN = {
   metrics: { rollouts: 1, criteria_total: 69, criteria_passed: 53, pass_rate: 0.768, mean_reward: 0.768, input_tokens: 742312, output_tokens: 38754 },
 } as const;
 const TASK_ID = 'trusts-estates-private-client__extract-distribution-requirements-from-trust-agreement';
+type TaskCriterion = { id: string; title: string; match_criteria: string; [key: string]: unknown };
+
+const taskDefinitionPath = resolve(
+  config.gym.root,
+  'resources_servers/legal_agent_bench/data/cache/harbor_tasks/legal_agent_bench',
+  TASK_ID,
+  'task.json',
+);
+const taskDefinition = await Bun.file(taskDefinitionPath).json() as { criteria: TaskCriterion[] };
 const TOPICS = [
   { name: 'Provision Substance and Obligation Extraction', slug: 'provision-substance-and-obligation-extraction', description: 'Extract operative language, not a heading.', verifier_strategy: 'The response must quote or paraphrase the operative obligation, not merely name the section it appears in.', reward: 1.0, failures: [['C-014', 'Identifies the distribution standard', 'Named the article but not the operative "health, education, maintenance and support" standard it contains.'], ['C-022', 'States the trustee obligation', 'Described the trustee as "responsible for distributions" without extracting the mandatory-versus-discretionary language.'], ['C-031', 'Quotes the controlling sentence', 'Summarised the provision instead of quoting the sentence that creates the duty.'], ['C-047', 'Distinguishes mandatory from discretionary', 'Treated a discretionary distribution as mandatory; the word "may" was not surfaced.']] },
   { name: 'Provision-Fact Matching and Governing Section', slug: 'provision-fact-matching-and-governing-section', description: 'Match facts to the provision that governs.', verifier_strategy: 'Given a fact pattern, the response must cite the specific provision that governs it rather than the nearest topical heading.', reward: 1.0, failures: [['C-008', 'Cites the governing provision', 'Cited the general distributions article when the specific successor-trustee clause governed.'], ['C-019', 'Applies facts to the right clause', 'Applied the wrong clause to the beneficiary\'s stated circumstances.'], ['C-052', 'Excludes inapplicable provisions', 'Listed three provisions without saying which one actually controls.']] },
@@ -110,37 +121,97 @@ await db.execute({
   ],
 });
 
+const taskCriterionIds = new Map<string, number>();
+for (const [position, criterion] of taskDefinition.criteria.entries()) {
+  taskCriterionIds.set(
+    criterion.id,
+    await insert(
+      `INSERT INTO benchmark_task_criteria (
+         benchmark_id, dataset, task_id, criterion_id, title, match_criteria,
+         position, source_json, created_at, updated_at
+       ) VALUES (?, 'validation', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        benchmarkId,
+        TASK_ID,
+        criterion.id,
+        criterion.title,
+        criterion.match_criteria,
+        position,
+        JSON.stringify(criterion),
+        at,
+        at,
+      ],
+    ),
+  );
+}
+
 // BR — the benchmark run.
-const runId = await insert(
+const benchmarkRunId = await insert(
   `INSERT INTO benchmark_runs (benchmark_id, label, model, task_count,
-                               settings_json, metrics_json, output_path, created_at, updated_at)
-   VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)`,
+                               settings_json, created_at, updated_at)
+   VALUES (?, ?, ?, 1, ?, ?, ?)`,
   [
     benchmarkId,
     RUN.label,
     RUN.model,
     JSON.stringify(RUN.settings),
-    JSON.stringify(RUN.metrics),
-    null,
     at,
     at,
   ],
 );
-await db.execute({
-  sql: 'UPDATE benchmark_runs SET output_path = ? WHERE id = ?',
-  args: [`results/lab/${code('benchmark_runs', runId)}/${RUN.model}.jsonl`, runId],
-});
 const benchmarkResultId = await insert(
-  `INSERT INTO benchmarks_results (
-     benchmark_run_id, benchmark_id, dataset, task_id, trial_name, outcome, reward,
+  `INSERT INTO benchmark_results (
+     benchmark_run_id, benchmark_id, outcome, tasks_total, tasks_passed, tasks_failed,
+     criteria_total, criteria_passed, criteria_failed, pass_rate, reward,
+     result_path, metrics_json, created_at, updated_at
+   ) VALUES (?, ?, 'failed', 1, 0, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  [benchmarkRunId, benchmarkId, RUN.metrics.criteria_total, RUN.metrics.criteria_passed,
+    RUN.metrics.criteria_total - RUN.metrics.criteria_passed, RUN.metrics.pass_rate,
+    RUN.metrics.mean_reward,
+    `results/lab/${code('benchmark_runs', benchmarkRunId)}/${RUN.model}.jsonl`, JSON.stringify(RUN.metrics), at, at],
+);
+const benchmarkTaskResultId = await insert(
+  `INSERT INTO benchmark_task_results (
+     benchmark_result_id, benchmark_id, dataset, task_id, trial_name, outcome, reward,
      criteria_total, criteria_passed, criteria_failed, result_path, metrics_json,
      created_at, updated_at
    ) VALUES (?, ?, 'validation', ?, 'trial-1', 'failed', ?, ?, ?, ?, ?, ?, ?, ?)`,
-  [runId, benchmarkId, TASK_ID, RUN.metrics.mean_reward, RUN.metrics.criteria_total,
+  [benchmarkResultId, benchmarkId, TASK_ID, RUN.metrics.mean_reward, RUN.metrics.criteria_total,
     RUN.metrics.criteria_passed, RUN.metrics.criteria_total - RUN.metrics.criteria_passed,
-    `results/lab/${code('benchmark_runs', runId)}/${RUN.model}.jsonl`, JSON.stringify(RUN.metrics), at, at],
+    `results/lab/${code('benchmark_runs', benchmarkRunId)}/${RUN.model}.jsonl`, JSON.stringify(RUN.metrics), at, at],
 );
-await job('benchmark_run', 'benchmark_runs', runId, 'collect rollouts');
+
+const fixtureFailures = new Map<string, string>(
+  TOPICS.flatMap((topic) => topic.failures.map(([criterionId, , reasoning]) => [criterionId, reasoning] as const)),
+);
+const criterionResultIds = new Map<string, number>();
+for (const criterion of taskDefinition.criteria) {
+  const failureReasoning = fixtureFailures.get(criterion.id);
+  criterionResultIds.set(
+    criterion.id,
+    await insert(
+      `INSERT INTO benchmark_task_criterion_results (
+         benchmark_task_result_id, benchmark_task_criterion_id, task_id, trial_name,
+         criterion_id, criterion_title, verdict, reasoning, match_criteria,
+         judge_model, judge_error, source_json, created_at, updated_at
+       ) VALUES (?, ?, ?, 'trial-1', ?, ?, ?, ?, ?, 'fixture/deepseek-v4-pro', 0, ?, ?, ?)`,
+      [
+        benchmarkTaskResultId,
+        taskCriterionIds.get(criterion.id)!,
+        TASK_ID,
+        criterion.id,
+        criterion.title,
+        failureReasoning ? 'fail' : 'pass',
+        failureReasoning ?? 'The seeded fixture passed this criterion.',
+        criterion.match_criteria,
+        JSON.stringify(criterion),
+        at,
+        at,
+      ],
+    ),
+  );
+}
+await job('benchmark_run', 'benchmark_runs', benchmarkRunId, 'collect rollouts');
 
 // FM — the failure map that owns the extracted topics.
 const failureMapId = await insert(
@@ -173,11 +244,13 @@ for (const topic of TOPICS) {
   for (const [criterionId, criterionTitle, reasoning] of topic.failures) {
     ids.push(
       await insert(
-        `INSERT INTO failure_items (failure_map_id, benchmark_result_id, topic_id, task_id, trial_name,
+        `INSERT INTO failure_items (failure_map_id, benchmark_result_id, benchmark_task_criterion_result_id,
+                                    topic_id, task_id, trial_name,
                                     criterion_id, criterion_title, reasoning, capability,
                                     severity, status, occurrences, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'trial-1', ?, ?, ?, ?, 'high', 'approved', 1, ?, ?)`,
-        [failureMapId, benchmarkResultId, topicId, TASK_ID, criterionId, criterionTitle, reasoning, topic.name, at, at],
+         VALUES (?, ?, ?, ?, ?, 'trial-1', ?, ?, ?, ?, 'high', 'approved', 1, ?, ?)`,
+        [failureMapId, benchmarkResultId, criterionResultIds.get(criterionId)!, topicId, TASK_ID,
+          criterionId, criterionTitle, reasoning, topic.name, at, at],
       ),
     );
   }
@@ -279,12 +352,12 @@ for (const topic of TOPICS) {
   );
 
   const environmentId = await insert(
-    `INSERT INTO environments (run_id, topic_id, verifier_id, name, slug, status,
+    `INSERT INTO environments (benchmark_run_id, topic_id, verifier_id, name, slug, status,
                                base_model, inference_model, local_path, package_hash,
                                scale_ready, taskset_json, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, 'built', ?, ?, ?, ?, 0, ?, ?, ?)`,
     [
-      runId,
+      benchmarkRunId,
       topicId,
       verifierId,
       topic.name,
@@ -315,12 +388,12 @@ const meanReward =
   TOPICS.reduce((sum, topic) => sum + topic.reward, 0) / TOPICS.length;
 
 const evaluationId = await insert(
-  `INSERT INTO environment_evaluations (run_id, kind, model, endpoint_label,
+  `INSERT INTO environment_evaluations (benchmark_run_id, kind, model, endpoint_label,
                                         rollouts_per_example, max_concurrent,
                                         environment_ids_json, metrics_json, created_at, updated_at)
    VALUES (?, 'validation', ?, 'local', 4, 1, ?, ?, ?, ?)`,
   [
-    runId,
+    benchmarkRunId,
     RUN.model,
     JSON.stringify(evaluationEnvironmentIds),
     JSON.stringify({
@@ -344,7 +417,7 @@ await job('env_eval', 'environment_evaluations', evaluationId, 'local validation
 
 const count = async (table: string) => (await value<number>(`SELECT count(*) FROM ${table}`)) ?? 0;
 
-console.log(`✓ seeded ${code('benchmark_runs', runId)} "${RUN.label}" / ${RUN.model}`);
+console.log(`✓ seeded ${code('benchmark_runs', benchmarkRunId)} "${RUN.label}" / ${RUN.model}`);
 for (const table of [
   'failure_maps',
   'failure_items',

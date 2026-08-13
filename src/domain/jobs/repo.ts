@@ -13,7 +13,7 @@ type JobDb = Row & {
   exit_code: number | null;
 };
 
-export async function listByRun(runId: number): Promise<JobRow[]> {
+export async function listByBenchmarkRun(benchmarkRunId: number): Promise<JobRow[]> {
   const rows = await all<JobDb>(
     `SELECT j.id, j.kind, j.subject_type, j.subject_id, j.status, j.step,
             j.progress, j.exit_code
@@ -21,20 +21,20 @@ export async function listByRun(runId: number): Promise<JobRow[]> {
       WHERE (j.subject_type = 'benchmark_runs' AND j.subject_id = ?)
          OR j.subject_id IN (
               SELECT fm.id FROM failure_maps fm
-               JOIN benchmarks_results brs ON brs.id = fm.benchmark_result_id
+               JOIN benchmark_results brs ON brs.id = fm.benchmark_result_id
               WHERE brs.benchmark_run_id = ?
               UNION ALL
               SELECT df.id FROM data_forge_runs df
                JOIN failure_maps fm ON fm.id = df.failure_map_id
-               JOIN benchmarks_results brs ON brs.id = fm.benchmark_result_id
+               JOIN benchmark_results brs ON brs.id = fm.benchmark_result_id
               WHERE brs.benchmark_run_id = ?
               UNION ALL
-              SELECT e.id FROM environments e WHERE e.run_id = ?
+              SELECT e.id FROM environments e WHERE e.benchmark_run_id = ?
               UNION ALL
-              SELECT ee.id FROM environment_evaluations ee WHERE ee.run_id = ?
+              SELECT ee.id FROM environment_evaluations ee WHERE ee.benchmark_run_id = ?
             )
       ORDER BY j.created_at ASC, j.id ASC`,
-    [runId, runId, runId, runId, runId],
+    [benchmarkRunId, benchmarkRunId, benchmarkRunId, benchmarkRunId, benchmarkRunId],
   );
   return rows.map((row) => ({
     jobCode: code('jobs', row.id),

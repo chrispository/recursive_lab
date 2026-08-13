@@ -12,7 +12,11 @@ import { settingsApi } from './http/api/settings.ts';
 import { pages } from './http/pages.tsx';
 import { schemaDocument } from './http/schema.ts';
 
-const staticFiles = await staticPlugin({ assets: `${ROOT}/public`, prefix: '/', alwaysStatic: true });
+const staticFiles = await staticPlugin({
+  assets: `${ROOT}/public`,
+  prefix: '/',
+  alwaysStatic: process.env.NODE_ENV === 'production',
+});
 
 const app = new Elysia()
   .use(html())

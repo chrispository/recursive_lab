@@ -14,9 +14,9 @@ export type ProgressStep = {
   count: number;
 };
 
-export type Progress = {
-  runId: number;
-  runCode: string;
+export type BenchmarkRunProgress = {
+  benchmarkRunId: number;
+  benchmarkRunCode: string;
   label: string;
   model: string;
   passRate: number | null;
@@ -37,7 +37,7 @@ const EMPTY: ProgressStep = { entity: null, count: 0 };
  * Each rail stage is satisfied by its own downstream entity. A benchmark run
  * opens stage 01; its first task result opens stage 02.
  */
-export function gatesOf(progress: Progress | null): number {
+export function gatesOf(progress: BenchmarkRunProgress | null): number {
   if (!progress) return 0;
   let gates = 1;
   if (progress.benchmarkResult.entity) gates++;

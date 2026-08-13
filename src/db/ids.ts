@@ -13,8 +13,11 @@
 
 export const PREFIX = {
   benchmarks: 'BM',
+  benchmark_task_criteria: 'BTC',
   benchmark_runs: 'BR',
-  benchmarks_results: 'BTR',
+  benchmark_results: 'BRS',
+  benchmark_task_results: 'BTR',
+  benchmark_task_criterion_results: 'BTCR',
   failure_maps: 'FM',
   failure_items: 'FI',
   topics: 'TP',

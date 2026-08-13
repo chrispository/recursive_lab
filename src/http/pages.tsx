@@ -13,6 +13,7 @@ import * as topics from '../domain/topics/service.ts';
 import * as runs from '../domain/runs/service.ts';
 import * as dataForge from '../domain/data_forge/service.ts';
 import * as environments from '../domain/environments/service.ts';
+import * as benchmarks from '../domain/benchmarks/service.ts';
 import * as jobs from '../domain/jobs/service.ts';
 import * as settings from '../gym/settings.ts';
 import { Benchmarks } from '../views/tabs/Benchmarks.tsx';
@@ -28,16 +29,40 @@ export const pages = new Elysia({ name: 'pages' })
     if (!isTab(params.tab)) return status(404, 'Not found');
 
     const current = await progress.currentWithRail();
-    const run = current.progress ? await runs.byId(current.progress.runId) : null;
-    const runJobs = current.progress ? await jobs.listByRun(current.progress.runId) : [];
+    const benchmarkRun = current.progress ? await runs.byBenchmarkRunId(current.progress.benchmarkRunId) : null;
+    const benchmarkRunJobs = current.progress ? await jobs.listByBenchmarkRun(current.progress.benchmarkRunId) : [];
     let body: JSX.Element;
 
     switch (params.tab) {
       case 'benchmarks':
-        body = <Benchmarks run={run} jobs={runJobs} />;
+        body = (
+          <Benchmarks
+            benchmarkRun={benchmarkRun}
+            jobs={benchmarkRunJobs}
+            catalogs={await benchmarks.list()}
+            settings={await settings.read()}
+          />
+        );
         break;
       case 'results':
-        body = <Results run={run} jobs={runJobs} />;
+        {
+          const availableRuns = await runs.list();
+          const requestedRunId = Number(new URL(request.url).searchParams.get('run'));
+          const selectedRun = Number.isInteger(requestedRunId) && requestedRunId > 0
+            ? availableRuns.find((run) => run.benchmarkRunId === requestedRunId) ?? null
+            : null;
+          const resultRun = selectedRun ?? benchmarkRun ?? availableRuns[0] ?? null;
+          const resultJobs = resultRun ? await jobs.listByBenchmarkRun(resultRun.benchmarkRunId) : [];
+          const resultCriteria = resultRun ? await runs.criteriaByBenchmarkRun(resultRun.benchmarkRunId) : [];
+          body = (
+            <Results
+              benchmarkRun={resultRun}
+              jobs={resultJobs}
+              criteria={resultCriteria}
+              availableRuns={availableRuns}
+            />
+          );
+        }
         break;
       case 'failures': {
         const failureMapId = current.progress?.failureMapId;
@@ -51,15 +76,15 @@ export const pages = new Elysia({ name: 'pages' })
         break;
       }
       case 'forge': {
-        const dataForgeRun = current.progress ? await dataForge.byRun(current.progress.runId) : null;
+        const dataForgeRun = current.progress ? await dataForge.byBenchmarkRun(current.progress.benchmarkRunId) : null;
         body = <DataForge dataForge={dataForgeRun} documents={dataForgeRun ? await dataForge.documents(dataForgeRun.dataForgeCode) : []} />;
         break;
       }
       case 'env-lab':
         body = (
           <EnvLab
-            environments={current.progress ? await environments.listByRun(current.progress.runId) : []}
-            evaluation={current.progress ? await environments.latestEvaluation(current.progress.runId) : null}
+            environments={current.progress ? await environments.listByBenchmarkRun(current.progress.benchmarkRunId) : []}
+            evaluation={current.progress ? await environments.latestEvaluation(current.progress.benchmarkRunId) : null}
           />
         );
         break;

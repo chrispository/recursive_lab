@@ -1,7 +1,7 @@
 /**
  * The 186px left index rail — the app's only navigation.
  *
- * It carries three things, top to bottom: identity (wordmark + the run in
+ * It carries three things, top to bottom: identity (wordmark + the benchmark run in
  * context), the five numbered pipeline stages, and the gate readout. The gate
  * readout is derived from the current progress on every render and never stored.
  */
@@ -9,8 +9,8 @@ import { STAGES, stageNumber, type Tab } from './tabs.ts';
 
 /** How far the current progress reaches, for the stage ticks and the foot. */
 export type RailState = {
-  /** Display code of the run in context, e.g. "BR-00012". Null when there is none. */
-  runCode: string | null;
+  /** Display code of the benchmark run in context, e.g. "BR-00012". Null when there is none. */
+  benchmarkRunCode: string | null;
   /** Model under test, shown in the rail foot. */
   model: string | null;
   /** Criteria pass rate 0–1, shown in the rail foot. */
@@ -19,7 +19,7 @@ export type RailState = {
   gates: number;
 };
 
-export const EMPTY_RAIL: RailState = { runCode: null, model: null, passRate: null, gates: 0 };
+export const EMPTY_RAIL: RailState = { benchmarkRunCode: null, model: null, passRate: null, gates: 0 };
 
 /**
  * A stage is `done` once progress reaches past it, `active` for the one
@@ -43,9 +43,9 @@ export function Rail({ tab, state, oob }: { tab: Tab; state: RailState; oob?: bo
     <aside id="rail" class="m-rail" hx-swap-oob={oob ? 'true' : undefined}>
       <div class="m-railhead">
         <a class="m-wordmark" href="/" hx-boost="true">
-          recursive<b>( )</b>
+          recursive<span class="m-wordmark-mark">(</span> <span class="m-wordmark-mark">)</span>
         </a>
-        <small>{state.runCode ?? 'no run'}</small>
+        <small>{state.benchmarkRunCode ?? 'no run'}</small>
       </div>
 
       {STAGES.map((stage, i) => (

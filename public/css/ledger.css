@@ -33,14 +33,24 @@
   padding: 16px 14px;
   border-bottom: 1px solid var(--line);
 }
-.m-wordmark {
+.m-railhead > a.m-wordmark {
   display: block;
   color: var(--text-1);
-  font: 500 15px/1 var(--mono);
+  font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-transform: none;
 }
-.m-wordmark b {
+.m-railhead > a.m-wordmark .m-wordmark-mark {
   color: var(--brand);
+  font-family: var(--mono);
+  font-size: 1.12em;
   font-weight: 700;
+  letter-spacing: -0.02em;
+  -webkit-text-stroke: 0.55px currentColor;
+  paint-order: stroke fill;
 }
 .m-railhead small {
   display: block;
@@ -130,6 +140,301 @@
 .m-title p {
   max-width: 64ch;
   margin-top: 8px;
+}
+.m-run-picker {
+  display: grid;
+  grid-template-columns: auto minmax(240px, 420px) auto;
+  align-items: end;
+  gap: 8px;
+  margin-top: var(--s4);
+  max-width: 760px;
+}
+.m-run-picker label {
+  padding-bottom: 9px;
+  color: var(--text-3);
+  font: 500 var(--t-label) / 1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.m-run-picker select {
+  width: auto;
+}
+
+/* Benchmark configuration -------------------------------------------------- */
+
+.m-config-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  align-items: start;
+  gap: var(--s4);
+  margin-top: var(--s4);
+}
+.m-config-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--inset);
+}
+.m-config-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--deep);
+}
+.m-config-head-right {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+.m-settings-link {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--text-3);
+  border: 1px solid var(--line);
+  font-size: 16px;
+}
+.m-settings-link:hover {
+  color: var(--text-1);
+  background: var(--raised-2);
+}
+.m-config-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+  padding: var(--s4);
+}
+.m-config-body > .full,
+.m-config-body > .m-advanced.full {
+  grid-column: 1 / -1;
+}
+.m-config-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.m-config-field label {
+  color: var(--text-2);
+  font: 650 var(--t-label) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-help {
+  display: inline-grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  color: var(--text-3);
+  border: 1px solid var(--text-4);
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  vertical-align: 1px;
+}
+.m-config-note {
+  color: var(--text-3);
+  font-size: var(--t-label);
+  line-height: 1.45;
+}
+.m-import {
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+.m-import > summary,
+.m-advanced > summary {
+  padding: 10px 12px;
+  color: var(--text-3);
+  cursor: pointer;
+  font: 650 var(--t-label) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  list-style: none;
+  text-transform: uppercase;
+}
+.m-import > summary::-webkit-details-marker,
+.m-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+.m-import > summary::before {
+  content: '▸ ';
+  color: var(--text-4);
+}
+.m-import[open] > summary::before {
+  content: '▾ ';
+}
+.m-import-body {
+  display: grid;
+  gap: var(--s3);
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--line);
+}
+.m-import-body p {
+  padding-top: 10px;
+  font-size: var(--t-label);
+}
+.m-import-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--s2);
+}
+.m-task-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.m-task-toolbar > span:last-child {
+  display: flex;
+  gap: var(--s2);
+}
+.m-task-picker {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+.m-task-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 10px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  font-size: var(--t-label);
+  line-height: 1.35;
+}
+.m-task-row:last-child {
+  border-bottom: 0;
+}
+.m-task-row:hover,
+.m-task-row:has(input:checked) {
+  color: var(--text-1);
+  background: var(--wash-2);
+}
+.m-task-row input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+.m-task-row span {
+  overflow-wrap: anywhere;
+}
+.m-advanced {
+  border-top: 1px solid var(--line);
+}
+.m-advanced > summary {
+  padding: 10px 0 0;
+}
+.m-advanced-mark {
+  display: inline-block;
+  width: 18px;
+  color: var(--brand);
+  font-size: 16px;
+}
+.m-advanced-body {
+  display: grid;
+  gap: var(--s4);
+  padding-top: var(--s4);
+}
+.m-advanced-group {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--line-soft);
+  background: var(--raised);
+}
+.m-advanced-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.m-advanced-group-head h4 {
+  color: var(--text-1);
+}
+.m-advanced-group-head span,
+.m-run-kicker {
+  color: var(--text-4);
+  font: 500 9px / 1.2 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.m-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+}
+.m-config-grid > .full {
+  grid-column: 1 / -1;
+}
+.m-run-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+  padding: 0 var(--s4) var(--s4);
+}
+.m-run-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  min-width: 0;
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--text-1);
+  background: var(--raised);
+}
+.m-run-card-full {
+  border-left-color: var(--brand);
+}
+.m-run-card > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.m-run-card strong {
+  color: var(--text-1);
+  font-size: var(--t-label);
+}
+.m-run-card > div > span:last-child {
+  color: var(--text-3);
+  font-size: var(--t-micro);
+  text-transform: uppercase;
+}
+.m-run-card label {
+  color: var(--text-1);
+  font-size: var(--t-label);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.m-run-card label input {
+  display: inline-block;
+  width: 48px;
+  padding: 5px 7px;
+  margin: 0 4px;
+}
+.m-recurse-button {
+  background: color-mix(in srgb, var(--brand) 65%, var(--raised));
+}
+.m-config-status {
+  min-height: 0;
+  padding: 0 var(--s4) var(--s4);
+  color: var(--text-3);
+  font-size: var(--t-label);
+}
+.m-config-aside {
+  position: sticky;
+  top: var(--s4);
 }
 
 /* Tablebox ----------------------------------------------------------------
@@ -269,6 +574,93 @@
 .m-table tr[data-state='cancelled'] td:first-child,
 .m-table tr[data-state='pending'] td:first-child {
   border-left-color: var(--warn);
+}
+
+/* Criterion inspection ---------------------------------------------------- */
+
+.m-criteria-list {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  background: var(--wash);
+}
+.m-criterion {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--text-4);
+  background: var(--panel);
+}
+.m-criterion.pass {
+  border-left-color: var(--pass);
+}
+.m-criterion.fail,
+.m-criterion.error {
+  border-left-color: var(--fail);
+}
+.m-criterion summary {
+  display: grid;
+  grid-template-columns: 42px 52px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  color: var(--text-1);
+  cursor: pointer;
+  list-style: none;
+}
+.m-criterion summary::-webkit-details-marker,
+.m-criterion-source summary::-webkit-details-marker {
+  display: none;
+}
+.m-criterion-verdict {
+  font: 600 var(--t-micro) / 1 var(--sans);
+  letter-spacing: 0.08em;
+}
+.m-criterion.pass .m-criterion-verdict {
+  color: var(--pass);
+}
+.m-criterion.fail .m-criterion-verdict,
+.m-criterion.error .m-criterion-verdict {
+  color: var(--fail);
+}
+.m-criterion-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.m-criterion-body {
+  padding: 0 12px 12px 104px;
+}
+.m-criterion-reasoning {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--t-label);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.m-criterion-source {
+  margin-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+.m-criterion-source summary {
+  display: block;
+  padding: 11px 0 0;
+  color: var(--text-3);
+  font: 500 var(--t-label) / 1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.m-criterion-source summary::after {
+  content: none;
+}
+.m-criterion-source-body {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+}
+.m-criterion-source-body p {
+  margin-top: 5px;
+  color: var(--text-3);
+  font-size: var(--t-label);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 /* Panels ------------------------------------------------------------------- */
@@ -548,14 +940,46 @@
     grid-template-columns: 1fr;
   }
   .m-appearance-grid,
-  .m-settings-grid {
+  .m-settings-grid,
+  .m-run-picker,
+  .m-config-layout,
+  .m-config-body,
+  .m-config-grid,
+  .m-run-actions {
     grid-template-columns: 1fr;
+  }
+  .m-run-picker label {
+    padding-bottom: 0;
+  }
+  .m-run-picker select {
+    width: 100%;
   }
   .m-api-result {
     grid-template-columns: 1fr auto;
   }
   .m-api-result .m-api-detail {
     grid-column: 1 / -1;
+  }
+  .m-config-body > .full,
+  .m-config-grid > .full {
+    grid-column: auto;
+  }
+  .m-import-controls {
+    grid-template-columns: 1fr;
+  }
+  .m-task-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .m-task-toolbar > span:last-child {
+    justify-content: flex-end;
+  }
+  .m-config-aside {
+    position: static;
+  }
+  .m-run-card {
+    align-items: stretch;
+    flex-direction: column;
   }
   .m-railfoot,
   .m-railhead small {

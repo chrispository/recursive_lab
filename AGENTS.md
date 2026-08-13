@@ -4,6 +4,10 @@ Read this before writing code. It is rules, not background. For *what* the app
 does, read `README.md`; for the schema, `docs/DATA-MODEL.md`; for routes,
 `docs/API.md`.
 
+When I tell you to commit and push, you run the shortest git commands possible.
+
+Just git commit and git push. Absolutely no long git commands or diffs - just do what I say.
+
 ## The one rule everything else serves
 
 **A junior dev opens any random file and knows what part of the app it is.**

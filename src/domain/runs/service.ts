@@ -1,11 +1,12 @@
 import * as repo from './repo.ts';
 
-export type { JsonObject, RunSummary } from './model.ts';
+export type { BenchmarkCriterionResult, BenchmarkRunSummary, JsonObject } from './model.ts';
 
-export const byId = repo.findById;
+export const byBenchmarkRunId = repo.findByBenchmarkRunId;
 export const list = repo.listAll;
+export const criteriaByBenchmarkRun = repo.listCriteriaByBenchmarkRun;
 
 export async function current() {
-  const [run] = await repo.listAll();
-  return run ?? null;
+  const [benchmarkRun] = await repo.listAll();
+  return benchmarkRun ?? null;
 }

@@ -1,4 +1,4 @@
-import type { Progress } from '../../domain/progress/model.ts';
+import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { isBelowThreshold, type TopicRow } from '../../domain/topics/model.ts';
 import { tally, type TopicTally } from '../../domain/topics/service.ts';
 import { Bar } from '../ui/Bar.tsx';
@@ -12,7 +12,7 @@ import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
 
 type FailuresProps = {
-  progress: Progress | null;
+  progress: BenchmarkRunProgress | null;
   topics: TopicRow[];
   uncategorised: number;
 };
@@ -56,7 +56,7 @@ export function Failures({ progress, topics, uncategorised }: FailuresProps) {
                 </td>
                 <td>
                   {progress.label} · {progress.model}
-                  <span class="sub">{progress.runCode}</span>
+                  <span class="sub">{progress.benchmarkRunCode}</span>
                 </td>
                 <td class="n">{map.count}</td>
                 <td><Badge state="ready">mapped</Badge></td>
@@ -78,7 +78,7 @@ export function Failures({ progress, topics, uncategorised }: FailuresProps) {
             <div class="m-input">
               {progress ? (
                 <>
-                  <Id value={progress.runCode} />
+                  <Id value={progress.benchmarkRunCode} />
                   {map?.entity ? <> · <Id value={map.entity} /></> : null}
                 </>
               ) : (
