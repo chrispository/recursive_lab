@@ -8,8 +8,22 @@
 > routes and the Settings JSON surface; tab fragments and the remaining JSON
 > GETs are still pending. The requested legacy run is now in `data/lab.db` as
 > `BR-00001`, with its original result artifact path preserved.
-> Display codes are five-digit padded (`BR-00001`, `TX-00001`, `FM-00001`, etc.)
-> through the central `code()` helper; `parse()` accepts legacy unpadded input.
+> A standalone interactive schema map is available at `/schema.html`; it
+> exposes all 22 tables (including `data_forge_runs` / `data_forge_run_items`)
+> plus derived `progress`, with fields and FK/logical connections.
+> The data-forge tables are named `data_forge_runs` and
+> `data_forge_run_items`; their owning document FK is `data_forge_run_id`.
+> The matching domain module/read model is `src/domain/data_forge`, with
+> `DataForgeSummary`, `dataForgeCode`, and `DataForge` names throughout.
+> `benchmarks_results` now records one task outcome per run/trial; the
+> follow-up implementation work is documented in `todo.md`.
+> The downstream chain is `benchmark_runs → benchmarks_results → failure_maps
+> → topics → failure_items`; topics are scoped to the failure map that produced
+> them.
+> Pipeline progress (how far a run has travelled) lives in `src/domain/progress`,
+> not a table — it is derived on every read. Display codes are five-digit padded
+> (`BR-00001`, `FM-00001`, `TP-00001`, etc.) through the central `code()` helper;
+> `parse()` accepts legacy unpadded input.
 >
 > **The app boots and serves all six pages; `/failures` renders the migrated
 > 16-item failure map.**
@@ -42,8 +56,8 @@ A rebuild of the "recursive( )" benchmark lab — the dashboard driving this
 research pipeline:
 
 ```
-benchmark run  →  failure map  →  taxonomy  →  data forge  →  RL environments
-     BR              FM + FI        TX + TP       DF + DOC        VF + ENV
+benchmark run  →  task results  →  failure map  →  topics  →  data forge
+     BR              BTR              FM + FI        TP          DF + DOC → ENV
 ```
 
 The previous version (`~/Documents/recursive/tools/`) worked but became
@@ -60,7 +74,7 @@ server-rendered fragments. Harbor integration is deliberately deferred.
 
 - [x] deps: `elysia` 1.4.29, `@elysiajs/html`, `@elysiajs/static`, `@libsql/client` 0.17.4
 - [x] `tsconfig.json` with `jsxImportSource: "@kitajs/html"`
-- [x] `package.json` scripts: `dev`, `db:migrate`, `db:seed`, `db:reset`, `check`, `test`
+- [x] `package.json` scripts: `dev`, `db:setup`, `db:seed`, `db:reset`, `check`, `test`
 - [x] `src/config.ts` — the only reader of `process.env`
 - [x] `AGENTS.md`, `PLAN.md`, `.env.example`, `.gitignore`
 - [x] `scripts/check-size.ts` — 500-line ceiling, warns at 400
@@ -75,23 +89,17 @@ all static assets 200, `/` → `/benchmarks` 302, unknown tab 404, `tsc` clean.
 
 ## Phase 1 — Schema ✅ done
 
-- [x] `src/db/migrations/0001_init.sql` — 20 tables, 16 indexes, **0 views**
+- [x] `src/db/schema.sql` — canonical fresh domain schema, **0 views**
 - [x] `src/db/client.ts` — `all/one/value/insert/run` + `now()`/`json()`
-- [x] `src/db/migrate.ts` — uses `executeMultiple` inside an explicit
-      transaction (the array form of `db.migrate()` treats a whole file as one
-      statement and silently creates only the first table — don't go back to it)
 - [x] `src/db/ids.ts` — `PREFIX`, five-digit `code()`, `parse()`; **INTEGER PKs**, no random hex
-- [x] `scripts/{migrate,seed,seed-data}.ts`
-- [x] `scripts/migrate-legacy.ts` — repeatable read-only import of the requested
-      legacy run, including benchmark sources, results, lineage, documents,
-      environments, evaluations, jobs, and audit provenance
+- [x] `scripts/{setup-db,seed}.ts`
 - [ ] `docs/DATA-MODEL.md` ← **not written yet**
 
-The seed fixture produces the real run's proportions: 1 BR → 1 FM → 16 FI →
-1 TX → 6 TP → 1 DF → 12 DOC → 6 VF → 6 ENV → 10 jobs. The migrated legacy
-database has the same lineage plus 12 benchmark sources, 3 evaluations, and
-13 execution jobs. Verified: `foreign_key_check` clean, lineage joins to one
-row, and the one-FM-per-run unique index rejects a second insert.
+The seed fixture produces the real run's proportions: 1 BR → 1 BTR → 1 FM → 16 FI →
+6 TP → 1 DF → 12 DOC → 6 VF → 6 ENV → 10 jobs. The migrated legacy
+database has the same progress plus 12 benchmark sources, 3 evaluations, and
+13 execution jobs. Verified: `foreign_key_check` clean, progress joins to one
+row, and the one-FM-per-result unique index rejects a second insert.
 
 ### Legacy import ✅ requested run migrated
 
@@ -114,7 +122,7 @@ row, and the one-FM-per-run unique index rejects a second insert.
       `document`** so it survives HTMX swaps
 - [x] `src/views/ui/*` — TableBox, Cap, Tally, Table, Panel, Field, Badge, Bar, Id, Btn
 - [x] Six tab views rendering seeded data
-- [x] Rail wired to `lineage.currentWithRail()`
+- [x] Rail wired to `progress.currentWithRail()`
 - [x] Settings provider groups, safe save/test API, and appearance controls
 - [ ] `docs/DESIGN.md`
 - [ ] **Never visually checked in a browser.** Markup and CSS are correct by
@@ -147,9 +155,9 @@ Schema is ready (`jobs` + `job_log_lines`); no runner yet.
 ## Phase 5 — Mutations 🟡 settings mutation done, workflow mutations pending
 
 - [ ] Create failure map
-- [ ] Create / resume forge run (resume refills only missing `(item, ordinal)` slots)
+- [ ] Create / resume data-forge run (resume refills only missing `(item, ordinal)` slots)
 - [ ] Document review + approve-all + undo
-- [ ] Topic reassignment (taxonomy-scoped only)
+- [ ] Topic reassignment (failure-map-scoped only)
 - [ ] Verifier save, environment build
 - [x] Settings save + connection test (presence booleans only, never key values)
 
@@ -178,21 +186,23 @@ Harbor, reward profiling, Prime Intellect dispatch, cluster training, Turso sync
 ```
 src/config.ts                        env + paths, the only process.env reader
 src/index.ts                         composition only
-src/db/{client,ids,migrate}.ts       + migrations/0001_init.sql
-src/domain/lineage/{model,repo,service}.ts    BR→FM→TX→DF→ENV, gate counting
-src/domain/topics/{model,repo,service}.ts     taxonomy table rows + tally
+src/db/{client,ids,schema.sql}
+src/domain/progress/{model,repo,service}.ts   BR→BTR→FM→TP→DF→ENV, gate counting
+src/domain/topics/{model,repo,service}.ts     failure-map topic rows + tally
 src/domain/runs/{model,repo,service}.ts       benchmark/run read model
-src/domain/forge/{model,repo,service}.ts      forge/document read model
+src/domain/data_forge/{model,repo,service}.ts data-forge/document read model
 src/domain/environments/{model,repo,service}.ts  environment/evaluation read model
 src/domain/jobs/{model,repo,service}.ts       execution ledger read model
 src/http/{respond.tsx,pages.tsx}     six seeded page views
+src/http/schema.ts                   standalone schema.html route
 src/views/ui/*.tsx                  shared ledger primitives
-src/views/tabs/*.tsx                six seeded tab views
+src/views/tabs/*.tsx                six seeded tab views, including DataForge.tsx
 src/gym/settings.ts                 safe env.yaml settings service
 src/http/api/settings.ts            Settings JSON GET/POST/test routes
 src/views/layout/{Document,Rail}.tsx, tabs.ts
 public/css/{tokens,base,ledger}.css  public/js/{app.js,htmx.min.js}
-scripts/{migrate,seed,seed-data,migrate-legacy,check-size}.ts
+public/schema.html                   draggable schema map with persisted layout
+scripts/{setup-db,seed,check-size}.ts
 ```
 
 No `docs/*.md` written yet. `src/http/ui/`, `src/lib/`, and `tests/` are empty
@@ -206,9 +216,7 @@ bun run check:types                 # clean
 bun run check:size                  # no file over 500 lines
 ```
 
-To recreate the migrated target from a clean schema, move the current local DB
-to a backup path, then run `bun run db:migrate && bun run db:import:legacy`.
-`bun run db:reset` intentionally recreates the development seed instead.
+`bun run db:reset` recreates the development seed from the canonical schema.
 
 Note: `bun run check` chains both but exits 144 under some shells — run the two
 commands separately if that bites.

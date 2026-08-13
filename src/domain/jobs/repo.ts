@@ -20,9 +20,14 @@ export async function listByRun(runId: number): Promise<JobRow[]> {
        FROM jobs j
       WHERE (j.subject_type = 'benchmark_runs' AND j.subject_id = ?)
          OR j.subject_id IN (
-              SELECT fm.id FROM failure_maps fm WHERE fm.run_id = ?
+              SELECT fm.id FROM failure_maps fm
+               JOIN benchmarks_results brs ON brs.id = fm.benchmark_result_id
+              WHERE brs.benchmark_run_id = ?
               UNION ALL
-              SELECT df.id FROM forge_runs df JOIN failure_maps fm ON fm.id = df.failure_map_id WHERE fm.run_id = ?
+              SELECT df.id FROM data_forge_runs df
+               JOIN failure_maps fm ON fm.id = df.failure_map_id
+               JOIN benchmarks_results brs ON brs.id = fm.benchmark_result_id
+              WHERE brs.benchmark_run_id = ?
               UNION ALL
               SELECT e.id FROM environments e WHERE e.run_id = ?
               UNION ALL

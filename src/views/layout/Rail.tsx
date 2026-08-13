@@ -3,11 +3,11 @@
  *
  * It carries three things, top to bottom: identity (wordmark + the run in
  * context), the five numbered pipeline stages, and the gate readout. The gate
- * readout is derived from the current lineage on every render and never stored.
+ * readout is derived from the current progress on every render and never stored.
  */
 import { STAGES, stageNumber, type Tab } from './tabs.ts';
 
-/** How far the current lineage reaches, for the stage ticks and the foot. */
+/** How far the current progress reaches, for the stage ticks and the foot. */
 export type RailState = {
   /** Display code of the run in context, e.g. "BR-00012". Null when there is none. */
   runCode: string | null;
@@ -22,7 +22,7 @@ export type RailState = {
 export const EMPTY_RAIL: RailState = { runCode: null, model: null, passRate: null, gates: 0 };
 
 /**
- * A stage is `done` once the lineage reaches past it, `active` for the one
+ * A stage is `done` once progress reaches past it, `active` for the one
  * currently in play, and `locked` beyond that.
  */
 function statusOf(index: number, gates: number) {

@@ -82,7 +82,7 @@
 .m-rail > a.on .n {
   color: var(--brand-ink);
 }
-/* A stage the lineage has not reached yet reads as unavailable, not disabled —
+/* A stage progress has not reached yet reads as unavailable, not disabled —
    you can still open it to see what it wants. */
 .m-rail > a[data-status='locked'] {
   color: var(--text-4);

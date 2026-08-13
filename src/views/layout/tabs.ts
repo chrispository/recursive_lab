@@ -3,7 +3,7 @@
  *
  * Order is the pipeline order and is load bearing: the rail numbers stages
  * 01–05 by position, and `gates` counts how far down this list the current
- * lineage reaches. `settings` is deliberately not a stage — it is reached from
+ * progress reaches. `settings` is deliberately not a stage — it is reached from
  * the rail head, not the numbered list.
  */
 
@@ -11,7 +11,7 @@ export const STAGES = [
   { tab: 'benchmarks', label: 'Benchmarks', title: 'Run the model through NeMo Gym' },
   { tab: 'results', label: 'Results', title: 'Verified benchmark results' },
   { tab: 'failures', label: 'Failure map', title: 'Turn misses into capability topics' },
-  { tab: 'forge', label: 'Data forge', title: 'Forge novel training documents' },
+  { tab: 'forge', label: 'Data forge', title: 'Data forge novel training documents' },
   { tab: 'env-lab', label: 'Env lab', title: 'Prove environments locally' },
 ] as const;
 

@@ -14,11 +14,11 @@
 export const PREFIX = {
   benchmarks: 'BM',
   benchmark_runs: 'BR',
+  benchmarks_results: 'BTR',
   failure_maps: 'FM',
   failure_items: 'FI',
-  taxonomies: 'TX',
   topics: 'TP',
-  forge_runs: 'DF',
+  data_forge_runs: 'DF',
   documents: 'DOC',
   verifiers: 'VF',
   environments: 'ENV',

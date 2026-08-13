@@ -1,12 +1,11 @@
 import { all, json, one, type Row } from '../../db/client.ts';
 import { code, parse } from '../../db/ids.ts';
-import type { DocumentRow, ForgeSummary } from './model.ts';
+import type { DataForgeSummary, DocumentRow } from './model.ts';
 
-type ForgeDb = Row & {
-  forge_id: number;
+type DataForgeDb = Row & {
+  data_forge_run_id: number;
   failure_map_id: number;
-  taxonomy_id: number;
-  taxonomy_name: string;
+  topic_count: number;
   backend: 'data_designer' | 'frontier';
   provider_model: string;
   docs_per_topic: number;
@@ -33,24 +32,23 @@ type DocumentDb = Row & {
   max_similarity: number;
 };
 
-const FORGE_SELECT = `
-  SELECT df.id AS forge_id, df.failure_map_id, df.taxonomy_id, tx.name AS taxonomy_name,
+const DATA_FORGE_SELECT = `
+  SELECT df.id AS data_forge_run_id, df.failure_map_id,
          df.backend, df.provider_model, df.docs_per_topic, df.novelty_threshold,
          df.auto_approve, df.requested_documents, df.usage_json,
-         (SELECT count(*) FROM documents d WHERE d.forge_run_id = df.id) AS created_documents,
-         (SELECT count(*) FROM documents d WHERE d.forge_run_id = df.id AND d.novelty_status = 'passed') AS novel_documents,
-         (SELECT count(*) FROM documents d WHERE d.forge_run_id = df.id AND d.review_status = 'pending') AS pending_review,
-         (SELECT count(*) FROM documents d WHERE d.forge_run_id = df.id AND d.novelty_status = 'rejected') AS rejected_documents
-    FROM forge_runs df
-    JOIN taxonomies tx ON tx.id = df.taxonomy_id`;
+         (SELECT count(*) FROM topics tp WHERE tp.failure_map_id = df.failure_map_id) AS topic_count,
+         (SELECT count(*) FROM documents d WHERE d.data_forge_run_id = df.id) AS created_documents,
+         (SELECT count(*) FROM documents d WHERE d.data_forge_run_id = df.id AND d.novelty_status = 'passed') AS novel_documents,
+         (SELECT count(*) FROM documents d WHERE d.data_forge_run_id = df.id AND d.review_status = 'pending') AS pending_review,
+         (SELECT count(*) FROM documents d WHERE d.data_forge_run_id = df.id AND d.novelty_status = 'rejected') AS rejected_documents
+    FROM data_forge_runs df`;
 
-const toForge = (row: ForgeDb): ForgeSummary => {
+const toDataForge = (row: DataForgeDb): DataForgeSummary => {
   const usage = json<{ input_tokens?: number; output_tokens?: number }>(row.usage_json, {});
   return {
-    forgeCode: code('forge_runs', row.forge_id),
+    dataForgeCode: code('data_forge_runs', row.data_forge_run_id),
     failureMapCode: code('failure_maps', row.failure_map_id),
-    taxonomyCode: code('taxonomies', row.taxonomy_id),
-    taxonomyName: row.taxonomy_name,
+    topicCount: row.topic_count,
     backend: row.backend,
     providerModel: row.provider_model,
     docsPerTopic: row.docs_per_topic,
@@ -66,26 +64,30 @@ const toForge = (row: ForgeDb): ForgeSummary => {
   };
 };
 
-export async function findByRun(runId: number): Promise<ForgeSummary | null> {
-  const row = await one<ForgeDb>(
-    `${FORGE_SELECT} JOIN failure_maps fm ON fm.id = df.failure_map_id WHERE fm.run_id = ?`,
+export async function findByRun(runId: number): Promise<DataForgeSummary | null> {
+  const row = await one<DataForgeDb>(
+    `${DATA_FORGE_SELECT}
+       JOIN failure_maps fm ON fm.id = df.failure_map_id
+       JOIN benchmarks_results brs ON brs.id = fm.benchmark_result_id
+      WHERE brs.benchmark_run_id = ?
+      ORDER BY df.created_at DESC, df.id DESC`,
     [runId],
   );
-  return row ? toForge(row) : null;
+  return row ? toDataForge(row) : null;
 }
 
-export async function listDocuments(forgeCode: string): Promise<DocumentRow[]> {
-  const parsed = parse(forgeCode);
-  if (!parsed || parsed.entity !== 'forge_runs') return [];
-  const forgeId = parsed.id;
+export async function listDocuments(dataForgeCode: string): Promise<DocumentRow[]> {
+  const parsed = parse(dataForgeCode);
+  if (!parsed || parsed.entity !== 'data_forge_runs') return [];
+  const dataForgeId = parsed.id;
   const rows = await all<DocumentDb>(
     `SELECT d.id, d.topic_id, tp.name AS topic_name, d.title, d.document_type,
             d.novelty_status, d.review_status, d.role, d.word_count, d.max_similarity
        FROM documents d
        JOIN topics tp ON tp.id = d.topic_id
-      WHERE d.forge_run_id = ?
+      WHERE d.data_forge_run_id = ?
       ORDER BY tp.name ASC, d.ordinal ASC`,
-    [forgeId],
+    [dataForgeId],
   );
   return rows.map((row) => ({
     documentCode: code('documents', row.id),

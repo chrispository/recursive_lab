@@ -6,10 +6,10 @@ import * as repo from './repo.ts';
 export type { TopicRow } from './model.ts';
 export { isBelowThreshold } from './model.ts';
 
-export const listByTaxonomy = repo.listByTaxonomy;
+export const listByFailureMap = repo.listByFailureMap;
 export const countUncategorised = repo.countUncategorised;
 
-/** The counts the taxonomy table's caption shows. */
+/** The counts the failure-map topic table's caption shows. */
 export type TopicTally = {
   topics: number;
   failures: number;

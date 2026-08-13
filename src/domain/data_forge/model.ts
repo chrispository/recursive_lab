@@ -1,8 +1,7 @@
-export type ForgeSummary = {
-  forgeCode: string;
+export type DataForgeSummary = {
+  dataForgeCode: string;
   failureMapCode: string;
-  taxonomyCode: string;
-  taxonomyName: string;
+  topicCount: number;
   backend: 'data_designer' | 'frontier';
   providerModel: string;
   docsPerTopic: number;

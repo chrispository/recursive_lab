@@ -1,26 +1,47 @@
 #!/usr/bin/env bun
 /**
- * `bun run db:seed` — one complete lineage to develop against.
+ * `bun run db:seed` — one run progressed through every stage, to develop against.
  *
- * Builds BR → FM → (FI*, TX → TP*) → DF → DOC* → VF/ENV plus the jobs that
+ * Builds BR → BTR → FM → (FI*, TP*) → DF → DOC* → VF/ENV plus the jobs that
  * produced each stage. Idempotent by way of db:reset, not by upsert: if the
  * database already has a run, this refuses rather than duplicating.
  */
 import { createHash } from 'node:crypto';
 import { db, insert, now, value } from '../src/db/client.ts';
-import { migrate } from '../src/db/migrate.ts';
 import { code } from '../src/db/ids.ts';
-import {
-  ANALYSIS_PROMPT,
-  DOCUMENT_TYPES,
-  GENERATION_PROMPT,
-  RUN,
-  TASK_ID,
-  TOPICS,
-  type SeedTopic,
-} from './seed-data.ts';
 
-await migrate();
+const RUN = {
+  label: 'harvey_001',
+  model: 'glm-5.2',
+  benchmark: {
+    name: 'Legal Agent Bench',
+    lab: 'Harvey',
+    adapter: 'legal_agent_bench',
+    description: 'Long-horizon legal research and drafting tasks, judged criterion by criterion.',
+  },
+  settings: { repeats: 1, concurrency: 1, temperature: 1.0, top_p: 0.95, judge_parallelism: 6, reward_mode: 'criteria_pass_rate' },
+  metrics: { rollouts: 1, criteria_total: 69, criteria_passed: 53, pass_rate: 0.768, mean_reward: 0.768, input_tokens: 742312, output_tokens: 38754 },
+} as const;
+const TASK_ID = 'trusts-estates-private-client__extract-distribution-requirements-from-trust-agreement';
+const TOPICS = [
+  { name: 'Provision Substance and Obligation Extraction', slug: 'provision-substance-and-obligation-extraction', description: 'Extract operative language, not a heading.', verifier_strategy: 'The response must quote or paraphrase the operative obligation, not merely name the section it appears in.', reward: 1.0, failures: [['C-014', 'Identifies the distribution standard', 'Named the article but not the operative "health, education, maintenance and support" standard it contains.'], ['C-022', 'States the trustee obligation', 'Described the trustee as "responsible for distributions" without extracting the mandatory-versus-discretionary language.'], ['C-031', 'Quotes the controlling sentence', 'Summarised the provision instead of quoting the sentence that creates the duty.'], ['C-047', 'Distinguishes mandatory from discretionary', 'Treated a discretionary distribution as mandatory; the word "may" was not surfaced.']] },
+  { name: 'Provision-Fact Matching and Governing Section', slug: 'provision-fact-matching-and-governing-section', description: 'Match facts to the provision that governs.', verifier_strategy: 'Given a fact pattern, the response must cite the specific provision that governs it rather than the nearest topical heading.', reward: 1.0, failures: [['C-008', 'Cites the governing provision', 'Cited the general distributions article when the specific successor-trustee clause governed.'], ['C-019', 'Applies facts to the right clause', 'Applied the wrong clause to the beneficiary\'s stated circumstances.'], ['C-052', 'Excludes inapplicable provisions', 'Listed three provisions without saying which one actually controls.']] },
+  { name: 'Prudent Actionable Next Steps', slug: 'prudent-actionable-next-steps', description: 'Recommend steps instead of a definitive conclusion.', verifier_strategy: 'Where the document is ambiguous, the response must recommend a concrete next step rather than assert a conclusion the text does not support.', reward: 0.746, failures: [['C-003', 'Recommends a next step', 'Asserted a definitive answer where the trust instrument was silent.'], ['C-027', 'Flags the need for further review', 'Did not note that the amendment history was incomplete.'], ['C-061', 'Avoids unsupported conclusions', 'Concluded the distribution was permitted without the governing amendment in evidence.']] },
+  { name: 'Static Reference Ambiguity Flagging', slug: 'static-reference-ambiguity-flagging', description: 'External standard frozen as of a date.', verifier_strategy: 'When a document incorporates an external standard, the response must flag whether the reference is static (as of a date) or ambulatory.', reward: 1.0, failures: [['C-011', 'Flags static incorporation', 'Read an "as in effect on the date hereof" reference as tracking current law.'], ['C-038', 'Identifies the reference date', 'Did not surface the date the external standard was frozen to.']] },
+  { name: 'Conflict of Interest Detection', slug: 'conflict-of-interest-detection', description: 'Successor fiduciary affiliated with the firm.', verifier_strategy: 'The response must surface any fiduciary appointment where the appointee is affiliated with the drafting firm or a beneficiary.', reward: 1.0, failures: [['C-016', 'Detects the affiliation', 'Missed that the named successor trustee is a partner at the drafting firm.'], ['C-044', 'Notes the disclosure requirement', 'Did not mention that the affiliation requires disclosure to beneficiaries.']] },
+  { name: 'Indexed Value Computation', slug: 'indexed-value-computation', description: 'Show the arithmetic behind an indexed figure.', verifier_strategy: 'Where a figure is indexed or adjusted, the response must show the computation, not just the result.', reward: 1.0, failures: [['C-025', 'Shows the computation', 'Gave an adjusted figure with no arithmetic.'], ['C-058', 'Uses the correct index base', 'Applied the wrong base year to the adjustment.']] },
+] as const;
+const DOCUMENT_TYPES = ['memo', 'trust_agreement', 'letter', 'record'] as const;
+const ANALYSIS_PROMPT = `You are grouping criterion-level benchmark failures into capability topics.
+
+Return an abstract grouping of capabilities. Each topic needs a name, a description, and an observable verifier strategy — a rule an automated judge could apply to a fresh document.
+
+Do not reference the specific task, document, or answer. A topic must describe a capability, not an incident.`;
+const GENERATION_PROMPT = `You are writing a novel source document and a task that exercises one capability.
+
+You will be given only a capability topic: its name, its description, and the verifier strategy that will judge the response. You will not be shown the original benchmark task, its documents, or its answer.
+
+Write a realistic source document, a task instruction, a reference answer, and the list of targets a verifier should check.`;
 
 if ((await value<number>('SELECT count(*) FROM benchmark_runs')) ?? 0) {
   console.error('✗ database already seeded — run `bun run db:reset` to start clean');
@@ -109,15 +130,25 @@ await db.execute({
   sql: 'UPDATE benchmark_runs SET output_path = ? WHERE id = ?',
   args: [`results/lab/${code('benchmark_runs', runId)}/${RUN.model}.jsonl`, runId],
 });
+const benchmarkResultId = await insert(
+  `INSERT INTO benchmarks_results (
+     benchmark_run_id, benchmark_id, dataset, task_id, trial_name, outcome, reward,
+     criteria_total, criteria_passed, criteria_failed, result_path, metrics_json,
+     created_at, updated_at
+   ) VALUES (?, ?, 'validation', ?, 'trial-1', 'failed', ?, ?, ?, ?, ?, ?, ?, ?)`,
+  [runId, benchmarkId, TASK_ID, RUN.metrics.mean_reward, RUN.metrics.criteria_total,
+    RUN.metrics.criteria_passed, RUN.metrics.criteria_total - RUN.metrics.criteria_passed,
+    `results/lab/${code('benchmark_runs', runId)}/${RUN.model}.jsonl`, JSON.stringify(RUN.metrics), at, at],
+);
 await job('benchmark_run', 'benchmark_runs', runId, 'collect rollouts');
 
-// FM + TX — the failure map and its taxonomy.
+// FM — the failure map that owns the extracted topics.
 const failureMapId = await insert(
-  `INSERT INTO failure_maps (run_id, prompt_revision_id, provider_model,
+  `INSERT INTO failure_maps (benchmark_result_id, prompt_revision_id, provider_model,
                              usage_json, created_at, updated_at)
    VALUES (?, ?, 'deepseek-v4-pro', ?, ?, ?)`,
   [
-    runId,
+    benchmarkResultId,
     analysisRevision,
     JSON.stringify({ input_tokens: 18420, output_tokens: 3106 }),
     at,
@@ -126,54 +157,42 @@ const failureMapId = await insert(
 );
 await job('failure_map', 'failure_maps', failureMapId, 'group failed criteria');
 
-const taxonomyId = await insert(
-  `INSERT INTO taxonomies (failure_map_id, name, status, created_at, updated_at)
-   VALUES (?, ?, 'ready', ?, ?)`,
-  [failureMapId, `${RUN.label} capability taxonomy`, at, at],
-);
-
-// TP + FI — topics, their membership, and the failed criteria under each.
+// TP + FI — topics and the failed criteria under each.
 const topicIds = new Map<string, number>();
 const failureIdsByTopic = new Map<number, number[]>();
 
-for (const topic of TOPICS as readonly SeedTopic[]) {
+for (const topic of TOPICS) {
   const topicId = await insert(
-    `INSERT INTO topics (name, slug, description, verifier_strategy, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [topic.name, topic.slug, topic.description, topic.verifier_strategy, at, at],
+    `INSERT INTO topics (failure_map_id, name, slug, description, verifier_strategy, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [failureMapId, topic.name, topic.slug, topic.description, topic.verifier_strategy, at, at],
   );
   topicIds.set(topic.slug, topicId);
-
-  await db.execute({
-    sql: 'INSERT INTO taxonomy_topics (taxonomy_id, topic_id, created_at) VALUES (?, ?, ?)',
-    args: [taxonomyId, topicId, at],
-  });
 
   const ids: number[] = [];
   for (const [criterionId, criterionTitle, reasoning] of topic.failures) {
     ids.push(
       await insert(
-        `INSERT INTO failure_items (failure_map_id, topic_id, task_id, trial_name,
+        `INSERT INTO failure_items (failure_map_id, benchmark_result_id, topic_id, task_id, trial_name,
                                     criterion_id, criterion_title, reasoning, capability,
                                     severity, status, occurrences, created_at, updated_at)
-         VALUES (?, ?, ?, 'trial-1', ?, ?, ?, ?, 'high', 'approved', 1, ?, ?)`,
-        [failureMapId, topicId, TASK_ID, criterionId, criterionTitle, reasoning, topic.name, at, at],
+         VALUES (?, ?, ?, ?, 'trial-1', ?, ?, ?, ?, 'high', 'approved', 1, ?, ?)`,
+        [failureMapId, benchmarkResultId, topicId, TASK_ID, criterionId, criterionTitle, reasoning, topic.name, at, at],
       ),
     );
   }
   failureIdsByTopic.set(topicId, ids);
 }
 
-// DF + DOC — the forge run and the documents it produced.
+// DF + DOC — the data-forge run and the documents it produced.
 const docsPerTopic = 2;
-const forgeRunId = await insert(
-  `INSERT INTO forge_runs (failure_map_id, taxonomy_id, prompt_revision_id, backend,
+const dataForgeRunId = await insert(
+  `INSERT INTO data_forge_runs (failure_map_id, prompt_revision_id, backend,
                            provider_model, docs_per_topic, novelty_threshold, auto_approve,
                            requested_documents, usage_json, created_at, updated_at)
-   VALUES (?, ?, ?, 'data_designer', 'deepseek-v4-flash', ?, 0.22, 0, ?, ?, ?, ?)`,
+   VALUES (?, ?, 'data_designer', 'deepseek-v4-flash', ?, 0.22, 0, ?, ?, ?, ?)`,
   [
     failureMapId,
-    taxonomyId,
     generationRevision,
     docsPerTopic,
     TOPICS.length * docsPerTopic,
@@ -182,11 +201,11 @@ const forgeRunId = await insert(
     at,
   ],
 );
-await job('forge_run', 'forge_runs', forgeRunId, 'generate and fingerprint');
+await job('data_forge_run', 'data_forge_runs', dataForgeRunId, 'generate and fingerprint');
 
 const documentIdsByTopic = new Map<number, number[]>();
 
-for (const topic of TOPICS as readonly SeedTopic[]) {
+for (const topic of TOPICS) {
   const topicId = topicIds.get(topic.slug)!;
   const failureIds = failureIdsByTopic.get(topicId)!;
   const docs: number[] = [];
@@ -203,20 +222,20 @@ for (const topic of TOPICS as readonly SeedTopic[]) {
       `strategy.\n\n[body omitted in fixtures]`;
 
     await db.execute({
-      sql: 'INSERT INTO forge_run_items (forge_run_id, failure_item_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
-      args: [forgeRunId, failureItemId],
+      sql: 'INSERT INTO data_forge_run_items (data_forge_run_id, failure_item_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
+      args: [dataForgeRunId, failureItemId],
     });
 
     docs.push(
       await insert(
-        `INSERT INTO documents (forge_run_id, failure_item_id, topic_id, ordinal, title,
+        `INSERT INTO documents (data_forge_run_id, failure_item_id, topic_id, ordinal, title,
                                 document_type, content, task_instruction, reference_answer,
                                 verifier_targets_json, content_sha256, normalized_sha256,
                                 word_count, max_similarity, nearest_source, novelty_status,
                                 review_status, role, created_at, reviewed_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'passed', 'approved', 'train', ?, ?)`,
         [
-          forgeRunId,
+          dataForgeRunId,
           failureItemId,
           topicId,
           ordinal,
@@ -242,7 +261,7 @@ for (const topic of TOPICS as readonly SeedTopic[]) {
 // VF + ENV — one verifier and one environment package per topic.
 const evaluationEnvironmentIds: number[] = [];
 
-for (const topic of TOPICS as readonly SeedTopic[]) {
+for (const topic of TOPICS) {
   const topicId = topicIds.get(topic.slug)!;
 
   const verifierId = await insert(
@@ -329,9 +348,8 @@ console.log(`✓ seeded ${code('benchmark_runs', runId)} "${RUN.label}" / ${RUN.
 for (const table of [
   'failure_maps',
   'failure_items',
-  'taxonomies',
   'topics',
-  'forge_runs',
+  'data_forge_runs',
   'documents',
   'verifiers',
   'environments',

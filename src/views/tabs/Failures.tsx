@@ -1,4 +1,4 @@
-import type { Lineage } from '../../domain/lineage/model.ts';
+import type { Progress } from '../../domain/progress/model.ts';
 import { isBelowThreshold, type TopicRow } from '../../domain/topics/model.ts';
 import { tally, type TopicTally } from '../../domain/topics/service.ts';
 import { Bar } from '../ui/Bar.tsx';
@@ -12,17 +12,16 @@ import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
 
 type FailuresProps = {
-  lineage: Lineage | null;
+  progress: Progress | null;
   topics: TopicRow[];
   uncategorised: number;
 };
 
 const formatReward = (value: number | null) => (value === null ? '—' : value.toFixed(3));
 
-export function Failures({ lineage, topics, uncategorised }: FailuresProps) {
+export function Failures({ progress, topics, uncategorised }: FailuresProps) {
   const summary = tally(topics, uncategorised);
-  const map = lineage?.failureMap;
-  const taxonomy = lineage?.taxonomy;
+  const map = progress?.failureMap;
 
   return (
     <>
@@ -38,7 +37,7 @@ export function Failures({ lineage, topics, uncategorised }: FailuresProps) {
 
       <TableBox>
         <Cap title="Failure map ledger" code={map?.entity ? '1 map' : 'no map'} />
-        {map?.entity && lineage ? (
+        {map?.entity && progress ? (
           <Table>
             <thead>
               <tr>
@@ -46,22 +45,22 @@ export function Failures({ lineage, topics, uncategorised }: FailuresProps) {
                 <th>Source run</th>
                 <th class="n">Failures</th>
                 <th>Status</th>
-                <th>Taxonomy</th>
+                <th class="n">Topics</th>
               </tr>
             </thead>
             <tbody>
               <tr data-state="ready">
                 <td>
                   <span class="nm">{map.entity}</span>
-                  <span class="sub">→ {taxonomy?.entity ?? 'taxonomy pending'}</span>
+                  <span class="sub">→ {progress.topicCount} topics</span>
                 </td>
                 <td>
-                  {lineage.label} · {lineage.model}
-                  <span class="sub">{lineage.runCode}</span>
+                  {progress.label} · {progress.model}
+                  <span class="sub">{progress.runCode}</span>
                 </td>
                 <td class="n">{map.count}</td>
                 <td><Badge state="ready">mapped</Badge></td>
-                <td>{taxonomy?.entity ?? '—'}</td>
+                <td class="n">{progress.topicCount}</td>
               </tr>
             </tbody>
           </Table>
@@ -73,15 +72,14 @@ export function Failures({ lineage, topics, uncategorised }: FailuresProps) {
       <div class="m-split">
         <Panel title="Current run" code="read only">
           <Field label="Benchmark run">
-            <div class="m-input">{lineage ? `${lineage.label} / ${lineage.model}` : 'No current run'}</div>
+            <div class="m-input">{progress ? `${progress.label} / ${progress.model}` : 'No current run'}</div>
           </Field>
-          <Field label="Lineage">
+          <Field label="Progress">
             <div class="m-input">
-              {lineage ? (
+              {progress ? (
                 <>
-                  <Id value={lineage.runCode} />
+                  <Id value={progress.runCode} />
                   {map?.entity ? <> · <Id value={map.entity} /></> : null}
-                  {taxonomy?.entity ? <> · <Id value={taxonomy.entity} /></> : null}
                 </>
               ) : (
                 '—'
@@ -95,8 +93,8 @@ export function Failures({ lineage, topics, uncategorised }: FailuresProps) {
             generation. Source tasks and benchmark documents stay outside this surface.
           </p>
           <div class="m-actions">
-            <Badge state={taxonomy?.entity ? 'ready' : 'pending'}>
-              {taxonomy?.entity ? 'taxonomy ready' : 'awaiting analysis'}
+            <Badge state={progress?.topicCount ? 'ready' : 'pending'}>
+              {progress?.topicCount ? 'topics extracted' : 'awaiting analysis'}
             </Badge>
           </div>
         </Panel>
@@ -108,13 +106,13 @@ export function Failures({ lineage, topics, uncategorised }: FailuresProps) {
 function TopicTable({ summary, topics }: { summary: TopicTally; topics: TopicRow[] }) {
   return (
     <TableBox>
-      <Cap title="Topic taxonomy">
+      <Cap title="Topics extracted from failed criteria">
         <Tally
           items={[
             { value: summary.topics, label: 'topics' },
             { value: summary.failures, label: 'failures mapped', hot: true },
             { value: summary.uncategorised, label: 'uncategorized' },
-            { value: summary.documents, label: 'docs forged' },
+            { value: summary.documents, label: 'docs generated' },
           ]}
         />
       </Cap>
@@ -147,7 +145,7 @@ function TopicTable({ summary, topics }: { summary: TopicTally; topics: TopicRow
           </tbody>
         </Table>
       ) : (
-        <div class="m-empty">No taxonomy topics for the current run.</div>
+        <div class="m-empty">No topics extracted for the current failure map.</div>
       )}
     </TableBox>
   );

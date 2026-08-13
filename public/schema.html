@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>recursive( ) schema map</title>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { color: var(--text-2); background: var(--black); font: 12px/1.45 var(--sans); }
+    button, input { font: inherit; }
+    button { color: var(--text-1); background: var(--raised); border: 1px solid var(--edge); border-radius: 2px; padding: 7px 10px; cursor: pointer; }
+    button:hover { background: var(--raised-2); border-color: var(--hover-border); }
+    .schema-head { position: fixed; z-index: 5; inset: 0 0 auto 0; display: flex; align-items: center; gap: 18px; min-height: 58px; padding: 9px 16px; border-bottom: 1px solid var(--line); background: var(--panel-bg); box-shadow: 0 4px 18px var(--shadow); }
+    .wordmark { color: var(--text-1); font: 700 15px/1 var(--mono); white-space: nowrap; }
+    .wordmark b { color: var(--brand); }
+    .head-copy { min-width: 180px; }
+    .head-copy strong { display: block; color: var(--text-1); font-size: 13px; }
+    .head-copy small, .hint { color: var(--text-4); font: 10px/1.3 var(--mono); }
+    .toolbar { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .toolbar input { width: 180px; color: var(--text-1); background: var(--raised); border: 1px solid var(--edge); border-radius: 2px; padding: 7px 9px; outline: 0; }
+    .toolbar input:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--focus-ring); }
+    .count { color: var(--text-3); font: 10px var(--mono); white-space: nowrap; }
+    .viewport { position: fixed; inset: 58px 0 0; overflow: hidden; cursor: grab; background: radial-gradient(circle at 50% 35%, var(--wash), transparent 48%), var(--black); }
+    .viewport:active { cursor: grabbing; }
+    .viewport::before { position: absolute; inset: 0; content: ''; pointer-events: none; opacity: .7; background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 32px 32px; }
+    .world { position: absolute; width: 3900px; height: 2700px; transform-origin: 0 0; }
+    .edges { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+    .edge { fill: none; stroke: var(--brand, #c8452a); opacity: .72; }
+    .edge.logical { stroke: var(--text-4, #868f91); stroke-dasharray: 6 5; }
+    .edge-label { fill: var(--text-3); font: 9px var(--mono); paint-order: stroke; stroke: var(--black); stroke-width: 4px; stroke-linejoin: round; }
+    .table { position: absolute; z-index: 2; width: 290px; overflow: hidden; border: 1px solid var(--line); background: var(--panel-bg); box-shadow: 5px 6px 0 var(--shadow); cursor: default; }
+    .table.derived { border-style: dashed; }
+    .table.filtered { opacity: .14; }
+    .table.selected { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand), 5px 6px 0 var(--shadow); }
+    .table-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 9px 10px 8px; border-bottom: 1px solid var(--line); background: var(--deep); cursor: move; user-select: none; }
+    .table-name { color: var(--text-1); font: 700 12px/1.2 var(--mono); overflow-wrap: anywhere; }
+    .table-kind { color: var(--brand-ink); font: 9px var(--mono); text-transform: uppercase; white-space: nowrap; }
+    .fields { padding: 3px 0; }
+    .field { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: baseline; gap: 5px; min-height: 23px; padding: 3px 9px; border-bottom: 1px solid var(--line-soft); }
+    .field:last-child { border-bottom: 0; }
+    .field:hover, .field.hot { background: var(--wash-2); }
+    .field-mark { color: var(--text-4); font: 10px var(--mono); text-align: center; }
+    .field.pk .field-mark { color: var(--brand); }
+    .field-name { color: var(--text-1); font: 11px var(--mono); overflow-wrap: anywhere; }
+    .field-type { color: var(--text-4); font: 9px var(--mono); white-space: nowrap; }
+    .field-fk { color: var(--run); font: 9px var(--mono); grid-column: 2 / 4; margin-top: -3px; overflow-wrap: anywhere; }
+    .legend { position: fixed; z-index: 4; left: 16px; bottom: 14px; display: flex; flex-wrap: wrap; gap: 9px 16px; max-width: calc(100vw - 32px); padding: 7px 9px; border: 1px solid var(--line); background: var(--notice-bg); color: var(--text-3); font: 10px var(--mono); }
+    .legend i { display: inline-block; width: 22px; margin-right: 5px; vertical-align: middle; border-top: 2px solid var(--brand); }
+    .legend i.dashed { border-top-color: var(--text-4); border-top-style: dashed; }
+    .zoom { position: fixed; z-index: 4; right: 16px; bottom: 14px; display: flex; gap: 4px; }
+    .zoom button { min-width: 32px; padding: 6px 8px; font: 700 13px var(--mono); }
+    @media (max-width: 760px) { .schema-head { gap: 9px; } .head-copy, .hint, .toolbar input { display: none; } .toolbar { margin-left: auto; } .count { display: none; } }
+  </style>
+</head>
+<body>
+  <header class="schema-head">
+    <div class="wordmark">recursive<span>( )</span><b> /</b></div>
+    <div class="head-copy"><strong>Schema map</strong><small>20 tables · derived progress · drag the canvas or any table</small></div>
+    <div class="hint">pan · move · wheel zoom · layout persists locally</div>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="filter tables or fields" aria-label="Filter tables or fields">
+      <span class="count" id="count"></span>
+      <button id="fit" type="button">Fit</button>
+      <button id="reset" type="button">Reset</button>
+      <button id="theme" type="button" aria-label="Toggle light and dark theme">Theme</button>
+    </div>
+  </header>
+  <main class="viewport" id="viewport" aria-label="Interactive database schema diagram">
+    <div class="world" id="world"><svg class="edges" id="edges" viewBox="0 0 3900 2700" aria-hidden="true"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--brand)"></path></marker><marker id="arrow-logical" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--text-4)"></path></marker></defs></svg></div>
+  </main>
+  <div class="legend"><span><i></i>foreign key</span><span><i class="dashed"></i>logical / polymorphic reference</span><span>◆ primary key</span><span>dashed card = derived, not stored</span><span>← drag empty space to pan</span></div>
+  <div class="zoom"><button id="zoom-out" type="button" aria-label="Zoom out">−</button><button id="zoom-in" type="button" aria-label="Zoom in">+</button></div>
+  <script>
+    const spec = (name, fields, x, y, kind = 'domain') => ({ name, fields, x, y, kind });
+    const tables = [
+      spec('benchmarks', ['id|INTEGER|pk','name|TEXT|','lab|TEXT|','source_url|TEXT|','source_kind|TEXT|','source_identifier|TEXT|','revision|TEXT|','detected_format|TEXT|','adapter|TEXT|','status|TEXT|','runnable|INTEGER|','snapshot_path|TEXT|nullable','input_path|TEXT|nullable','description|TEXT|','metadata_json|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 80, 100, 'pipeline'),
+      spec('benchmark_tasks', ['benchmark_id|INTEGER|pk fk:benchmarks.id','dataset|TEXT|pk','task_id|TEXT|pk','name|TEXT|','source_path|TEXT|','position|INTEGER|','metadata_json|TEXT|'], 80, 600, 'pipeline'),
+      spec('benchmark_sources', ['id|INTEGER|pk','task_id|TEXT|logical:benchmark_tasks.task_id','relative_path|TEXT|','content_sha256|TEXT|','normalized_sha256|TEXT|','word_count|INTEGER|','shingles_json|TEXT|','created_at|TEXT|'], 80, 850, 'pipeline'),
+      spec('benchmark_runs', ['id|INTEGER|pk','benchmark_id|INTEGER|fk:benchmarks.id','label|TEXT|','model|TEXT|','task_count|INTEGER|','settings_json|TEXT|','metrics_json|TEXT|','output_path|TEXT|nullable','created_at|TEXT|','updated_at|TEXT|'], 520, 100, 'pipeline'),
+      spec('benchmarks_results', ['id|INTEGER|pk','benchmark_run_id|INTEGER|fk:benchmark_runs.id','benchmark_id|INTEGER|fk:benchmarks.id','dataset|TEXT|','task_id|TEXT|logical:benchmark_tasks.task_id','trial_name|TEXT|','outcome|TEXT|','reward|REAL|nullable','criteria_total|INTEGER|nullable','criteria_passed|INTEGER|nullable','criteria_failed|INTEGER|nullable','result_path|TEXT|nullable','metrics_json|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 520, 620, 'result'),
+      spec('failure_maps', ['id|INTEGER|pk','benchmark_result_id|INTEGER|fk:benchmarks_results.id','prompt_revision_id|INTEGER|fk:prompt_revisions.id','provider_model|TEXT|','usage_json|TEXT|','raw_output_json|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 910, 100, 'pipeline'),
+      spec('topics', ['id|INTEGER|pk','failure_map_id|INTEGER|fk:failure_maps.id','name|TEXT|','slug|TEXT|','description|TEXT|','verifier_strategy|TEXT|','status|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 1270, 390, 'pipeline'),
+      spec('failure_items', ['id|INTEGER|pk','failure_map_id|INTEGER|fk:failure_maps.id','benchmark_result_id|INTEGER|fk:benchmarks_results.id','topic_id|INTEGER|nullable fk:topics.id','task_id|TEXT|','trial_name|TEXT|','criterion_id|TEXT|','criterion_title|TEXT|','reasoning|TEXT|','capability|TEXT|','severity|TEXT|','status|TEXT|','occurrences|INTEGER|','source_json|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 910, 640, 'pipeline'),
+      spec('data_forge_runs', ['id|INTEGER|pk','failure_map_id|INTEGER|fk:failure_maps.id','prompt_revision_id|INTEGER|fk:prompt_revisions.id','backend|TEXT|','provider_model|TEXT|','docs_per_topic|INTEGER|','novelty_threshold|REAL|','auto_approve|INTEGER|','requested_documents|INTEGER|','usage_json|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 1650, 100, 'pipeline'),
+      spec('data_forge_run_items', ['data_forge_run_id|INTEGER|pk fk:data_forge_runs.id','failure_item_id|INTEGER|pk fk:failure_items.id'], 1650, 630, 'join'),
+      spec('documents', ['id|INTEGER|pk','data_forge_run_id|INTEGER|fk:data_forge_runs.id','failure_item_id|INTEGER|fk:failure_items.id','topic_id|INTEGER|nullable fk:topics.id','ordinal|INTEGER|','title|TEXT|','document_type|TEXT|','content|TEXT|','task_instruction|TEXT|','reference_answer|TEXT|','verifier_targets_json|TEXT|','content_sha256|TEXT|','normalized_sha256|TEXT|','shingles_json|TEXT|','word_count|INTEGER|','max_similarity|REAL|','nearest_source|TEXT|nullable','novelty_status|TEXT|','novelty_json|TEXT|','review_status|TEXT|','role|TEXT|','generation_attempt|INTEGER|','retry_of_document_id|INTEGER|nullable fk:documents.id','retry_reason|TEXT|nullable','created_at|TEXT|','reviewed_at|TEXT|nullable'], 2010, 430, 'pipeline'),
+      spec('verifiers', ['id|INTEGER|pk','topic_id|INTEGER|fk:topics.id','name|TEXT|','version|INTEGER|','kind|TEXT|','status|TEXT|','description|TEXT|','rubric_json|TEXT|','code|TEXT|','pass_threshold|REAL|','created_at|TEXT|','updated_at|TEXT|'], 2400, 100, 'runtime'),
+      spec('environments', ['id|INTEGER|pk','run_id|INTEGER|fk:benchmark_runs.id','topic_id|INTEGER|fk:topics.id','verifier_id|INTEGER|fk:verifiers.id','name|TEXT|','slug|TEXT|','status|TEXT|','base_model|TEXT|','inference_model|TEXT|','harness|TEXT|','local_path|TEXT|nullable','package_hash|TEXT|nullable','scale_ready|INTEGER|','scale_ready_at|TEXT|nullable','taskset_json|TEXT|','training_toml|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 2780, 430, 'runtime'),
+      spec('environment_documents', ['environment_id|INTEGER|pk fk:environments.id','document_id|INTEGER|pk fk:documents.id','role|TEXT|'], 2780, 1030, 'join'),
+      spec('environment_evaluations', ['id|INTEGER|pk','run_id|INTEGER|fk:benchmark_runs.id','kind|TEXT|','model|TEXT|','endpoint_label|TEXT|','rollouts_per_example|INTEGER|','max_concurrent|INTEGER|','environment_ids_json|TEXT|','metrics_json|TEXT|','result_paths_json|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 3160, 100, 'runtime'),
+      spec('progress', ['run_id|INTEGER|logical:benchmark_runs.id','label|TEXT|','model|TEXT|','pass_rate|REAL|nullable','benchmark_result_id|INTEGER|nullable logical:benchmarks_results.id','failure_map_id|INTEGER|nullable logical:failure_maps.id','data_forge_run_id|INTEGER|nullable logical:data_forge_runs.id','failure_count|INTEGER|','topic_count|INTEGER|','document_count|INTEGER|','environment_count|INTEGER|'], 520, 1100, 'derived'),
+      spec('jobs', ['id|INTEGER|pk','kind|TEXT|','subject_type|TEXT|poly','subject_id|INTEGER|poly','status|TEXT|','step|TEXT|','progress|REAL|','pgid|INTEGER|nullable','exit_code|INTEGER|nullable','error|TEXT|nullable','params_json|TEXT|','result_json|TEXT|','created_at|TEXT|','started_at|TEXT|nullable','finished_at|TEXT|nullable'], 80, 1460, 'execution'),
+      spec('job_log_lines', ['job_id|INTEGER|pk fk:jobs.id','seq|INTEGER|pk','at|TEXT|','stream|TEXT|','line|TEXT|'], 80, 1900, 'execution'),
+      spec('prompt_templates', ['id|INTEGER|pk','prompt_key|TEXT|','name|TEXT|','purpose|TEXT|','description|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 700, 1460, 'provenance'),
+      spec('prompt_revisions', ['id|INTEGER|pk','template_id|INTEGER|fk:prompt_templates.id','revision_number|INTEGER|','body|TEXT|','model_hint|TEXT|','is_active|INTEGER|','created_at|TEXT|'], 700, 1770, 'provenance'),
+      spec('audit_events', ['id|INTEGER|pk','entity_type|TEXT|poly','entity_id|INTEGER|poly','action|TEXT|','details_json|TEXT|','created_at|TEXT|'], 1400, 1630, 'provenance'),
+    ];
+    const links = tables.flatMap(table => table.fields.flatMap(raw => {
+      const [field, , flags = ''] = raw.split('|');
+      const match = flags.match(/(?:fk|logical):([^ ]+)/);
+      return match ? [{ from: table.name, field, to: match[1].split('.')[0], target: match[1].split('.')[1], logical: flags.includes('logical') }] : [];
+    }));
+    const byName = new Map(tables.map(table => [table.name, table]));
+    const viewport = document.querySelector('#viewport');
+    const world = document.querySelector('#world');
+    const svg = document.querySelector('#edges');
+    const stateKey = 'recursive-schema-layout-v3';
+    let zoom = .62, panX = 40, panY = 24, moving = null, search = '';
+    const positions = Object.fromEntries(tables.map(table => [table.name, { x: table.x, y: table.y }]));
+    let restored = false;
+    try {
+      const saved = JSON.parse(localStorage.getItem(stateKey) || 'null');
+      if (saved && saved.positions) {
+        if (Number.isFinite(saved.zoom)) zoom = saved.zoom;
+        if (Number.isFinite(saved.panX)) panX = saved.panX;
+        if (Number.isFinite(saved.panY)) panY = saved.panY;
+        for (const name of Object.keys(positions)) {
+          const next = saved.positions[name];
+          if (next && Number.isFinite(next.x) && Number.isFinite(next.y)) positions[name] = { x: next.x, y: next.y };
+        }
+        restored = true;
+      }
+    } catch (_) {}
+    const persist = () => {
+      try { localStorage.setItem(stateKey, JSON.stringify({ zoom, panX, panY, positions })); } catch (_) {}
+    };
+    const strokeWidth = () => 2 / zoom;
+    const parseField = raw => { const [name, type, flags = ''] = raw.split('|'); return { name, type, flags }; };
+    const render = () => {
+      world.querySelectorAll('.table').forEach(node => node.remove());
+      tables.forEach(table => {
+        const card = document.createElement('section'); card.className = `table${table.kind === 'derived' ? ' derived' : ''}`; card.dataset.table = table.name;
+        card.style.left = `${positions[table.name].x}px`; card.style.top = `${positions[table.name].y}px`;
+        card.innerHTML = `<div class="table-head"><span class="table-name">${table.name}</span><span class="table-kind">${table.kind}</span></div><div class="fields">${table.fields.map(raw => { const field = parseField(raw); const fk = field.flags.match(/(?:fk|logical):([^ ]+)/)?.[1]; const classes = [field.flags.includes('pk') ? 'pk' : '', fk ? 'has-fk' : ''].filter(Boolean).join(' '); return `<div class="field ${classes}" data-field="${field.name}"><span class="field-mark">${field.flags.includes('pk') ? '◆' : '·'}</span><span class="field-name">${field.name}</span><span class="field-type">${field.type}${field.flags.includes('nullable') ? ' ?' : ''}</span>${fk ? `<span class="field-fk">${field.flags.includes('logical') ? '↝' : '→'} ${fk}</span>` : ''}</div>`; }).join('')}</div>`;
+        world.append(card); bindCard(card);
+      });
+      applyFilter(); updateEdges(); updateTransform(); updateCount();
+    };
+    const bindCard = card => {
+      card.querySelector('.table-head').addEventListener('pointerdown', event => {
+        event.preventDefault(); event.stopPropagation(); card.setPointerCapture(event.pointerId);
+        const table = card.dataset.table, start = positions[table];
+        moving = { kind: 'table', card, table, pointer: { x: event.clientX, y: event.clientY }, start: { x: start.x, y: start.y } };
+        card.classList.add('selected');
+      });
+      card.addEventListener('pointermove', event => {
+        if (moving?.kind !== 'table' || moving.card !== card) return;
+        positions[moving.table].x = moving.start.x + (event.clientX - moving.pointer.x) / zoom;
+        positions[moving.table].y = moving.start.y + (event.clientY - moving.pointer.y) / zoom;
+        card.style.left = `${positions[moving.table].x}px`; card.style.top = `${positions[moving.table].y}px`;
+        updateEdges();
+      });
+      card.addEventListener('click', () => { document.querySelectorAll('.table.selected').forEach(node => node.classList.remove('selected')); card.classList.add('selected'); highlight(card.dataset.table); });
+    };
+    const endDrag = () => {
+      if (!moving) return;
+      if (moving.card) moving.card.classList.remove('selected');
+      moving = null;
+      persist();
+    };
+    const highlight = name => { svg.querySelectorAll('.edge').forEach(edge => edge.style.opacity = edge.dataset.from === name || edge.dataset.to === name ? '1' : '.18'); };
+    const applyFilter = () => { const needle = search.toLowerCase(); document.querySelectorAll('.table').forEach(card => { const table = byName.get(card.dataset.table); const hit = !needle || table.name.includes(needle) || table.fields.some(raw => raw.toLowerCase().includes(needle)); card.classList.toggle('filtered', !hit); card.querySelectorAll('.field').forEach(field => field.classList.toggle('hot', Boolean(needle) && field.textContent.toLowerCase().includes(needle))); }); };
+    const updateEdges = () => {
+      svg.querySelectorAll('.edge').forEach(node => node.remove());
+      const width = strokeWidth();
+      links.forEach(link => {
+        const from = world.querySelector(`[data-table="${link.from}"]`), to = world.querySelector(`[data-table="${link.to}"]`);
+        if (!from || !to) return;
+        const a = { x: from.offsetLeft, y: from.offsetTop, w: from.offsetWidth, h: from.offsetHeight }, b = { x: to.offsetLeft, y: to.offsetTop, w: to.offsetWidth, h: to.offsetHeight };
+        const ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 }, bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+        let p1, p2, bend;
+        if (Math.abs(bc.x - ac.x) > Math.abs(bc.y - ac.y)) {
+          const right = bc.x > ac.x; p1 = { x: right ? a.x + a.w : a.x, y: ac.y }; p2 = { x: right ? b.x : b.x + b.w, y: bc.y }; bend = Math.max(48, Math.abs(p2.x - p1.x) * .42);
+        } else {
+          const down = bc.y > ac.y; p1 = { x: ac.x, y: down ? a.y + a.h : a.y }; p2 = { x: bc.x, y: down ? b.y : b.y + b.h }; bend = Math.max(48, Math.abs(p2.y - p1.y) * .42);
+        }
+        const d = Math.abs(bc.x - ac.x) > Math.abs(bc.y - ac.y)
+          ? `M${p1.x},${p1.y} C${p1.x + (p2.x > p1.x ? bend : -bend)},${p1.y} ${p2.x - (p2.x > p1.x ? bend : -bend)},${p2.y} ${p2.x},${p2.y}`
+          : `M${p1.x},${p1.y} C${p1.x},${p1.y + (p2.y > p1.y ? bend : -bend)} ${p2.x},${p2.y - (p2.y > p1.y ? bend : -bend)} ${p2.x},${p2.y}`;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('class', link.logical ? 'edge logical' : 'edge');
+        path.dataset.from = link.from; path.dataset.to = link.to;
+        path.setAttribute('d', d);
+        path.style.strokeWidth = String(width);
+        path.setAttribute('marker-end', `url(#${link.logical ? 'arrow-logical' : 'arrow'})`);
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = `${link.from}.${link.field} → ${link.to}.${link.target}`;
+        path.append(title);
+        svg.append(path);
+      });
+    };
+    const updateTransform = () => {
+      world.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
+      const width = String(strokeWidth());
+      svg.querySelectorAll('.edge').forEach(edge => { edge.style.strokeWidth = width; });
+    };
+    const updateCount = () => {
+      const stored = tables.filter(table => table.kind !== 'derived').length;
+      const visible = [...document.querySelectorAll('.table:not(.filtered)')].length;
+      document.querySelector('#count').textContent = `${visible}/${tables.length} · ${stored} tables · ${links.length} links`;
+    };
+    const fit = () => {
+      const rect = viewport.getBoundingClientRect();
+      const bounds = tables.reduce((out, table) => {
+        const node = world.querySelector(`[data-table="${table.name}"]`);
+        out.minX = Math.min(out.minX, node.offsetLeft); out.minY = Math.min(out.minY, node.offsetTop);
+        out.maxX = Math.max(out.maxX, node.offsetLeft + node.offsetWidth); out.maxY = Math.max(out.maxY, node.offsetTop + node.offsetHeight);
+        return out;
+      }, { minX: Infinity, minY: Infinity, maxX: 0, maxY: 0 });
+      zoom = Math.min(.92, Math.max(.22, Math.min((rect.width - 80) / (bounds.maxX - bounds.minX), (rect.height - 80) / (bounds.maxY - bounds.minY))));
+      panX = (rect.width - (bounds.maxX - bounds.minX) * zoom) / 2 - bounds.minX * zoom;
+      panY = (rect.height - (bounds.maxY - bounds.minY) * zoom) / 2 - bounds.minY * zoom;
+      updateTransform(); persist();
+    };
+    viewport.addEventListener('pointerdown', event => {
+      if (event.target.closest('.table')) return;
+      viewport.setPointerCapture(event.pointerId);
+      moving = { kind: 'canvas', pointer: { x: event.clientX, y: event.clientY }, start: { x: panX, y: panY } };
+    });
+    viewport.addEventListener('pointermove', event => {
+      if (moving?.kind !== 'canvas') return;
+      panX = moving.start.x + event.clientX - moving.pointer.x;
+      panY = moving.start.y + event.clientY - moving.pointer.y;
+      updateTransform();
+    });
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+    window.addEventListener('pagehide', persist);
+    viewport.addEventListener('wheel', event => {
+      event.preventDefault();
+      const factor = event.deltaY < 0 ? 1.1 : .9;
+      const box = viewport.getBoundingClientRect();
+      const mx = event.clientX - box.left, my = event.clientY - box.top, next = Math.min(1.6, Math.max(.16, zoom * factor));
+      panX = mx - (mx - panX) * next / zoom; panY = my - (my - panY) * next / zoom; zoom = next;
+      updateTransform(); persist();
+    }, { passive: false });
+    document.querySelector('#search').addEventListener('input', event => { search = event.target.value.trim(); applyFilter(); updateCount(); });
+    document.querySelector('#fit').addEventListener('click', fit);
+    document.querySelector('#reset').addEventListener('click', () => {
+      tables.forEach(table => { positions[table.name] = { x: table.x, y: table.y }; });
+      zoom = .62; panX = 40; panY = 24; render(); requestAnimationFrame(() => { fit(); });
+    });
+    document.querySelector('#zoom-in').addEventListener('click', () => { zoom = Math.min(1.6, zoom * 1.15); updateTransform(); persist(); });
+    document.querySelector('#zoom-out').addEventListener('click', () => { zoom = Math.max(.16, zoom / 1.15); updateTransform(); persist(); });
+    document.querySelector('#theme').addEventListener('click', () => { const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = next; localStorage.setItem('recursive-theme', next); });
+    const savedTheme = localStorage.getItem('recursive-theme'); document.documentElement.dataset.theme = savedTheme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    render();
+    if (!restored) requestAnimationFrame(fit);
+  </script>
+</body>
+</html>

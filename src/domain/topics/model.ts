@@ -10,7 +10,7 @@ import { t, type Static } from 'elysia';
 
 export const TopicStatus = t.Union([t.Literal('active'), t.Literal('archived')]);
 
-/** A topic as the taxonomy table renders it, counts included. */
+/** A topic as the failure-map table renders it, counts included. */
 export const TopicRow = t.Object({
   id: t.Integer(),
   code: t.String(),
@@ -21,7 +21,7 @@ export const TopicRow = t.Object({
   status: TopicStatus,
   /** Failed criteria grouped under this topic. */
   failureCount: t.Integer(),
-  /** Documents forged for it. */
+  /** Documents generated for it by the data-forge stage. */
   documentCount: t.Integer(),
   /** Mean reward local validation measured, or null if never proved. */
   reward: t.Union([t.Number(), t.Null()]),
@@ -37,7 +37,7 @@ export const isBelowThreshold = (topic: TopicRow): boolean =>
 
 /**
  * The topic carrying the most unaddressed failures — the one the tally
- * highlights, because it is where the next forge run should aim.
+ * highlights, because it is where the next data-forge run should aim.
  */
 export function hottest(topics: TopicRow[]): TopicRow | null {
   let best: TopicRow | null = null;

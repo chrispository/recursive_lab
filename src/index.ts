@@ -10,12 +10,16 @@ import { staticPlugin } from '@elysiajs/static';
 import { config, ROOT } from './config.ts';
 import { settingsApi } from './http/api/settings.ts';
 import { pages } from './http/pages.tsx';
+import { schemaDocument } from './http/schema.ts';
+
+const staticFiles = await staticPlugin({ assets: `${ROOT}/public`, prefix: '/', alwaysStatic: true });
 
 const app = new Elysia()
   .use(html())
-  .use(staticPlugin({ assets: `${ROOT}/public`, prefix: '/' }))
+  .use(staticFiles)
   .use(settingsApi)
   .use(pages)
+  .get('/schema.html', schemaDocument)
   .listen({ hostname: config.host, port: config.port });
 
 console.log(`recursive( ) lab → http://${config.host}:${config.port}`);

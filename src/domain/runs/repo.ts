@@ -18,6 +18,8 @@ type RunRow = Row & {
   output_path: string | null;
 };
 
+/** br = benchmark runs */
+
 const SELECT = `
   SELECT br.id AS run_id, b.id AS benchmark_id, b.name AS benchmark_name,
          b.lab, b.adapter, b.status AS benchmark_status, b.runnable,

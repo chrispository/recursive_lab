@@ -6,10 +6,9 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
-    "db:migrate": "bun scripts/migrate.ts",
+    "db:setup": "bun scripts/setup-db.ts",
     "db:seed": "bun scripts/seed.ts",
-    "db:import:legacy": "bun scripts/migrate-legacy.ts",
-    "db:reset": "rm -f data/lab.db data/lab.db-* && bun scripts/migrate.ts && bun scripts/seed.ts",
+    "db:reset": "rm -f data/lab.db data/lab.db-* && bun scripts/setup-db.ts && bun scripts/seed.ts",
     "check": "bun run check:types && bun run check:size",
     "check:types": "tsc --noEmit",
     "check:size": "bun scripts/check-size.ts",

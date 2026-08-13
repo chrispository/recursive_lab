@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0001_init — the whole domain.
+-- The whole domain schema.
 --
 -- Conventions (AGENTS.md § Database conventions):
 --   * id INTEGER PRIMARY KEY AUTOINCREMENT; display codes come from ids.ts
@@ -9,7 +9,7 @@
 --   * execution status lives on `jobs`; entities carry lifecycle status only
 --   * no views
 --
--- Lineage:  BR -> FM -> (FI*, TX -> TP*) -> DF -> DOC* -> VF/ENV
+-- Progress: BR -> BTR -> FM -> (FI*, TP*) -> DF -> DOC* -> VF/ENV
 -- ============================================================================
 
 -- Execution ------------------------------------------------------------------
@@ -20,7 +20,7 @@ CREATE TABLE jobs (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   -- What kind of work this is. Widen this list rather than adding a table.
   kind         TEXT    NOT NULL CHECK (kind IN (
-                 'benchmark_run','failure_map','forge_run',
+                 'benchmark_run','failure_map','data_forge_run',
                  'env_build','env_eval','env_publish','training')),
   -- The domain row this job acts on: table name + its integer id.
   subject_type TEXT    NOT NULL,
@@ -146,11 +146,39 @@ CREATE TABLE benchmark_runs (
 );
 CREATE INDEX idx_runs_created ON benchmark_runs(created_at DESC);
 
+-- One task outcome per benchmark run and trial. The catalog task row above
+-- says what exists; this row says what happened for a particular run.
+CREATE TABLE benchmarks_results (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  benchmark_run_id   INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE CASCADE,
+  benchmark_id       INTEGER NOT NULL REFERENCES benchmarks(id) ON DELETE CASCADE,
+  dataset            TEXT    NOT NULL DEFAULT 'validation',
+  task_id            TEXT    NOT NULL,
+  trial_name         TEXT    NOT NULL DEFAULT 'trial-1',
+  outcome            TEXT    NOT NULL CHECK (outcome IN ('passed','failed','error','skipped')),
+  reward             REAL,
+  criteria_total     INTEGER CHECK (criteria_total IS NULL OR criteria_total >= 0),
+  criteria_passed    INTEGER CHECK (criteria_passed IS NULL OR criteria_passed >= 0),
+  criteria_failed    INTEGER CHECK (criteria_failed IS NULL OR criteria_failed >= 0),
+  result_path        TEXT,
+  metrics_json       TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metrics_json)),
+  created_at         TEXT    NOT NULL,
+  updated_at         TEXT    NOT NULL,
+  FOREIGN KEY (benchmark_id, dataset, task_id)
+    REFERENCES benchmark_tasks(benchmark_id, dataset, task_id)
+    ON DELETE CASCADE,
+  UNIQUE (benchmark_run_id, dataset, task_id, trial_name)
+);
+CREATE INDEX idx_benchmarks_results_run
+  ON benchmarks_results(benchmark_run_id, created_at DESC);
+CREATE INDEX idx_benchmarks_results_task
+  ON benchmarks_results(benchmark_id, dataset, task_id, created_at DESC);
+
 -- FM — failure map -----------------------------------------------------------
 
 CREATE TABLE failure_maps (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-  run_id             INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE RESTRICT,
+  benchmark_result_id INTEGER NOT NULL REFERENCES benchmarks_results(id) ON DELETE CASCADE,
   prompt_revision_id INTEGER NOT NULL REFERENCES prompt_revisions(id) ON DELETE RESTRICT,
   provider_model     TEXT    NOT NULL,          -- the analyst model that grouped the failures
   usage_json         TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(usage_json)),
@@ -158,46 +186,31 @@ CREATE TABLE failure_maps (
   created_at         TEXT    NOT NULL,
   updated_at         TEXT    NOT NULL
 );
--- One failure map per benchmark run.
-CREATE UNIQUE INDEX idx_fm_one_per_run ON failure_maps(run_id);
+-- One failure map per benchmark result.
+CREATE UNIQUE INDEX idx_fm_one_per_result ON failure_maps(benchmark_result_id);
 
--- TX — taxonomy. One per failure map.
-CREATE TABLE taxonomies (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  failure_map_id INTEGER NOT NULL UNIQUE REFERENCES failure_maps(id) ON DELETE CASCADE,
-  name           TEXT    NOT NULL,
-  status         TEXT    NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','ready')),
-  created_at     TEXT    NOT NULL,
-  updated_at     TEXT    NOT NULL
-);
-
--- TP — topic. Topics are global rows; membership is only ever via
--- taxonomy_topics. Never infer membership from the topics table alone.
+-- TP — topic. Topics are extracted from one failure map's failed criteria.
 CREATE TABLE topics (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  failure_map_id    INTEGER NOT NULL REFERENCES failure_maps(id) ON DELETE CASCADE,
   name              TEXT    NOT NULL,
-  slug              TEXT    NOT NULL UNIQUE,
+  slug              TEXT    NOT NULL,
   description       TEXT    NOT NULL DEFAULT '',
   -- The observable behaviour a verifier should check. This, the name and the
   -- description are the ONLY things the document generator may see.
   verifier_strategy TEXT    NOT NULL DEFAULT '',
   status            TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active','archived')),
   created_at        TEXT    NOT NULL,
-  updated_at        TEXT    NOT NULL
+  updated_at        TEXT    NOT NULL,
+  UNIQUE (failure_map_id, slug)
 );
-
-CREATE TABLE taxonomy_topics (
-  taxonomy_id INTEGER NOT NULL REFERENCES taxonomies(id) ON DELETE CASCADE,
-  topic_id    INTEGER NOT NULL REFERENCES topics(id) ON DELETE RESTRICT,
-  created_at  TEXT    NOT NULL,
-  PRIMARY KEY (taxonomy_id, topic_id)
-);
-CREATE INDEX idx_taxonomy_topics_topic ON taxonomy_topics(topic_id, taxonomy_id);
+CREATE INDEX idx_topics_failure_map ON topics(failure_map_id);
 
 -- FI — failure item. One failed grading criterion on one task.
 CREATE TABLE failure_items (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   failure_map_id  INTEGER NOT NULL REFERENCES failure_maps(id) ON DELETE CASCADE,
+  benchmark_result_id INTEGER NOT NULL REFERENCES benchmarks_results(id) ON DELETE CASCADE,
   topic_id        INTEGER REFERENCES topics(id) ON DELETE SET NULL,
   task_id         TEXT    NOT NULL,
   trial_name      TEXT    NOT NULL DEFAULT '',
@@ -216,14 +229,14 @@ CREATE TABLE failure_items (
   UNIQUE (failure_map_id, task_id, criterion_id)
 );
 CREATE INDEX idx_failure_items_map   ON failure_items(failure_map_id);
+CREATE INDEX idx_failure_items_result ON failure_items(benchmark_result_id);
 CREATE INDEX idx_failure_items_topic ON failure_items(topic_id, status);
 
 -- DF — data forge run --------------------------------------------------------
 
-CREATE TABLE forge_runs (
+CREATE TABLE data_forge_runs (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   failure_map_id     INTEGER NOT NULL REFERENCES failure_maps(id) ON DELETE RESTRICT,
-  taxonomy_id        INTEGER NOT NULL REFERENCES taxonomies(id) ON DELETE RESTRICT,
   prompt_revision_id INTEGER NOT NULL REFERENCES prompt_revisions(id) ON DELETE RESTRICT,
   backend            TEXT    NOT NULL DEFAULT 'data_designer'
                        CHECK (backend IN ('data_designer','frontier')),
@@ -240,20 +253,20 @@ CREATE TABLE forge_runs (
   updated_at         TEXT    NOT NULL
 );
 -- One data forge run per failure map.
-CREATE UNIQUE INDEX idx_df_one_per_map ON forge_runs(failure_map_id);
+CREATE UNIQUE INDEX idx_data_forge_one_per_map ON data_forge_runs(failure_map_id);
 
 -- Which failure items this forge run was asked to address.
-CREATE TABLE forge_run_items (
-  forge_run_id    INTEGER NOT NULL REFERENCES forge_runs(id) ON DELETE CASCADE,
+CREATE TABLE data_forge_run_items (
+  data_forge_run_id    INTEGER NOT NULL REFERENCES data_forge_runs(id) ON DELETE CASCADE,
   failure_item_id INTEGER NOT NULL REFERENCES failure_items(id) ON DELETE RESTRICT,
-  PRIMARY KEY (forge_run_id, failure_item_id)
+  PRIMARY KEY (data_forge_run_id, failure_item_id)
 );
 
 -- DOC — synthetic document ---------------------------------------------------
 
 CREATE TABLE documents (
   id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-  forge_run_id          INTEGER NOT NULL REFERENCES forge_runs(id) ON DELETE CASCADE,
+  data_forge_run_id     INTEGER NOT NULL REFERENCES data_forge_runs(id) ON DELETE CASCADE,
   failure_item_id       INTEGER NOT NULL REFERENCES failure_items(id) ON DELETE RESTRICT,
   topic_id              INTEGER REFERENCES topics(id) ON DELETE SET NULL,
   ordinal               INTEGER NOT NULL CHECK (ordinal > 0),
@@ -287,9 +300,9 @@ CREATE TABLE documents (
   retry_reason          TEXT,
   created_at            TEXT    NOT NULL,
   reviewed_at           TEXT,
-  UNIQUE (forge_run_id, failure_item_id, ordinal)
+  UNIQUE (data_forge_run_id, failure_item_id, ordinal)
 );
-CREATE INDEX idx_documents_run   ON documents(forge_run_id);
+CREATE INDEX idx_documents_data_forge_run ON documents(data_forge_run_id);
 CREATE INDEX idx_documents_topic ON documents(topic_id, novelty_status, review_status, role);
 CREATE INDEX idx_documents_hash  ON documents(content_sha256);
 
