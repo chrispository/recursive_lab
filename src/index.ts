@@ -8,6 +8,8 @@ import { Elysia } from 'elysia';
 import { html } from '@elysiajs/html';
 import { staticPlugin } from '@elysiajs/static';
 import { config, ROOT } from './config.ts';
+import { benchmarksApi } from './http/api/benchmarks.ts';
+import { gymApi } from './http/api/gym.ts';
 import { settingsApi } from './http/api/settings.ts';
 import { pages } from './http/pages.tsx';
 import { schemaDocument } from './http/schema.ts';
@@ -22,6 +24,8 @@ const app = new Elysia()
   .use(html())
   .use(staticFiles)
   .use(settingsApi)
+  .use(gymApi)
+  .use(benchmarksApi)
   .use(pages)
   .get('/schema.html', schemaDocument)
   .listen({ hostname: config.host, port: config.port });

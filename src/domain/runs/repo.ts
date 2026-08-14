@@ -16,16 +16,17 @@ type BenchmarkRunDbRow = Row & {
   settings_json: string;
   metrics_json: string;
   output_path: string | null;
-  result_outcome: BenchmarkRunSummary['resultOutcome'];
+  result: BenchmarkRunSummary['result'];
   result_criteria_total: number | null;
   result_criteria_passed: number | null;
   result_criteria_failed: number | null;
 };
 
 type CriterionDbRow = Row & {
+  task_id: string;
   criterion_id: string;
   criterion_title: string;
-  verdict: BenchmarkCriterionResult['verdict'];
+  result: BenchmarkCriterionResult['result'];
   reasoning: string;
   match_criteria: string;
   judge_model: string;
@@ -40,7 +41,7 @@ const SELECT = `
          b.lab, b.adapter, b.status AS benchmark_status, b.runnable,
          br.label, br.model, br.task_count, br.settings_json,
          result.metrics_json, result.result_path AS output_path,
-         result.outcome AS result_outcome,
+         result.result,
          result.criteria_total AS result_criteria_total,
          result.criteria_passed AS result_criteria_passed,
          result.criteria_failed AS result_criteria_failed
@@ -64,7 +65,7 @@ function toBenchmarkRun(row: BenchmarkRunDbRow): BenchmarkRunSummary {
     settings: json<JsonObject>(row.settings_json, {}),
     metrics: json<JsonObject>(row.metrics_json, {}),
     outputPath: row.output_path,
-    resultOutcome: row.result_outcome,
+    result: row.result,
     resultCriteriaTotal: row.result_criteria_total,
     resultCriteriaPassed: row.result_criteria_passed,
     resultCriteriaFailed: row.result_criteria_failed,
@@ -81,22 +82,31 @@ export async function listAll(): Promise<BenchmarkRunSummary[]> {
   return rows.map(toBenchmarkRun);
 }
 
+/**
+ * Every criterion verdict in one run, in task order.
+ *
+ * Reads only `criterion_results` for display text. There is deliberately no
+ * join to `benchmark_task_criteria` — that table holds the criterion as it
+ * stands today, and pairing it with reasoning written against an earlier
+ * wording produces a row that reads fine and states something untrue.
+ * Dropping that join is also why this query is three tables, not four.
+ */
 export async function listCriteriaByBenchmarkRun(benchmarkRunId: number): Promise<BenchmarkCriterionResult[]> {
   const rows = await all<CriterionDbRow>(
-    `SELECT tc.criterion_id, tc.title AS criterion_title, c.verdict, c.reasoning,
-            tc.match_criteria, c.judge_model, c.judge_error, c.error_type
-       FROM benchmark_task_criterion_results c
-       JOIN benchmark_task_results tr ON tr.id = c.benchmark_task_result_id
+    `SELECT c.task_id, c.criterion_id, c.criterion_title, c.result, c.reasoning,
+            c.match_criteria, c.judge_model, c.judge_error, c.error_type
+       FROM criterion_results c
+       JOIN task_results tr ON tr.id = c.task_result_id
        JOIN benchmark_results r ON r.id = tr.benchmark_result_id
-       JOIN benchmark_task_criteria tc ON tc.id = c.benchmark_task_criterion_id
       WHERE r.benchmark_run_id = ?
-      ORDER BY c.id ASC`,
+      ORDER BY c.task_result_id ASC, c.id ASC`,
     [benchmarkRunId],
   );
   return rows.map((row) => ({
+    taskId: row.task_id,
     criterionId: row.criterion_id,
     title: row.criterion_title,
-    verdict: row.verdict,
+    result: row.result,
     reasoning: row.reasoning,
     matchCriteria: row.match_criteria,
     judgeModel: row.judge_model,

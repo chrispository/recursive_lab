@@ -2,15 +2,40 @@ import type { InValue } from '@libsql/client';
 
 export type JsonObject = Record<string, InValue>;
 
+/**
+ * One judge verdict, exactly as it was recorded.
+ *
+ * Every field here comes from `criterion_results` — the historical record — and
+ * never from the `benchmark_task_criteria` catalog, even though the catalog
+ * holds a column of the same name. The catalog says what a criterion is *now*;
+ * this says what the judge actually graded against. Mixing the two puts a
+ * current criterion title above a reasoning paragraph written about the old
+ * one, which renders without error and is simply false. See AGENTS.md.
+ */
 export type BenchmarkCriterionResult = {
+  /**
+   * Which task this verdict belongs to. Required, not decorative: criterion ids
+   * are unique only within a task — the same id is reused by every task — and a
+   * multi-task run returns many rows that are otherwise indistinguishable.
+   */
+  taskId: string;
   criterionId: string;
   title: string;
-  verdict: 'pass' | 'fail' | 'error';
+  /** One criterion's outcome. Tasks and runs use passed/failed instead. */
+  result: 'pass' | 'fail' | 'error';
   reasoning: string;
   matchCriteria: string;
   judgeModel: string;
   judgeError: boolean;
   errorType: string | null;
+};
+
+/** Criterion verdicts for one task, as the Results page groups them. */
+export type BenchmarkTaskCriteria = {
+  taskId: string;
+  criteria: BenchmarkCriterionResult[];
+  passed: number;
+  failed: number;
 };
 
 export type BenchmarkRunSummary = {
@@ -28,7 +53,8 @@ export type BenchmarkRunSummary = {
   settings: JsonObject;
   metrics: JsonObject;
   outputPath: string | null;
-  resultOutcome: 'passed' | 'failed' | 'error' | 'skipped' | null;
+  /** `benchmark_results.result` — null until the run has produced one. */
+  result: 'passed' | 'failed' | 'error' | 'skipped' | null;
   resultCriteriaTotal: number | null;
   resultCriteriaPassed: number | null;
   resultCriteriaFailed: number | null;

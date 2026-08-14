@@ -7,11 +7,11 @@
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "db:setup": "bun scripts/setup-db.ts",
-    "db:seed": "bun scripts/seed.ts",
-    "db:reset": "rm -f data/lab.db data/lab.db-* && bun scripts/setup-db.ts && bun scripts/seed.ts",
-    "check": "bun run check:types && bun run check:size",
+    "db:reset": "rm -f data/lab.db data/lab.db-* && bun scripts/setup-db.ts",
+    "check": "bun run check:types && bun run check:size && bun run check:chain",
     "check:types": "tsc --noEmit",
     "check:size": "bun scripts/check-size.ts",
+    "check:chain": "bun scripts/check-chain.ts",
     "test": "bun test"
   },
   "dependencies": {

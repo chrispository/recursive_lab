@@ -22,9 +22,25 @@ export const config = {
     authToken: process.env.TURSO_AUTH_TOKEN || undefined,
   },
 
+  /** Where imported benchmark sources live on disk. */
+  paths: {
+    /** Snapshots staged by a preview, keyed by token. Safe to delete at any time. */
+    staging: env('STAGING_DIR', resolve(ROOT, 'data/staging')),
+    /** Snapshots kept by a committed import, keyed by benchmark code. */
+    benchmarks: env('BENCHMARKS_DIR', resolve(ROOT, 'data/benchmarks')),
+  },
+
   gym: {
     /** The NeMo Gym checkout we shell into. All gym paths are relative to it. */
     root: env('GYM_ROOT', '/home/chris/Documents/recursive'),
+    /**
+     * The head server started by `gym env start` in that checkout. It is the
+     * registry every other gym server is discovered through — we never hardcode
+     * a resources-server port, we ask this endpoint for it.
+     */
+    headUrl: env('GYM_HEAD_URL', 'http://127.0.0.1:11000'),
+    /** Head server calls are local and cheap; nothing should hang a page load. */
+    timeoutMs: Number(env('GYM_TIMEOUT_MS', '5000')),
   },
 } as const;
 

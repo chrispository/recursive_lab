@@ -1,6 +1,41 @@
 # PLAN.md — build plan and handoff
 
-> **Current state (2026-08-13):** Phases 0 and 1 are **done and verified**.
+> **Current state (2026-08-14):** The database was **dropped and rebuilt empty**
+> from `src/db/schema.sql`; the old file (with the migrated legacy run) is kept
+> under `data/archive/`. There is no seed data in `data/lab.db` — its only
+> contents are a real benchmark import.
+>
+> NeMo Gym is **launched from `~/Documents/recursive`** with
+> `gym env start --resources-server legal_agent_bench --model-type inference_provider`.
+> The head server is on `:11000`; `legal_agent_bench`, `legal_agent_bench_harbor_agent`
+> and `policy_model` are healthy. Child ports are assigned per start, so the app
+> resolves them through `/server_instances` and never hardcodes one.
+> `src/gym/head.ts` + `src/gym/config.ts` are the client; `GET /api/v1/gym/health`
+> exposes it.
+>
+> **Benchmarks are imported from a URL**, not from an installed gym. The
+> gym-catalog importer (`src/gym/catalog.ts`, `scripts/import-benchmark.ts`,
+> `db:import`) was deleted on 2026-08-14 — it existed only to get a first test
+> through the pipeline.
+>
+> `src/lib/source.ts` resolves a github.com or huggingface.co URL to an
+> immutable commit; `src/lib/archive.ts` streams the `tar.gz`, guarding against
+> path escape and holding nothing in memory; `src/lib/formats.ts` is a registry
+> of layout modules (`harbor.ts`, `tabular.ts`) that identify a staged snapshot
+> and read tasks out of it. `src/domain/benchmarks` persists, tracing every row
+> to a `benchmark_import` job. Routes are
+> `POST /api/v1/benchmark-imports/preview` then `POST /api/v1/benchmark-imports`.
+>
+> Verified end to end against two structurally different sources:
+> `harveyai/harvey-labs` (harbor, 1749 tasks / 104,467 criteria, a 703 MB
+> repository streamed with 69 MB peak RSS) and `openai/grade-school-math`
+> (tabular, 18,903 tasks / 17,584 criteria). Unsupported sources, bad hosts and
+> duplicate revisions all fail with actionable messages.
+>
+> **Imported benchmarks are `runnable = 0`** — nothing yet knows which gym
+> resources server can execute them. That is the next piece of work.
+>
+> **Older state (2026-08-13):** Phases 0 and 1 are **done and verified**.
 > Phase 2's CSS, shared UI primitives, rail wiring, and all six page views are
 > done and verified against the migrated legacy run. The Settings tab now
 > includes the five original provider groups, safe credential presence states,
@@ -9,7 +44,7 @@
 > GETs are still pending. The requested legacy run is now in `data/lab.db` as
 > `BR-00001`, with its original result artifact path preserved.
 > A standalone interactive schema map is available at `/schema.html`; it
-> exposes all 23 tables (including `benchmark_task_criteria`,
+> exposes all 24 tables (including `benchmark_task_criteria`,
 > `data_forge_runs` / `data_forge_run_items`)
 > plus derived `progress`, with fields and FK/logical connections.
 > The data-forge tables are named `data_forge_runs` and
@@ -17,10 +52,10 @@
 > The matching domain module/read model is `src/domain/data_forge`, with
 > `DataForgeSummary`, `dataForgeCode`, and `DataForge` names throughout.
 > `benchmark_results` now stores the aggregate rollup for one benchmark run;
-> `benchmark_task_results` stores one outcome per run/task/trial,
+> `task_results` stores one result per run/task/trial,
 > `benchmark_task_criteria` stores the static criteria belonging to each task,
-> `benchmark_task_criterion_results` stores each task-result verdict against
-> those criteria, and `failure_items` points directly to that criterion result; the
+> `criterion_results` stores one row per task result per criterion, and
+> `failure_items` points directly to that criterion result; the
 > follow-up implementation work is documented in `todo.md`.
 > The downstream chain is `benchmark_runs → benchmark_results → failure_maps
 > → topics → failure_items`; task and criterion result detail hangs below the
@@ -34,7 +69,7 @@
 > **The app boots and serves all six pages; `/failures` renders the migrated
 > 16-item failure map.**
 > The local legacy execution ledger now carries source-derived descriptions and
-> failure text, and Results derives the benchmark outcome from its imported
+> failure text, and Results derives the benchmark result from its imported
 > task result instead of hardcoding `verified`.
 > Results now selects a benchmark run, computes pass rate from its
 > `benchmark_results` row, and renders the imported 69-criterion inspection
@@ -50,10 +85,15 @@ above before ending a session. Rules live in `AGENTS.md`; don't duplicate them.
 
 ## Next three steps (start here)
 
-1. **Add the remaining read paths.** Create every `/ui/{tab}/{region}` fragment
-   and `/api/v1` JSON GET for the seeded page read models.
-2. **Check the ledger visually.** Open the app in a browser, switch dark/light
-   and density under Settings, and confirm controls survive HTMX navigation.
+1. **Run a benchmark through the gym.** The catalog is imported and the gym
+   endpoint is live; what is missing is the run itself — `src/gym/eval.ts` to
+   start `gym eval run` as a `benchmark_run` job, and the result reader that
+   fills `benchmark_results` → `task_results` →
+   `criterion_results`. Write `benchmark_run_tasks` at run
+   creation, before anything executes.
+2. **Add the remaining read paths.** Create every `/ui/{tab}/{region}` fragment
+   and `/api/v1` JSON GET. The pages currently render an empty database
+   correctly, which is the right baseline to build these against.
 3. **Write the handoff docs.** `docs/DATA-MODEL.md`, `docs/API.md`, and
    `docs/DESIGN.md` should describe the schema, read surfaces, and rendered
    ledger conventions before mutations land.
@@ -69,7 +109,7 @@ research pipeline:
 
 ```
 benchmark run  →  task results  →  failure map  →  topics  →  data forge
-     BR              BTR              FM + FI        TP          DF + DOC → ENV
+     BR              TR               FM + FI        TP          DF + DOC → ENV
 ```
 
 The previous version (`~/Documents/recursive/tools/`) worked but became
@@ -86,14 +126,14 @@ server-rendered fragments. Harbor integration is deliberately deferred.
 
 - [x] deps: `elysia` 1.4.29, `@elysiajs/html`, `@elysiajs/static`, `@libsql/client` 0.17.4
 - [x] `tsconfig.json` with `jsxImportSource: "@kitajs/html"`
-- [x] `package.json` scripts: `dev`, `db:setup`, `db:seed`, `db:reset`, `check`, `test`
+- [x] `package.json` scripts: `dev`, `db:setup`, `db:reset`, `check`, `test`
 - [x] `src/config.ts` — the only reader of `process.env`
 - [x] `AGENTS.md`, `PLAN.md`, `.env.example`, `.gitignore`
 - [x] `scripts/check-size.ts` — 500-line ceiling, warns at 400
 - [x] Vendored: htmx **2.0.10**, IBM Plex Mono woff2 ×2
 - [x] `src/views/layout/{Document,Rail}.tsx`, `tabs.ts`
 - [x] `src/http/respond.tsx` — full document vs HTMX fragment (+ OOB rail)
-- [x] `src/http/pages.tsx` — six seeded views
+- [x] `src/http/pages.tsx` — six page views
 - [x] `src/index.ts`
 
 Verified: full doc on cold load, bare fragment + OOB rail under `HX-Request`,
@@ -104,14 +144,14 @@ all static assets 200, `/` → `/benchmarks` 302, unknown tab 404, `tsc` clean.
 - [x] `src/db/schema.sql` — canonical fresh domain schema, **0 views**
 - [x] `src/db/client.ts` — `all/one/value/insert/run` + `now()`/`json()`
 - [x] `src/db/ids.ts` — `PREFIX`, five-digit `code()`, `parse()`; **INTEGER PKs**, no random hex
-- [x] `scripts/{setup-db,seed}.ts`
+- [x] `scripts/setup-db.ts`
+- [x] `scripts/check-chain.ts` — asserts the 19 pipeline FK links
 - [ ] `docs/DATA-MODEL.md` ← **not written yet**
 
-The seed fixture produces the real run's proportions: 1 BR → 1 BTR → 1 FM → 16 FI →
-6 TP → 1 DF → 12 DOC → 6 VF → 6 ENV → 10 jobs. The migrated legacy
-database has the same progress plus 12 benchmark sources, 3 evaluations, and
-13 execution jobs. Verified: `foreign_key_check` clean, progress joins to one
-row, and the one-FM-per-result unique index rejects a second insert.
+`scripts/seed.ts` was **deleted on 2026-08-14** and is not coming back — see
+`AGENTS.md` § Database conventions. Development runs against a real gym import
+plus a real run; the views are expected to render an empty database correctly,
+which they do.
 
 ### Legacy import ✅ requested run migrated
 
@@ -127,7 +167,7 @@ row, and the one-FM-per-result unique index rejects a second insert.
 - [x] Imported the original 69 criterion-level score records (53 pass, 16 fail),
       including task criteria and judge explanations
 
-## Phase 2 — Ledger layout ✅ seeded views done
+## Phase 2 — Ledger layout ✅ views done
 
 - [x] `public/css/tokens.css` — **Ink** light (default) + dark, three-layer theming
 - [x] `public/css/base.css` — graph paper, scanlines, typography, buttons, inputs
@@ -135,7 +175,7 @@ row, and the one-FM-per-result unique index rejects a second insert.
 - [x] `public/js/app.js` — theme/density + hold-to-confirm, **delegated from
       `document`** so it survives HTMX swaps
 - [x] `src/views/ui/*` — TableBox, Cap, Tally, Table, Panel, Field, Badge, Bar, Id, Btn
-- [x] Six tab views rendering seeded data
+- [x] Six tab views, all rendering an empty database without error
 - [x] Rail wired to `progress.currentWithRail()`
 - [x] Settings provider groups, safe save/test API, and appearance controls
 - [ ] `docs/DESIGN.md`
@@ -159,8 +199,9 @@ dropped: two themes, not eight.
 
 Schema is ready (`jobs` + `job_log_lines`); no runner yet.
 
-- [x] `src/domain/jobs/{model,repo,service}.ts` — seeded execution ledger read model
-- [ ] `src/domain/jobs/runner.ts`
+- [x] `src/domain/jobs/{model,repo,service}.ts` — execution ledger read model
+- [x] `src/domain/jobs/trace.ts` — job + log-line writer; used by the importer
+- [ ] `src/domain/jobs/runner.ts` — spawning side, for gym subprocesses
 - [ ] `/ui/jobs/strip` polled fragment (`hx-trigger="every 3s"`)
 - [ ] Incremental log tail `/ui/jobs/:id/log?after=<seq>` + `hx-swap="beforeend"`
 - [ ] Cancel by **process group**, not pid
@@ -175,11 +216,25 @@ Schema is ready (`jobs` + `job_log_lines`); no runner yet.
 - [ ] Verifier save, environment build
 - [x] Settings save + connection test (presence booleans only, never key values)
 
-## Phase 6 — Gym wiring ⬜
+## Phase 6 — Gym wiring 🟡 endpoint live, run pending
 
-- [ ] `src/gym/{paths,spawn,eval,results,status}.ts`
-- [ ] Benchmark run end-to-end as a job
+- [x] `src/gym/head.ts` — `/server_instances` registry + per-server health probe
+- [x] `src/gym/config.ts` — `/global_config_dict_yaml`, with `${oc.env:…}` and
+      `${a.b.c}` interpolation resolved
+- [x] `src/lib/{source,archive,formats,harbor,tabular}.ts` — URL import
+- [x] `GET /api/v1/gym/health`, `GET /api/v1/gym/servers/:processName`
+- [x] `GYM_HEAD_URL` / `GYM_TIMEOUT_MS` in `src/config.ts`
+- [ ] `src/gym/{spawn,eval,results}.ts` — start/cancel a run, read rollouts
+- [ ] Benchmark run end-to-end as a job (writes `benchmark_run_tasks`, then
+      `benchmark_results` → `task_results` → `criterion_results`)
 - [ ] `docs/GYM.md`
+
+Launch the gym before using any of this:
+
+```bash
+cd ~/Documents/recursive
+.venv/bin/gym env start --resources-server legal_agent_bench --model-type inference_provider
+```
 
 Facts already established, so no re-research is needed:
 `/home/chris/Documents/recursive/.venv/bin/gym` exists and works. Run with
@@ -201,22 +256,29 @@ Harbor, reward profiling, Prime Intellect dispatch, cluster training, Turso sync
 src/config.ts                        env + paths, the only process.env reader
 src/index.ts                         composition only
 src/db/{client,ids,schema.sql}
-src/domain/progress/{model,repo,service}.ts   BR→BTR→FM→TP→DF→ENV, gate counting
+src/domain/progress/{model,repo,service}.ts   BR→TR→FM→TP→DF→ENV, gate counting
 src/domain/topics/{model,repo,service}.ts     failure-map topic rows + tally
 src/domain/runs/{model,repo,service}.ts       benchmark/run read model
 src/domain/data_forge/{model,repo,service}.ts data-forge/document read model
 src/domain/environments/{model,repo,service}.ts  environment/evaluation read model
 src/domain/jobs/{model,repo,service}.ts       execution ledger read model
-src/http/{respond.tsx,pages.tsx}     six seeded page views
+src/http/{respond.tsx,pages.tsx}     six page views
 src/http/schema.ts                   standalone schema.html route
 src/views/ui/*.tsx                  shared ledger primitives
-src/views/tabs/*.tsx                six seeded tab views, including DataForge.tsx
+src/views/tabs/*.tsx                six tab views, including DataForge.tsx
+src/domain/benchmarks/{model,repo,service}.ts catalog read + gym import
+src/domain/audit/{model,repo,service}.ts      audit trail
+src/domain/jobs/trace.ts            job + log-line writer used by every service
 src/gym/settings.ts                 safe env.yaml settings service
+src/gym/head.ts                     head-server registry + health probes
+src/gym/config.ts                   resolved gym config from the head server
 src/http/api/settings.ts            Settings JSON GET/POST/test routes
+src/http/api/gym.ts                 gym health + server lookup routes
+scripts/check-chain.ts              `bun run check:chain` — 19 pipeline FK links
 src/views/layout/{Document,Rail}.tsx, tabs.ts
 public/css/{tokens,base,ledger}.css  public/js/{app.js,htmx.min.js}
 public/schema.html                   draggable schema map with persisted layout
-scripts/{setup-db,seed,check-size}.ts
+scripts/{setup-db,check-size}.ts
 ```
 
 No `docs/*.md` written yet. `src/http/ui/`, `src/lib/`, and `tests/` are empty
@@ -225,12 +287,16 @@ directories.
 ## Verify
 
 ```bash
-bun run db:reset && bun run dev     # http://127.0.0.1:8767
+bun run db:reset                    # empty database from the canonical schema
+# import a benchmark: POST /api/v1/benchmark-imports/preview then /benchmark-imports
+bun run dev                         # http://127.0.0.1:8767
 bun run check:types                 # clean
 bun run check:size                  # no file over 500 lines
+bun run check:chain                 # 19 pipeline FK links, no orphaned rows
 ```
 
-`bun run db:reset` recreates the development seed from the canonical schema.
+`bun run db:reset` leaves an **empty** database — there is no seed fixture any
+more. Benchmarks come from a URL — see AGENTS.md § Benchmark import.
 
-Note: `bun run check` chains both but exits 144 under some shells — run the two
+Note: `bun run check` chains all three but exits 144 under some shells — run the
 commands separately if that bites.

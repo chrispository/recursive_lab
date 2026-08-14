@@ -16,8 +16,10 @@ export const PREFIX = {
   benchmark_task_criteria: 'BTC',
   benchmark_runs: 'BR',
   benchmark_results: 'BRS',
-  benchmark_task_results: 'BTR',
-  benchmark_task_criterion_results: 'BTCR',
+  // TR/CR, not BTR/BTCR: the old pair differed only by a trailing letter, and
+  // `BTC-00412` vs `BTCR-00412` are different rows in different tables.
+  task_results: 'TR',
+  criterion_results: 'CR',
   failure_maps: 'FM',
   failure_items: 'FI',
   topics: 'TP',

@@ -53,12 +53,12 @@ export const pages = new Elysia({ name: 'pages' })
             : null;
           const resultRun = selectedRun ?? benchmarkRun ?? availableRuns[0] ?? null;
           const resultJobs = resultRun ? await jobs.listByBenchmarkRun(resultRun.benchmarkRunId) : [];
-          const resultCriteria = resultRun ? await runs.criteriaByBenchmarkRun(resultRun.benchmarkRunId) : [];
+          const resultTasks = resultRun ? await runs.criteriaByTask(resultRun.benchmarkRunId) : [];
           body = (
             <Results
               benchmarkRun={resultRun}
               jobs={resultJobs}
-              criteria={resultCriteria}
+              tasks={resultTasks}
               availableRuns={availableRuns}
             />
           );

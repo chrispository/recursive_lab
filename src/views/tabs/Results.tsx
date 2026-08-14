@@ -1,4 +1,4 @@
-import type { BenchmarkCriterionResult, BenchmarkRunSummary } from '../../domain/runs/model.ts';
+import type { BenchmarkTaskCriteria, BenchmarkRunSummary } from '../../domain/runs/model.ts';
 import type { JobRow } from '../../domain/jobs/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Cap } from '../ui/Cap.tsx';
@@ -10,18 +10,20 @@ import { Tally } from '../ui/Tally.tsx';
 
 const numberOf = (value: unknown) => (typeof value === 'number' ? value : Number(value ?? 0));
 
-export function Results({ benchmarkRun, jobs, criteria, availableRuns }: {
+export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
   benchmarkRun: BenchmarkRunSummary | null;
   jobs: JobRow[];
-  criteria: BenchmarkCriterionResult[];
+  /** Criterion verdicts grouped by task — `C-001` repeats across tasks. */
+  tasks: BenchmarkTaskCriteria[];
   availableRuns: BenchmarkRunSummary[];
 }) {
+  const criterionCount = tasks.reduce((sum, task) => sum + task.criteria.length, 0);
   const metrics = benchmarkRun?.metrics ?? {};
   const total = numberOf(benchmarkRun?.resultCriteriaTotal ?? metrics.criteria_total);
   const passed = numberOf(benchmarkRun?.resultCriteriaPassed ?? metrics.criteria_passed);
   const failed = numberOf(benchmarkRun?.resultCriteriaFailed ?? Math.max(0, total - passed));
   const rate = total > 0 ? passed / total : 0;
-  const resultStatus = benchmarkRun?.resultOutcome ?? 'pending';
+  const resultStatus = benchmarkRun?.result ?? 'pending';
 
   return (
     <>
@@ -70,27 +72,42 @@ export function Results({ benchmarkRun, jobs, criteria, availableRuns }: {
       </TableBox>
 
       <TableBox class="m-criteria-box">
-        <Cap title="Criterion inspection" code={`${criteria.length} criteria`} />
-        {criteria.length ? (
+        <Cap
+          title="Criterion inspection"
+          code={`${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'} · ${criterionCount} criteria`}
+        />
+        {tasks.length ? (
           <div class="m-criteria-list">
-            {criteria.map((criterion) => (
-              <details class={`m-criterion ${criterion.verdict}`} open={criterion.verdict === 'fail'}>
-                <summary>
-                  <span class="m-criterion-verdict">{criterion.verdict.toUpperCase()}</span>
-                  <span class="m-id">{criterion.criterionId}</span>
-                  <span class="m-criterion-title">{criterion.title}</span>
-                </summary>
-                <div class="m-criterion-body">
-                  <p class="m-criterion-reasoning">{criterion.reasoning}</p>
-                  <details class="m-criterion-source">
-                    <summary>View task / judge score</summary>
-                    <div class="m-criterion-source-body">
-                      <div><span class="m-code">Task criterion</span><p>{criterion.matchCriteria || 'No task criterion text was recorded.'}</p></div>
-                      <div><span class="m-code">Judge</span><p>{criterion.judgeModel || 'Model not recorded'}{criterion.judgeError ? ` · ${criterion.errorType ?? 'judge error'}` : ''}</p></div>
+            {tasks.map((task) => (
+              <section class="m-criteria-task">
+                {/* Criterion ids restart at C-001 on every task, so the task
+                    heading is what makes the rows below unambiguous. */}
+                <header class="m-criteria-task-head">
+                  <span class="m-id">{task.taskId}</span>
+                  <span class="m-criteria-task-tally">
+                    {task.passed} passed · <b class={task.failed > 0 ? 'hot' : ''}>{task.failed} failed</b>
+                  </span>
+                </header>
+                {task.criteria.map((criterion) => (
+                  <details class={`m-criterion ${criterion.result}`} open={criterion.result === 'fail'}>
+                    <summary>
+                      <span class="m-criterion-result">{criterion.result.toUpperCase()}</span>
+                      <span class="m-id">{criterion.criterionId}</span>
+                      <span class="m-criterion-title">{criterion.title}</span>
+                    </summary>
+                    <div class="m-criterion-body">
+                      <p class="m-criterion-reasoning">{criterion.reasoning}</p>
+                      <details class="m-criterion-source">
+                        <summary>View task / judge score</summary>
+                        <div class="m-criterion-source-body">
+                          <div><span class="m-code">Task criterion</span><p>{criterion.matchCriteria || 'No task criterion text was recorded.'}</p></div>
+                          <div><span class="m-code">Judge</span><p>{criterion.judgeModel || 'Model not recorded'}{criterion.judgeError ? ` · ${criterion.errorType ?? 'judge error'}` : ''}</p></div>
+                        </div>
+                      </details>
                     </div>
                   </details>
-                </div>
-              </details>
+                ))}
+              </section>
             ))}
           </div>
         ) : <div class="m-empty">No criterion-level inspection was imported.</div>}

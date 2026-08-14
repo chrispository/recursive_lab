@@ -584,6 +584,35 @@
   padding: 6px;
   background: var(--wash);
 }
+/* One block per task. Criterion ids restart at C-001 on every task, so the
+   heading is load bearing, not decoration — without it the rows below are
+   ambiguous the moment a run covers more than one task. */
+.m-criteria-task {
+  display: grid;
+  gap: 6px;
+}
+.m-criteria-task + .m-criteria-task {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.m-criteria-task-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.m-criteria-task-tally {
+  color: var(--text-3);
+  font: var(--t-micro) / 1 var(--mono);
+}
+.m-criteria-task-tally b {
+  font-weight: 600;
+}
+.m-criteria-task-tally b.hot {
+  color: var(--fail);
+}
 .m-criterion {
   border: 1px solid var(--line);
   border-left: 3px solid var(--text-4);
@@ -610,15 +639,15 @@
 .m-criterion-source summary::-webkit-details-marker {
   display: none;
 }
-.m-criterion-verdict {
+.m-criterion-result {
   font: 600 var(--t-micro) / 1 var(--sans);
   letter-spacing: 0.08em;
 }
-.m-criterion.pass .m-criterion-verdict {
+.m-criterion.pass .m-criterion-result {
   color: var(--pass);
 }
-.m-criterion.fail .m-criterion-verdict,
-.m-criterion.error .m-criterion-verdict {
+.m-criterion.fail .m-criterion-result,
+.m-criterion.error .m-criterion-result {
   color: var(--fail);
 }
 .m-criterion-title {

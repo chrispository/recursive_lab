@@ -106,6 +106,19 @@ module's data, it calls that module's service.
   `created_at`, `updated_at`, `started_at`, `finished_at`.
 - **JSON columns** are suffixed `_json`, and are always
   `NOT NULL DEFAULT '{}' CHECK (json_valid(...))`.
+- **The outcome column is called `result`, at every level.** `benchmark_results.result`
+  and `task_results.result` are `passed|failed|error|skipped`;
+  `criterion_results.result` is `pass|fail|error`. Not `outcome`, not `verdict` —
+  one word, so a reader never has to ask whether three names mean three things.
+- **Result tables are named for what they hold, not for their parent.**
+  `task_results` and `criterion_results`, not `benchmark_task_results` and
+  `benchmark_task_criterion_results`. The old names shared a 21-character prefix
+  and produced the display codes `BTC` and `BTCR`, which differ by one trailing
+  letter and address different tables. Prefixes are now `TR` and `CR`.
+- **`criterion` is singular, `criteria` is plural, and both are correct.**
+  `benchmark_task_criteria` is a table of many; `criterion_id` is one. The
+  modifier goes singular and the head noun stays plural — the same rule as
+  `benchmark_tasks` → `task_results`. Do not "fix" this to match.
 - **Two status vocabularies, never mixed in one column.**
   - *Execution* — `queued running succeeded failed cancelled`. Lives on `jobs`.
   - *Domain lifecycle* — `draft ready archived`, `pending approved rejected`.
@@ -114,6 +127,11 @@ module's data, it calls that module's service.
   was ashamed of. Tables are named correctly here; if a name is wrong, migrate it.
 - **Migrations are append-only.** Never edit a migration that has been applied —
   add `000N_whatever.sql`.
+- **No seed fixtures.** There was a `scripts/seed.ts` that invented a plausible
+  run to develop against; it was deleted once the real import worked. Develop
+  against a real URL import and a real gym run instead. A fixture that drifts
+  from the pipeline is worse than an empty database, and every view must render
+  an empty database correctly anyway.
 
 ---
 
@@ -152,13 +170,51 @@ bearing; a convenience change that breaks one silently invalidates results.
    saturated/floored fraction `<= 0.8`. An environment where every rollout
    scores 1.0 teaches nothing and must be refused.
 7. **Topic reassignment is valid only within the failure map's own taxonomy.**
+8. **A result view reads the historical record, never the catalog.**
+   `criterion_results` stores its own `criterion_title` and `match_criteria`
+   because the judge graded *that* wording. `benchmark_task_criteria` holds what
+   the criterion says today. Rendering a current title above reasoning written
+   against an older one produces a row that displays cleanly and states
+   something false, so Results, the failure map and topics read only the
+   snapshot columns. The catalog is for the Benchmarks tab, where no run is in
+   scope. If you ever want to show drift, render both as labelled columns —
+   never silently pick one.
+9. **Criterion ids are unique only within a task.** The same id is reused by
+   every task, so any list of criterion results must carry `task_id` and group
+   by it.
+   A flat list across a multi-task run is ambiguous, and the ambiguity is
+   invisible on the single-task runs you will test with.
 
 ---
+
+## Benchmark import
+
+- **A benchmark is imported from a URL, pinned to a revision.** `github.com` and
+  `huggingface.co` only. The ref is resolved to an immutable commit *before*
+  anything downloads; importing the same repository at a newer commit creates a
+  new `benchmarks` row rather than updating the old one, so past runs keep
+  meaning what they meant.
+- **Formats are a registry, not a branch.** `src/lib/formats.ts` lists them;
+  each is a module exporting `{ id, label, keep, detect, read }`. Supporting a
+  new layout means adding a sibling module and one line in `FORMATS` — never an
+  `if` in the importer, the domain, or the routes.
+- **A source repository is hostile data.** It is downloaded, read, and never
+  executed. `src/lib/archive.ts` streams the tar as it decompresses so a large
+  repository is never held in memory, rejects any entry whose path escapes the
+  staging directory, and writes only the definition files a format asked for.
+- **Import is two-phase.** `preview()` downloads and inspects but writes no
+  rows; `commit()` persists what the preview staged. Never collapse them: a
+  benchmark can be tens of thousands of tasks and the user confirms first.
 
 ## NeMo Gym
 
 - `src/gym/` is the only place that knows Python exists. Nothing else spawns a
   process or reads a gym path.
+- **The head server is the only gym address we know.** `gym env start` assigns a
+  fresh port to every child server on each launch, so `GYM_HEAD_URL` is the one
+  configured endpoint; resources-server, agent and model URLs come from
+  `/server_instances`, and gym paths come from `/global_config_dict_yaml`.
+  Hardcoding any other port or path is how this breaks after the next restart.
 - Every invocation runs with `cwd: config.gym.root` — gym config paths are
   repo-relative and break otherwise.
 - Spawn **detached** and cancel by **process group** (`-pgid`), not pid. Gym
@@ -183,9 +239,9 @@ continue from those three without reading the old Python.
 ## Verification
 
 ```bash
-bun run check      # tsc --noEmit + the 500-line ceiling
+bun run check      # tsc --noEmit + the 500-line ceiling + the pipeline chain
 bun test
-bun run db:reset   # migrate + seed from scratch
+bun run db:reset   # empty database from the canonical schema
 bun run dev        # http://127.0.0.1:8767
 ```
 
