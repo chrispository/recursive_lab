@@ -25,7 +25,7 @@ import * as head from '../../gym/head.ts';
 import * as servers from '../../gym/servers.ts';
 import { audit } from '../audit/service.ts';
 import * as jobs from '../jobs/trace.ts';
-import type { ImportPlan, ImportPreview, ImportTally } from './model.ts';
+import type { BenchmarkCatalog as BenchmarkCatalogRow, ImportPlan, ImportPreview, ImportTally } from './model.ts';
 import * as repo from './repo.ts';
 
 export type { BenchmarkCatalog, BenchmarkTask, ImportPlan, ImportPreview, ImportTally } from './model.ts';
@@ -36,6 +36,31 @@ export const list = repo.listCatalogs;
 export const tasks = repo.listTasks;
 export const get = repo.get;
 export const criteriaFor = repo.listCriteriaFor;
+
+/**
+ * Which catalog a benchmarks view is looking at.
+ *
+ * One place decides, because three call sites need the same answer and a view
+ * that picks its own would pair a selector with somebody else's task list.
+ */
+export function select(catalogs: BenchmarkCatalogRow[], preferred?: number | null): BenchmarkCatalogRow | null {
+  return catalogs.find((catalog) => catalog.benchmarkId === preferred) ?? catalogs[0] ?? null;
+}
+
+/**
+ * One catalog with its task rows attached — the only way tasks are loaded.
+ *
+ * The picker filters client-side, so it wants the whole task list of the
+ * benchmark on screen; what it must never do is carry the task lists of the
+ * benchmarks that are merely options in a dropdown. See AGENTS.md § The three
+ * HTTP surfaces: an endpoint never returns a field the view does not render.
+ */
+export async function withTasks(benchmarkId: number | null | undefined): Promise<BenchmarkCatalogRow | null> {
+  if (typeof benchmarkId !== 'number' || !Number.isInteger(benchmarkId)) return null;
+  const catalog = await repo.get(benchmarkId);
+  if (!catalog) return null;
+  return { ...catalog, tasks: await repo.listTasks(benchmarkId, catalog.taskCount) };
+}
 
 /** Tasks are written in pages so the trace shows movement on a long import. */
 const PAGE = 100;
@@ -50,6 +75,14 @@ export class ImportError extends Error {}
  */
 const tokenFor = (identifier: string, revision: string) =>
   new Bun.CryptoHasher('sha256').update(`${identifier}@${revision}`).digest('hex').slice(0, 16);
+
+/**
+ * Tokens are our own 16 hex characters, and a commit takes its preview back
+ * from the request body — so the token is user input and is checked as such
+ * before it is ever joined onto a path. `archive.stagingPath` guards the join
+ * too; this is the layer that can say *why* it was rejected.
+ */
+const TOKEN = /^[0-9a-f]{16}$/;
 
 /** Repository name to display name: `some-bench_v2` → `Some Bench V2`. */
 const titleCase = (slug: string) =>
@@ -87,7 +120,7 @@ export async function preview(url: string, ref = ''): Promise<ImportPreview> {
   }
 
   const [owner, repoName] = pinned.identifier.split('/');
-  const sample = (await format.read(stagingDir)).slice(0, 5);
+  const sample = await format.read(stagingDir, { limit: 5 });
 
   return {
     token,
@@ -140,12 +173,18 @@ export async function commit(
     );
   }
 
+  if (typeof preview.token !== 'string' || !TOKEN.test(preview.token)) {
+    throw new ImportError('That preview token is not one we issued. Run the preview again.');
+  }
+
   const stagingDir = archive.stagingPath(config.paths.staging, preview.token);
   const format = formats.byId(preview.detection.format);
   // A committed import moves its snapshot out of staging, so a stale preview
-  // points at a directory that no longer exists — scanning it throws ENOENT.
-  const staged = format ? await format.detect(stagingDir).catch(() => null) : null;
-  if (!format || !staged?.detected) {
+  // points at a directory that no longer exists. One task's worth of read is
+  // enough to prove it is still there and still readable — re-detecting would
+  // parse the whole benchmark a second time to learn what the preview knew.
+  const staged = format ? await format.read(stagingDir, { limit: 1 }).catch(() => null) : null;
+  if (!format || !staged?.length) {
     throw new ImportError(
       `The staged snapshot for ${preview.source.identifier} is gone. Run the preview again before importing.`,
     );

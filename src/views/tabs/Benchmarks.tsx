@@ -40,14 +40,17 @@ export function Benchmarks({
   benchmarkRun,
   jobs,
   catalogs,
+  catalog,
   settings,
 }: {
   benchmarkRun: BenchmarkRunSummary | null;
   jobs: JobRow[];
+  /** Headers only — these fill the dropdown and carry no task rows. */
   catalogs: BenchmarkCatalog[];
+  /** The selected catalog, and the only one whose tasks are loaded. */
+  catalog: BenchmarkCatalog | null;
   settings: PublicSettings;
 }) {
-  const catalog = catalogs.find((item) => item.benchmarkCode === benchmarkRun?.benchmarkCode) ?? catalogs[0] ?? null;
   const model = benchmarkRun?.model || settings.policy_model_name;
 
   return (

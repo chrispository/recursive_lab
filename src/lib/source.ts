@@ -96,6 +96,15 @@ export function parse(input: string): SourceSpec {
 
 type GithubRef = { sha?: string; commit?: { sha?: string } };
 
+/**
+ * Percent-encode a ref for a URL path without destroying its slashes.
+ *
+ * Branch names are routinely `feature/x` or `release/1.0`, and those slashes
+ * are real path separators to both hosts' APIs. Encoding the ref whole turns
+ * them into `%2F` and every such ref resolves to a 404.
+ */
+const encodeRef = (ref: string) => ref.split('/').map(encodeURIComponent).join('/');
+
 /** Resolve a spec's ref to an immutable revision by asking the host. */
 export async function pin(spec: SourceSpec, timeoutMs = 20_000): Promise<PinnedSource> {
   const signal = AbortSignal.timeout(timeoutMs);
@@ -104,7 +113,7 @@ export async function pin(spec: SourceSpec, timeoutMs = 20_000): Promise<PinnedS
     // `commits/<ref>` resolves branches, tags and shas alike; omitting the ref
     // resolves the default branch, so we never have to guess main vs master.
     const ref = spec.requestedRef || 'HEAD';
-    const api = `https://api.github.com/repos/${spec.identifier}/commits/${encodeURIComponent(ref)}`;
+    const api = `https://api.github.com/repos/${spec.identifier}/commits/${encodeRef(ref)}`;
     const response = await fetch(api, { signal, headers: { accept: 'application/vnd.github+json' } });
     if (response.status === 404) {
       throw new SourceError(`${spec.identifier} has no ref '${ref}', or the repository is private.`);
@@ -122,7 +131,7 @@ export async function pin(spec: SourceSpec, timeoutMs = 20_000): Promise<PinnedS
   }
 
   const ref = spec.requestedRef || 'main';
-  const api = `https://huggingface.co/api/datasets/${spec.identifier}/revision/${encodeURIComponent(ref)}`;
+  const api = `https://huggingface.co/api/datasets/${spec.identifier}/revision/${encodeRef(ref)}`;
   const response = await fetch(api, { signal, headers: { accept: 'application/json' } });
   if (response.status === 404) {
     throw new SourceError(`${spec.identifier} has no revision '${ref}', or the dataset is gated.`);

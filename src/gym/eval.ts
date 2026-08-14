@@ -111,7 +111,6 @@ export function commandOf(
     '--input', inputRel,
     '--output', outputRel,
     '--split', 'validation',
-    '--split', 'validation',
     '--concurrency', String(settings.concurrency),
     '--temperature', String(settings.temperature),
     '--top-p', String(settings.topP),

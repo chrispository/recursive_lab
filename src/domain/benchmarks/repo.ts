@@ -125,12 +125,14 @@ type CatalogDbRow = Row & {
 };
 
 /**
- * The catalog, with counts done in SQL and the task list loaded separately.
+ * The catalog headers: counts done in SQL, and **no task rows at all**.
  *
  * The previous version left-joined every task row and grouped in TypeScript,
  * so rendering one count dragged a benchmark's entire task list across the
- * boundary. Task rows are still separate from the count query, and criteria
- * remain excluded from this list response.
+ * boundary. Listing every catalog with its tasks attached rebuilds exactly
+ * that: the page renders one benchmark's picker, so loading the task lists of
+ * all the others is pure payload. A view that needs tasks asks for the one
+ * benchmark it is showing — see `withTasks` in the service.
  */
 export async function listCatalogs(): Promise<BenchmarkCatalog[]> {
   const rows = await all<CatalogDbRow>(`
@@ -143,28 +145,28 @@ export async function listCatalogs(): Promise<BenchmarkCatalog[]> {
      ORDER BY b.created_at DESC, b.id DESC
   `);
 
-  const catalogs: BenchmarkCatalog[] = [];
-  for (const row of rows) {
-    catalogs.push({
-      benchmarkId: row.benchmark_id,
-      benchmarkCode: code('benchmarks', row.benchmark_id),
-      name: row.benchmark_name,
-      lab: row.lab,
-      sourceUrl: row.source_url,
-      sourceKind: row.source_kind,
-      sourceIdentifier: row.source_identifier,
-      revision: row.revision,
-      detectedFormat: row.detected_format,
-      adapter: row.adapter,
-      status: row.status,
-      runnable: row.runnable === 1,
-      description: row.description,
-      taskCount: row.task_count,
-      criterionCount: row.criterion_count,
-      tasks: await listTasks(row.benchmark_id, row.task_count),
-    });
-  }
-  return catalogs;
+  return rows.map(toCatalog);
+}
+
+function toCatalog(row: CatalogDbRow): BenchmarkCatalog {
+  return {
+    benchmarkId: row.benchmark_id,
+    benchmarkCode: code('benchmarks', row.benchmark_id),
+    name: row.benchmark_name,
+    lab: row.lab,
+    sourceUrl: row.source_url,
+    sourceKind: row.source_kind,
+    sourceIdentifier: row.source_identifier,
+    revision: row.revision,
+    detectedFormat: row.detected_format,
+    adapter: row.adapter,
+    status: row.status,
+    runnable: row.runnable === 1,
+    description: row.description,
+    taskCount: row.task_count,
+    criterionCount: row.criterion_count,
+    tasks: [],
+  };
 }
 
 /** A bounded page of tasks. A list view never receives a whole benchmark. */
@@ -194,25 +196,7 @@ export async function get(benchmarkId: number): Promise<BenchmarkCatalog | null>
       FROM benchmarks b WHERE b.id = ?
   `, [benchmarkId]);
   const row = rows[0];
-  if (!row) return null;
-  return {
-    benchmarkId: row.benchmark_id,
-    benchmarkCode: code('benchmarks', row.benchmark_id),
-    name: row.benchmark_name,
-    lab: row.lab,
-    sourceUrl: row.source_url,
-    sourceKind: row.source_kind,
-    sourceIdentifier: row.source_identifier,
-    revision: row.revision,
-    detectedFormat: row.detected_format,
-    adapter: row.adapter,
-    status: row.status,
-    runnable: row.runnable === 1,
-    description: row.description,
-    taskCount: row.task_count,
-    criterionCount: row.criterion_count,
-    tasks: [],
-  };
+  return row ? toCatalog(row) : null;
 }
 
 /**

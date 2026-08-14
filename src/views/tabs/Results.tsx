@@ -86,6 +86,7 @@ export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
                   <span class="m-id">{task.taskId}</span>
                   <span class="m-criteria-task-tally">
                     {task.passed} passed · <b class={task.failed > 0 ? 'hot' : ''}>{task.failed} failed</b>
+                    {task.errored > 0 ? <> · {task.errored} ungraded</> : null}
                   </span>
                 </header>
                 {task.criteria.map((criterion) => (
@@ -137,7 +138,8 @@ export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
         </Panel>
         <Panel title="Run settings" code="saved with BR">
           <Field label="Repeats"><div class="m-input">{String(benchmarkRun?.settings.repeats ?? '—')}</div></Field>
-          <Field label="Judge parallelism"><div class="m-input">{String(benchmarkRun?.settings.judge_parallelism ?? '—')}</div></Field>
+          {/* `settings_json` is written from RunSettings, so the keys are camelCase. */}
+          <Field label="Judge parallelism"><div class="m-input">{String(benchmarkRun?.settings.judgeParallelism ?? '—')}</div></Field>
         </Panel>
       </div>
     </>

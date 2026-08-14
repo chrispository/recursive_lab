@@ -1,5 +1,21 @@
 # PLAN.md — build plan and handoff
 
+> **Correctness pass (2026-08-14, later):** A review of the whole tree fixed
+> eleven defects; no feature work. The load-bearing one: the run rollup counted
+> *rollouts* against a *task* total, so any run with `repeats > 1` recorded
+> itself as `failed` however well it did, and wrote `tasks_passed > tasks_total`.
+> Trials are now rolled up per task before counting (`taskOutcome` in
+> `domain/runs/service.ts`), duplicate trial names are disambiguated instead of
+> silently dropping repeats, and rollouts for unrequested tasks are logged
+> rather than crashing on the FK. Also: `gym eval run` no longer passes
+> `--split` twice; saving Settings rewrites only its own keys in the gym's
+> `env.yaml` instead of flattening the file; `archive.stagingPath` is guarded
+> against traversal and commit validates the preview token; GitHub/HF refs
+> containing `/` now pin correctly; the catalog list carries no task rows, so
+> only the *selected* benchmark's tasks are loaded and rendered; criterion
+> `error` verdicts are no longer tallied as failures; judge model is recorded.
+> Full detail in the review notes — `git log` for this commit.
+>
 > **Current state (2026-08-14):** Harvey Labs is `BMS-00001` (a Harbor
 > catalog, not a special case). Gym is up. **Manually Benchmark** starts
 > `gym eval run --no-serve` as `BR-`. Adapter is the healthy resources server
@@ -302,7 +318,9 @@ bun run check:chain                 # 19 pipeline FK links, no orphaned rows
 ```
 
 `bun run db:reset` leaves an **empty** database — there is no seed fixture any
-more. Benchmarks come from a URL — see AGENTS.md § Benchmark import.
+more. Benchmarks come from a URL — see AGENTS.md § Benchmark import. It also
+**destroys the imported catalog**, which is minutes of downloading to rebuild,
+so it is not a smoke test; point `DATABASE_URL` at a scratch file instead.
 
-Note: `bun run check` chains all three but exits 144 under some shells — run the
-commands separately if that bites.
+`bun run check` chains all three and exits 0. (An earlier note here claimed it
+exited 144 under some shells; that is no longer reproducible.)

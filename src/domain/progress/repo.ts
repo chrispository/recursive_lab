@@ -1,5 +1,5 @@
 /** SQL for pipeline progress. Replaces the old `workflow_lineages` view. */
-import { all, json, one, type Row } from '../../db/client.ts';
+import { all, one, type Row } from '../../db/client.ts';
 import { code } from '../../db/ids.ts';
 import { step, type BenchmarkRunProgress } from './model.ts';
 
@@ -7,7 +7,7 @@ type ProgressDbRow = Row & {
   benchmark_run_id: number;
   label: string;
   model: string;
-  metrics_json: string;
+  pass_rate: number | null;
   benchmark_result_id: number | null;
   failure_map_id: number | null;
   data_forge_run_id: number | null;
@@ -19,15 +19,18 @@ type ProgressDbRow = Row & {
 
 /**
  * One row per benchmark run, carrying the id of every downstream entity and the
- * counts under each. Results and failure maps are task-scoped, so the current
- * run read model selects the newest downstream row while aggregating counts
- * across every result in the run.
+ * counts under each. `benchmark_results` is unique per run, so the subselects
+ * below take the newest of each downstream row and count across all of them —
+ * which is the same thing today, and stays correct if a run ever grows a
+ * second result.
  */
 const SELECT = `
   SELECT br.id                AS benchmark_run_id,
          br.label             AS label,
          br.model             AS model,
-         result.metrics_json  AS metrics_json,
+         -- The column, not metrics_json: both are written, and a rail reading
+         -- the JSON copy goes blank whenever the two drift.
+         result.pass_rate     AS pass_rate,
          (SELECT r.id FROM benchmark_results r
            WHERE r.benchmark_run_id = br.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS benchmark_result_id,
          (SELECT fm.id FROM failure_maps fm JOIN benchmark_results r ON r.id = fm.benchmark_result_id
@@ -48,13 +51,12 @@ const SELECT = `
 `;
 
 function toProgress(row: ProgressDbRow): BenchmarkRunProgress {
-  const metrics = json<{ pass_rate?: number }>(row.metrics_json, {});
   return {
     benchmarkRunId: row.benchmark_run_id,
     benchmarkRunCode: code('benchmark_runs', row.benchmark_run_id),
     label: row.label,
     model: row.model,
-    passRate: metrics.pass_rate ?? null,
+    passRate: row.pass_rate,
     benchmarkResult: step('benchmark_results', row.benchmark_result_id, 1),
     failureMapId: row.failure_map_id,
     failureMap: step('failure_maps', row.failure_map_id, row.failure_count),

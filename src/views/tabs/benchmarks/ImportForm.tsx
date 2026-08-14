@@ -157,15 +157,20 @@ export function ImportForm({
   );
 }
 
-/** Catalog widgets that changed because an import landed. */
+/**
+ * Catalog widgets that changed because an import landed.
+ *
+ * `catalogs` is headers only; `catalog` is the selected one, already loaded
+ * with its tasks. Keeping them separate is what stops the picker rendering
+ * every benchmark's task list at once.
+ */
 export function ImportOob({
   catalogs,
-  selectedId,
+  catalog,
 }: {
   catalogs: BenchmarkCatalog[];
-  selectedId: number;
+  catalog: BenchmarkCatalog | null;
 }) {
-  const catalog = catalogs.find((item) => item.benchmarkId === selectedId) ?? catalogs[0] ?? null;
   return (
     <>
       <CatalogSelect catalogs={catalogs} selectedId={catalog?.benchmarkId ?? null} oob />

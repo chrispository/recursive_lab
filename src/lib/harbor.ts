@@ -16,7 +16,7 @@
  * second benchmark format means adding a sibling file, not editing this one.
  */
 import { basename } from 'node:path';
-import type { BenchmarkFormat, Detection, ImportedCriterion, ImportedTask } from './formats.ts';
+import type { BenchmarkFormat, Detection, ImportedCriterion, ImportedTask, ReadOptions } from './formats.ts';
 
 /** Files this format needs staged. Everything else can be streamed past. */
 export const keep = (path: string) => basename(path) === 'task.json';
@@ -68,10 +68,14 @@ async function taskFiles(root: string): Promise<string[]> {
  */
 export async function read(
   root: string,
-  onProgress?: (done: number, total: number) => void,
+  options: ReadOptions & { onProgress?: (done: number, total: number) => void } = {},
 ): Promise<ImportedTask[]> {
-  const files = await taskFiles(root);
+  const all = await taskFiles(root);
+  // Slice before reading, not after: the point of a limit is to not open 1700
+  // files. `position` stays the index within the full set either way.
+  const files = options.limit === undefined ? all : all.slice(0, options.limit);
   const tasks: ImportedTask[] = [];
+  const onProgress = options.onProgress;
 
   for (const [index, relative] of files.entries()) {
     let raw: RawTask;

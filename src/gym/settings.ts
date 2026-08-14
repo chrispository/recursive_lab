@@ -65,26 +65,41 @@ export type ApiTestResult = {
   detail: string;
 };
 
-async function readSaved(): Promise<SavedSettings> {
-  let text = '';
+/**
+ * A top-level `key: value` line, which is all of this file we claim to
+ * understand. Anchored with no leading whitespace on purpose: an indented line
+ * belongs to a nested block, and we neither read nor rewrite those.
+ */
+const SCALAR_LINE = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/;
+
+function unquote(raw: string): string {
+  const value = raw.trim();
+  return value.length >= 2 && value.startsWith('"') && value.endsWith('"')
+    ? value.slice(1, -1).replaceAll('\\"', '"').replaceAll('\\\\', '\\')
+    : value.replace(/^'(.*)'$/, '$1');
+}
+
+async function readText(): Promise<string> {
   try {
-    text = await readFile(ENV_PATH, 'utf8');
+    return await readFile(ENV_PATH, 'utf8');
   } catch {
-    return {};
+    return '';
   }
+}
+
+function parseSaved(text: string): SavedSettings {
   const values: SavedSettings = {};
   for (const line of text.split(/\r?\n/)) {
-    const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/);
-    if (!match) continue;
-    const [, key, raw] = match;
-    if (!key || !raw) continue;
-    const value = raw.trim();
-    values[key] =
-      value.length >= 2 && value.startsWith('"') && value.endsWith('"')
-        ? value.slice(1, -1).replaceAll('\\"', '"').replaceAll('\\\\', '\\')
-        : value.replace(/^'(.*)'$/, '$1');
+    const match = SCALAR_LINE.exec(line);
+    const key = match?.[1];
+    if (!match || !key) continue;
+    values[key] = unquote(match[2] ?? '');
   }
   return values;
+}
+
+async function readSaved(): Promise<SavedSettings> {
+  return parseSaved(await readText());
 }
 
 function publicSettings(values: SavedSettings): PublicSettings {
@@ -121,25 +136,51 @@ export async function read(): Promise<PublicSettings> {
   return publicSettings(await readSaved());
 }
 
+/**
+ * Rewrite only the lines we own, leaving the rest of the file byte for byte.
+ *
+ * `env.yaml` belongs to the gym checkout, not to this app. It can hold
+ * comments, nested blocks and keys we have never heard of, and reconstructing
+ * the file from the flat map we understand would delete all of them. So an
+ * edited key is replaced where it already sits, a new key is appended, and
+ * every other line is passed through untouched.
+ */
+function rewrite(text: string, updates: SavedSettings): string {
+  const pending = new Set(Object.keys(updates));
+  const lines = text.split(/\r?\n/);
+  const rewritten = lines.map((line) => {
+    const key = SCALAR_LINE.exec(line)?.[1];
+    if (!key || !pending.has(key)) return line;
+    pending.delete(key);
+    return `${key}: ${JSON.stringify(updates[key])}`;
+  });
+
+  // Trailing blank lines come from the split; append inside them, not after.
+  while (rewritten.length && rewritten[rewritten.length - 1]!.trim() === '') rewritten.pop();
+  for (const key of pending) rewritten.push(`${key}: ${JSON.stringify(updates[key])}`);
+  return `${rewritten.join('\n')}\n`;
+}
+
 export async function save(input: SettingInput): Promise<PublicSettings> {
-  const values = await readSaved();
+  const text = await readText();
+  const updates: SavedSettings = {};
   for (const key of SETTING_KEYS) {
     const value = input[key]?.trim();
-    if (value) values[key] = value;
+    // An absent or blank field means "leave this alone", not "clear it" — the
+    // settings form never receives saved secrets back, so it cannot resend one.
+    if (value) updates[key] = value;
   }
 
   const tempPath = `${ENV_PATH}.${process.pid}.tmp`;
-  const text = Object.entries(values)
-    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-    .join('\n');
   try {
-    await writeFile(tempPath, `${text}\n`, { encoding: 'utf8', mode: 0o600 });
+    await writeFile(tempPath, rewrite(text, updates), { encoding: 'utf8', mode: 0o600 });
     await chmod(tempPath, 0o600);
     await rename(tempPath, ENV_PATH);
-  } finally {
+  } catch (error) {
     await unlink(tempPath).catch(() => undefined);
+    throw error;
   }
-  return publicSettings(values);
+  return publicSettings({ ...parseSaved(text), ...updates });
 }
 
 function pick(values: SettingInput, saved: SavedSettings, ...keys: string[]) {

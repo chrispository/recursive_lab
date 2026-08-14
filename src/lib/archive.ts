@@ -16,7 +16,7 @@
  * decompresses gzip natively, so this file has no dependencies.
  */
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, normalize, resolve, sep } from 'node:path';
+import { dirname, normalize, resolve, sep } from 'node:path';
 
 /** Ceiling on what we *write*, not on what we stream past. */
 const MAX_WRITTEN_BYTES = 256 * 1024 * 1024;
@@ -137,12 +137,11 @@ export async function stage(
       const name = field(buffer, 0, 100);
       if (!name) { done = true; break; } // two zero blocks end the archive
 
+      // Needed to frame the stream even for entries we discard, so it is
+      // validated here — but the size *limit* applies only to what we write.
       const size = Number.parseInt(field(buffer, 124, 12) || '0', 8);
       if (!Number.isFinite(size) || size < 0) {
         throw new ArchiveError(`Archive entry '${name}' declares an invalid size.`);
-      }
-      if (size > MAX_ENTRY_BYTES) {
-        throw new ArchiveError(`Archive entry '${name}' exceeds the ${MAX_ENTRY_BYTES} byte limit.`);
       }
       const type = field(buffer, 156, 1);
       const prefix = field(buffer, 345, 155);
@@ -182,6 +181,13 @@ export async function stage(
         continue;
       }
 
+      // Only now, having decided we want this file, does its size matter. A
+      // repository full of huge binaries is normal and streams past for free;
+      // a huge *definition* file is not something a format can read.
+      if (size > MAX_ENTRY_BYTES) {
+        throw new ArchiveError(`Archive entry '${name}' exceeds the ${MAX_ENTRY_BYTES} byte limit.`);
+      }
+
       // A kept entry needs its whole body in hand; wait for more of the stream.
       if (buffer.length < full) break;
       paxOverride = null;
@@ -209,5 +215,11 @@ export const discard = (path: string) => rm(resolve(path), { recursive: true, fo
 /** Absolute path of a file inside a staged tree, guarded the same way. */
 export const stagedFile = (root: string, relative: string) => safeJoin(resolve(root), relative);
 
-/** Where a preview stages its snapshot, keyed by an opaque token. */
-export const stagingPath = (workspace: string, token: string) => join(resolve(workspace), token);
+/**
+ * Where a preview stages its snapshot, keyed by an opaque token.
+ *
+ * Guarded like every other path here: the token reaches this function from a
+ * request body on the commit endpoint, and a bare `join` would happily resolve
+ * `../../..` to somewhere the import then *renames*.
+ */
+export const stagingPath = (workspace: string, token: string) => safeJoin(resolve(workspace), token);

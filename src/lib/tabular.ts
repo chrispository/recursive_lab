@@ -13,7 +13,7 @@
  * wrote.
  */
 import { basename } from 'node:path';
-import type { BenchmarkFormat, Detection, ImportedTask } from './formats.ts';
+import type { BenchmarkFormat, Detection, ImportedTask, ReadOptions } from './formats.ts';
 
 /** Directories that hold data rather than source code, plus the repo root. */
 const DATA_DIR = /^(data|datasets|dataset|test|tests|eval|evals|benchmark|benchmarks)\//i;
@@ -77,20 +77,30 @@ async function candidateFiles(root: string): Promise<string[]> {
   return found.sort();
 }
 
-/** `data/train.jsonl` + row 12 → `train__000012`, stable across imports. */
+/**
+ * `data/train.jsonl` + row 12 → `data-train__000012`, stable across imports.
+ *
+ * Keyed on the whole relative path, not the file name: a repository with both
+ * `data/train.jsonl` and `splits/train.jsonl` would otherwise mint the same id
+ * twice and collide on `benchmark_tasks`' primary key partway through an
+ * import, which surfaces only as a task-count mismatch at the end.
+ */
 function taskIdOf(path: string, index: number, row: Record<string, unknown>): string {
   const declared = firstPresent(row, ID_FIELDS);
-  const stem = basename(path).replace(/\.(jsonl|json)$/, '').replaceAll(/[^A-Za-z0-9_-]+/g, '-');
+  const stem = path.replace(/\.(jsonl|json)$/, '').replaceAll(/[^A-Za-z0-9_-]+/g, '-');
   return declared ? `${stem}__${declared}` : `${stem}__${String(index).padStart(6, '0')}`;
 }
 
-export async function read(root: string): Promise<ImportedTask[]> {
+export async function read(root: string, options: ReadOptions = {}): Promise<ImportedTask[]> {
   const tasks: ImportedTask[] = [];
+  const limit = options.limit ?? Infinity;
   let position = 0;
 
   for (const path of await candidateFiles(root)) {
+    if (tasks.length >= limit) break;
     const rows = parseRows(await Bun.file(`${root}/${path}`).text(), path);
     for (const [index, row] of rows.entries()) {
+      if (tasks.length >= limit) break;
       const promptField = firstPresent(row, PROMPT_FIELDS);
       if (!promptField) continue; // not a task row
       const answerField = firstPresent(row, ANSWER_FIELDS);

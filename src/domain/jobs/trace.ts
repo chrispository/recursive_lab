@@ -67,10 +67,16 @@ export async function start(
     );
   };
 
+  /**
+   * Success completes the progress bar; failure leaves it where it stopped.
+   * Resetting it to 0 erased how far the job actually got, which is the one
+   * thing you want to know about a job that died.
+   */
   const close = async (status: JobStatus, patch: string, args: unknown[]) => {
+    const progress = status === 'succeeded' ? ', progress = 1' : '';
     await run(
-      `UPDATE jobs SET status = ?, progress = ?, finished_at = ?, ${patch} WHERE id = ?`,
-      [status, status === 'succeeded' ? 1 : 0, now(), ...(args as never[]), jobId],
+      `UPDATE jobs SET status = ?${progress}, finished_at = ?, ${patch} WHERE id = ?`,
+      [status, now(), ...(args as never[]), jobId],
     );
   };
 

@@ -88,6 +88,8 @@ The engine works and is verified; the edges are not done.
 - [ ] Document review + approve-all + undo
 - [ ] Topic reassignment (failure-map-scoped only)
 - [ ] Verifier save, environment build
+- [ ] Hold-to-recurse button — click and hold to start the full process
+      (the current ✦ Recurse control is a click stub and not wired)
 
 ## 7. Tests
 

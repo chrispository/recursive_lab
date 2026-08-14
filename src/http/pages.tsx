@@ -34,16 +34,21 @@ export const pages = new Elysia({ name: 'pages' })
     let body: JSX.Element;
 
     switch (params.tab) {
-      case 'benchmarks':
+      case 'benchmarks': {
+        // Headers for the dropdown, then tasks for the selected one only.
+        const catalogs = await benchmarks.list();
+        const preferred = catalogs.find((item) => item.benchmarkCode === benchmarkRun?.benchmarkCode);
         body = (
           <Benchmarks
             benchmarkRun={benchmarkRun}
             jobs={benchmarkRunJobs}
-            catalogs={await benchmarks.list()}
+            catalogs={catalogs}
+            catalog={await benchmarks.withTasks(benchmarks.select(catalogs, preferred?.benchmarkId)?.benchmarkId)}
             settings={await settings.read()}
           />
         );
         break;
+      }
       case 'results':
         {
           const availableRuns = await runs.list();

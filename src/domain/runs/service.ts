@@ -33,18 +33,23 @@ export const criteriaByBenchmarkRun = repo.listCriteriaByBenchmarkRun;
  * A criterion id only means something inside its task, so a flat list across a
  * multi-task run is unreadable — `C-001` appears once per task. The repo
  * already returns rows in task order, so this is one pass with no sort.
+ *
+ * `errored` is counted separately rather than folded into `failed`: a criterion
+ * the judge could not grade is not a criterion the model got wrong, and a tally
+ * that merges them reports a capability gap the run never demonstrated.
  */
 export async function criteriaByTask(benchmarkRunId: number): Promise<BenchmarkTaskCriteria[]> {
   const groups = new Map<string, BenchmarkTaskCriteria>();
   for (const criterion of await repo.listCriteriaByBenchmarkRun(benchmarkRunId)) {
     let group = groups.get(criterion.taskId);
     if (!group) {
-      group = { taskId: criterion.taskId, criteria: [], passed: 0, failed: 0 };
+      group = { taskId: criterion.taskId, criteria: [], passed: 0, failed: 0, errored: 0 };
       groups.set(criterion.taskId, group);
     }
     group.criteria.push(criterion);
     if (criterion.result === 'pass') group.passed += 1;
-    else group.failed += 1;
+    else if (criterion.result === 'fail') group.failed += 1;
+    else group.errored += 1;
   }
   return [...groups.values()];
 }
@@ -194,6 +199,24 @@ async function execute(work: {
   await ingest(work, handle.outputPath);
 }
 
+/** How every trial of one task turned out. Rolled up into one task outcome. */
+type TaskTally = { passed: number; failed: number; error: number };
+
+/**
+ * One task's verdict across its trials.
+ *
+ * A task with any errored trial is an error — the run cannot claim it graded
+ * that task. Otherwise any failed trial makes the task failed, since a task
+ * that passes only sometimes has not been passed. No trials at all is skipped.
+ */
+function taskOutcome(tally: TaskTally | undefined): 'passed' | 'failed' | 'error' | 'skipped' {
+  if (!tally) return 'skipped';
+  if (tally.error) return 'error';
+  if (tally.failed) return 'failed';
+  if (tally.passed) return 'passed';
+  return 'skipped';
+}
+
 async function ingest(
   work: { benchmarkRunId: number; benchmarkId: number; taskIds: string[]; trace: jobs.Trace },
   outputPath: string,
@@ -213,8 +236,12 @@ async function ingest(
     inner.set(row.criterionId, row);
   }
 
-  const seen = new Set<string>();
-  const counts = { passed: 0, failed: 0, error: 0, skipped: 0, criteria: 0, criteriaPassed: 0, criteriaFailed: 0 };
+  const requested = new Set(work.taskIds);
+  /** Trial names already used per task — `task_results` is unique on that pair. */
+  const usedTrials = new Set<string>();
+  /** Per-task trial outcomes, which is what the run-level rollup counts. */
+  const tallies = new Map<string, TaskTally>();
+  const counts = { rollouts: 0, criteria: 0, criteriaPassed: 0, criteriaFailed: 0 };
 
   const expected = work.taskIds.length;
   const resultId = await repo.insertResult({
@@ -236,16 +263,38 @@ async function ingest(
   });
 
   for (const rollout of rollouts) {
-    const key = `${rollout.taskId}\0${rollout.trialName}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    counts[rollout.result] += 1;
+    // A rollout for a task this run never asked for cannot be stored — the
+    // task_results FK is to the catalog. Say so rather than crash on the FK.
+    if (!requested.has(rollout.taskId)) {
+      await work.trace.log(`unrequested task      ${rollout.taskId} (rollout discarded)`, 'err');
+      continue;
+    }
+
+    // Gym repeats a task by rollout index. When it does not label the repeats
+    // distinctly, keep them apart here rather than let the unique constraint
+    // silently reduce N trials to one.
+    let trialName = rollout.trialName;
+    for (let n = 2; usedTrials.has(`${rollout.taskId}\0${trialName}`); n += 1) {
+      trialName = `${rollout.trialName}-${n}`;
+      if (n === 2) {
+        await work.trace.log(
+          `duplicate trial name  ${rollout.taskId} ${rollout.trialName} → ${trialName}`,
+          'err',
+        );
+      }
+    }
+    usedTrials.add(`${rollout.taskId}\0${trialName}`);
+    counts.rollouts += 1;
+
+    const tally = tallies.get(rollout.taskId) ?? { passed: 0, failed: 0, error: 0 };
+    if (rollout.result !== 'skipped') tally[rollout.result] += 1;
+    tallies.set(rollout.taskId, tally);
 
     const taskResultId = await repo.insertTaskResult({
       benchmarkResultId: resultId,
       benchmarkId: work.benchmarkId,
       taskId: rollout.taskId,
-      trialName: rollout.trialName,
+      trialName,
       result: rollout.result,
       reward: rollout.reward,
       criteriaTotal: rollout.criteria.length,
@@ -269,23 +318,23 @@ async function ingest(
         taskResultId,
         catalogCriterionId: ref.id,
         taskId: rollout.taskId,
-        trialName: rollout.trialName,
+        trialName,
         criterionId: criterion.criterionId,
         title: criterion.title || ref.title,
         result: criterion.result,
         reasoning: criterion.reasoning,
         matchCriteria: ref.matchCriteria,
-        judgeModel: '',
+        judgeModel: criterion.judgeModel,
         judgeError: criterion.judgeError,
         errorType: criterion.errorType,
       });
     }
   }
 
+  // A task the run asked for but gym never returned still gets a row, so the
+  // ledger says what happened to every task the run intended to execute.
   for (const taskId of work.taskIds) {
-    const has = [...seen].some((key) => key.startsWith(`${taskId}\0`));
-    if (has) continue;
-    counts.skipped += 1;
+    if (tallies.has(taskId)) continue;
     await repo.insertTaskResult({
       benchmarkResultId: resultId,
       benchmarkId: work.benchmarkId,
@@ -301,38 +350,43 @@ async function ingest(
     });
   }
 
+  // Roll trials up into tasks *before* counting. `tasks_*` are task counts and
+  // must sum to `tasks_total`; counting rollouts here made a passing run with
+  // repeats > 1 record itself as failed, because N passing trials of one task
+  // never equal the one task that was asked for.
+  const tasks = { passed: 0, failed: 0, error: 0, skipped: 0 };
+  for (const taskId of work.taskIds) tasks[taskOutcome(tallies.get(taskId))] += 1;
+
   const passRate = counts.criteria > 0 ? counts.criteriaPassed / counts.criteria : null;
   let result: 'passed' | 'failed' | 'error' | 'skipped' = 'failed';
-  if (counts.error) result = 'error';
-  else if (counts.passed === expected && counts.failed === 0) result = 'passed';
-  else if (counts.skipped === expected) result = 'skipped';
+  if (tasks.error) result = 'error';
+  else if (tasks.passed === expected) result = 'passed';
+  else if (tasks.skipped === expected) result = 'skipped';
 
-  // insertResult already wrote a placeholder; overwrite via a second insert is
-  // blocked by UNIQUE(benchmark_run_id). Update in place through a tiny SQL
-  // here would be a repo leak — re-insert is wrong, so the first insert used
-  // dummy totals. We delete-and-replace? UNIQUE. Need updateResult in repo.
   await repo.updateResult(resultId, {
     result,
     tasksTotal: expected,
-    tasksPassed: counts.passed,
-    tasksFailed: counts.failed,
-    tasksError: counts.error,
-    tasksSkipped: counts.skipped,
+    tasksPassed: tasks.passed,
+    tasksFailed: tasks.failed,
+    tasksError: tasks.error,
+    tasksSkipped: tasks.skipped,
     criteriaTotal: counts.criteria,
     criteriaPassed: counts.criteriaPassed,
     criteriaFailed: counts.criteriaFailed,
     passRate,
     reward: passRate,
-    metrics: { pass_rate: passRate, criteria_total: counts.criteria },
+    metrics: { pass_rate: passRate, criteria_total: counts.criteria, rollouts: counts.rollouts },
   });
 
   await work.trace.log(
-    `benchmark_results     ${result}  tasks ${counts.passed}/${expected} passed  criteria ${counts.criteriaPassed}/${counts.criteria}`,
+    `benchmark_results     ${result}  tasks ${tasks.passed}/${expected} passed ` +
+      `(${counts.rollouts} rollouts)  criteria ${counts.criteriaPassed}/${counts.criteria}`,
   );
   await work.trace.succeed({
     benchmarkRunId: work.benchmarkRunId,
     result,
     tasks: expected,
+    rollouts: counts.rollouts,
     criteria: counts.criteria,
   });
 }

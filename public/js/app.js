@@ -47,7 +47,10 @@
 
   /* Hold-to-confirm ---------------------------------------------------------
      A button marked [data-hold] must be held for its duration before it fires.
-     Progress is published as --hold-progress so the CSS can draw the fill. */
+     Progress is published as --hold-progress so the CSS can draw the fill.
+
+     No control uses this yet; it is here for the hold-to-recurse button in
+     todo.md § 6. If that item is ever dropped, drop this with it. */
 
   var holding = null;
 

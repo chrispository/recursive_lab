@@ -1,8 +1,13 @@
 # AGENTS.md — rules for working in this repo
 
 Read this before writing code. It is rules, not background. For *what* the app
-does, read `README.md`; for the schema, `docs/DATA-MODEL.md`; for routes,
-`docs/API.md`.
+does and where the build has got to, read `PLAN.md`; for what is left, `todo.md`.
+
+The reference docs these rules used to point at — `docs/DATA-MODEL.md`,
+`docs/API.md`, `docs/DESIGN.md`, `docs/GYM.md` — are **not written yet**
+(`todo.md` § 8). Until they are, the schema is `src/db/schema.sql` and the
+routes are the three modules under `src/http/`; do not cite a doc that does not
+exist.
 
 When I tell you to commit and push, you run the shortest git commands possible.
 
@@ -138,7 +143,9 @@ module's data, it calls that module's service.
 ## Jobs
 
 Anything long-running is a row in `jobs` plus lines in `job_log_lines`. One
-table, one runner (`domain/jobs/runner.ts`), one fragment set, one API resource.
+table, one runner, one fragment set, one API resource. The write side is
+`domain/jobs/trace.ts`; the supervisor (`domain/jobs/runner.ts`) is still to be
+written — see `todo.md` § 3.
 
 Do not add a `status`/`started_at`/`finished_at`/`log` set of columns to a domain
 table. That is what the old schema did six times over. Domain tables keep their

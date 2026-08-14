@@ -36,6 +36,8 @@ export type BenchmarkTaskCriteria = {
   criteria: BenchmarkCriterionResult[];
   passed: number;
   failed: number;
+  /** Criteria the judge could not grade. Never folded into `failed`. */
+  errored: number;
 };
 
 export type BenchmarkRunSummary = {

@@ -12,6 +12,8 @@ export type CriterionScore = {
   title: string;
   result: 'pass' | 'fail' | 'error';
   reasoning: string;
+  /** Which model produced this verdict, when the scores file records one. */
+  judgeModel: string;
   judgeError: boolean;
   errorType: string | null;
 };
@@ -66,7 +68,7 @@ function rolloutError(row: Json): string {
   return '';
 }
 
-function criterionOf(raw: Json): CriterionScore {
+function criterionOf(raw: Json, fallbackJudge: string): CriterionScore {
   const verdict = asString(raw.verdict, 'fail').toLowerCase();
   const judgeError = raw.judge_error === true;
   let result: CriterionScore['result'] = 'fail';
@@ -79,6 +81,8 @@ function criterionOf(raw: Json): CriterionScore {
     title: asString(raw.title),
     result,
     reasoning: asString(raw.reasoning),
+    // Per-criterion first; Harbor usually records the judge once for the file.
+    judgeModel: asString(raw.judge_model) || asString(raw.model) || fallbackJudge,
     judgeError,
     errorType: asString(raw.error_type) || null,
   };
@@ -90,8 +94,11 @@ async function scoresOf(trialDir: string | null): Promise<CriterionScore[]> {
   if (!(await file.exists())) return [];
   try {
     const body = (await file.json()) as Json;
+    const fallbackJudge = asString(body.judge_model) || asString(body.model);
     const list = Array.isArray(body.criteria_results) ? body.criteria_results : [];
-    return list.filter((item): item is Json => !!item && typeof item === 'object').map(criterionOf);
+    return list
+      .filter((item): item is Json => !!item && typeof item === 'object')
+      .map((item) => criterionOf(item, fallbackJudge));
   } catch {
     return [];
   }

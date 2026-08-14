@@ -47,13 +47,22 @@ export type Detection = {
   reason: string;
 };
 
+export type ReadOptions = {
+  /**
+   * Stop after this many tasks. A preview shows a handful of real tasks to
+   * prove the mapping is right; without this it re-parses the whole benchmark
+   * to display five rows, which on a 19k-task source is not a free operation.
+   */
+  limit?: number;
+};
+
 export type BenchmarkFormat = {
   id: string;
   label: string;
   /** Which files this format needs staged out of the archive. */
   keep: (path: string) => boolean;
   detect: (root: string) => Promise<Detection>;
-  read: (root: string) => Promise<ImportedTask[]>;
+  read: (root: string, options?: ReadOptions) => Promise<ImportedTask[]>;
 };
 
 /**

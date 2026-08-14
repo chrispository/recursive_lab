@@ -74,10 +74,13 @@ export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })
     try {
       const tally = await benchmarks.importFromUrl(url);
       const catalogs = await benchmarks.list();
+      // The benchmark just imported becomes the selection, so it is the one
+      // whose tasks get loaded — the rest stay headers in the dropdown.
+      const catalog = await benchmarks.withTasks(benchmarks.select(catalogs, tally.benchmarkId)?.benchmarkId);
       return (
         <>
           <ImportForm url={url} tally={tally} />
-          <ImportOob catalogs={catalogs} selectedId={tally.benchmarkId} />
+          <ImportOob catalogs={catalogs} catalog={catalog} />
         </>
       );
     } catch (error) {
@@ -90,8 +93,8 @@ export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })
       const started = await runs.start(request);
       const current = await progress.currentWithRail();
       const benchmarkRun = await runs.byBenchmarkRunId(started.benchmarkRunId);
-      const catalogs = await benchmarks.list();
-      const catalog = catalogs.find((item) => item.benchmarkId === request.benchmarkId) ?? catalogs[0] ?? null;
+      // Only the runnable badge is swapped here, so headers are enough.
+      const catalog = benchmarks.select(await benchmarks.list(), request.benchmarkId);
       return (
         <>
           Started {started.benchmarkRunCode}. Gym eval is running — Harbor trials can take minutes per task.
