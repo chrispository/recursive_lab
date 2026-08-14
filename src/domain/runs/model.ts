@@ -59,3 +59,26 @@ export type BenchmarkRunSummary = {
   resultCriteriaPassed: number | null;
   resultCriteriaFailed: number | null;
 };
+
+export type RunSettings = {
+  repeats: number;
+  concurrency: number;
+  temperature: number;
+  topP: number;
+  outputTokenStrategy: 'adaptive' | 'fixed';
+  maxOutputTokens: number;
+  maxTurns: number;
+  shellTimeout: number;
+  agentModelTimeout: number;
+  judgeParallelism: number;
+  judgeTimeout: number;
+  judgeMaxTokens: number;
+  judgeRetries: number;
+};
+
+export type RunRequest = {
+  benchmarkId: number;
+  model: string;
+  taskIds: string[];
+  settings: RunSettings;
+};

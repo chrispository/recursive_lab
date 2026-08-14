@@ -1,9 +1,10 @@
 # PLAN.md — build plan and handoff
 
-> **Current state (2026-08-14):** The database was **dropped and rebuilt empty**
-> from `src/db/schema.sql`; the old file (with the migrated legacy run) is kept
-> under `data/archive/`. There is no seed data in `data/lab.db` — its only
-> contents are a real benchmark import.
+> **Current state (2026-08-14):** Harvey Labs is `BMS-00001` (a Harbor
+> catalog, not a special case). Gym is up. **Manually Benchmark** starts
+> `gym eval run --no-serve` as `BR-`. Adapter is the healthy resources server
+> from `/server_instances`. Recurse is still a stub. Pick **one** task for a
+> first walkthrough — Harbor trials are slow.
 >
 > NeMo Gym is **launched from `~/Documents/recursive`** with
 > `gym env start --resources-server legal_agent_bench --model-type inference_provider`.
@@ -23,8 +24,9 @@
 > path escape and holding nothing in memory; `src/lib/formats.ts` is a registry
 > of layout modules (`harbor.ts`, `tabular.ts`) that identify a staged snapshot
 > and read tasks out of it. `src/domain/benchmarks` persists, tracing every row
-> to a `benchmark_import` job. Routes are
-> `POST /api/v1/benchmark-imports/preview` then `POST /api/v1/benchmark-imports`.
+> to a `benchmark_import` job. The browser POSTs `/ui/benchmarks/import`;
+> scripts still use `POST /api/v1/benchmark-imports/preview` then
+> `POST /api/v1/benchmark-imports`.
 >
 > Verified end to end against two structurally different sources:
 > `harveyai/harvey-labs` (harbor, 1749 tasks / 104,467 criteria, a 703 MB
@@ -191,7 +193,8 @@ dropped: two themes, not eight.
 ## Phase 3 — Read paths 🟡 barely started
 
 - [x] `src/http/respond.tsx`
-- [ ] Every `/ui/{tab}/{region}` fragment route
+- [x] `src/http/ui/benchmarks.tsx` — `GET`/`POST /ui/benchmarks/import`
+- [ ] Remaining `/ui/{tab}/{region}` fragment routes
 - [ ] Every `/api/v1` JSON GET (Settings GET/POST/test exists)
 - [ ] `docs/API.md` — every route and what it does ← **explicitly requested**
 
@@ -215,6 +218,7 @@ Schema is ready (`jobs` + `job_log_lines`); no runner yet.
 - [ ] Topic reassignment (failure-map-scoped only)
 - [ ] Verifier save, environment build
 - [x] Settings save + connection test (presence booleans only, never key values)
+- [x] Import benchmark from the Benchmarks tab (`POST /ui/benchmarks/import`)
 
 ## Phase 6 — Gym wiring 🟡 endpoint live, run pending
 
@@ -224,8 +228,8 @@ Schema is ready (`jobs` + `job_log_lines`); no runner yet.
 - [x] `src/lib/{source,archive,formats,harbor,tabular}.ts` — URL import
 - [x] `GET /api/v1/gym/health`, `GET /api/v1/gym/servers/:processName`
 - [x] `GYM_HEAD_URL` / `GYM_TIMEOUT_MS` in `src/config.ts`
-- [ ] `src/gym/{spawn,eval,results}.ts` — start/cancel a run, read rollouts
-- [ ] Benchmark run end-to-end as a job (writes `benchmark_run_tasks`, then
+- [x] `src/gym/{spawn,eval,results}.ts` — start/cancel a run, read rollouts
+- [x] Benchmark run end to end as a job (writes `benchmark_run_tasks`, then
       `benchmark_results` → `task_results` → `criterion_results`)
 - [ ] `docs/GYM.md`
 
@@ -263,10 +267,12 @@ src/domain/data_forge/{model,repo,service}.ts data-forge/document read model
 src/domain/environments/{model,repo,service}.ts  environment/evaluation read model
 src/domain/jobs/{model,repo,service}.ts       execution ledger read model
 src/http/{respond.tsx,pages.tsx}     six page views
+src/http/ui/benchmarks.tsx           import fragment GET/POST
 src/http/schema.ts                   standalone schema.html route
 src/views/ui/*.tsx                  shared ledger primitives
 src/views/tabs/*.tsx                six tab views, including DataForge.tsx
-src/domain/benchmarks/{model,repo,service}.ts catalog read + gym import
+src/views/tabs/benchmarks/ImportForm.tsx
+src/domain/benchmarks/{model,repo,service}.ts catalog read + URL import
 src/domain/audit/{model,repo,service}.ts      audit trail
 src/domain/jobs/trace.ts            job + log-line writer used by every service
 src/gym/settings.ts                 safe env.yaml settings service
@@ -281,14 +287,14 @@ public/schema.html                   draggable schema map with persisted layout
 scripts/{setup-db,check-size}.ts
 ```
 
-No `docs/*.md` written yet. `src/http/ui/`, `src/lib/`, and `tests/` are empty
-directories.
+No `docs/*.md` written yet. `tests/` is empty.
 
 ## Verify
 
 ```bash
 bun run db:reset                    # empty database from the canonical schema
-# import a benchmark: POST /api/v1/benchmark-imports/preview then /benchmark-imports
+# import a benchmark from the Benchmarks tab, or:
+#   POST /api/v1/benchmark-imports/preview then POST /api/v1/benchmark-imports
 bun run dev                         # http://127.0.0.1:8767
 bun run check:types                 # clean
 bun run check:size                  # no file over 500 lines

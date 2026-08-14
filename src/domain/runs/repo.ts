@@ -1,4 +1,4 @@
-import { all, json, one, type Row } from '../../db/client.ts';
+import { all, db, insert, json, now, one, run, type Row } from '../../db/client.ts';
 import { code } from '../../db/ids.ts';
 import type { BenchmarkCriterionResult, BenchmarkRunSummary, JsonObject } from './model.ts';
 
@@ -113,4 +113,170 @@ export async function listCriteriaByBenchmarkRun(benchmarkRunId: number): Promis
     judgeError: row.judge_error === 1,
     errorType: row.error_type,
   }));
+}
+
+export async function insertRun(input: {
+  benchmarkId: number;
+  label: string;
+  model: string;
+  taskCount: number;
+  settings: Record<string, unknown>;
+}): Promise<number> {
+  const at = now();
+  return insert(
+    `INSERT INTO benchmark_runs (benchmark_id, label, model, task_count, settings_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [input.benchmarkId, input.label, input.model, input.taskCount, JSON.stringify(input.settings), at, at],
+  );
+}
+
+export async function insertRunTasks(
+  benchmarkRunId: number,
+  benchmarkId: number,
+  taskIds: string[],
+): Promise<void> {
+  const rows = taskIds.map((taskId, position) => ({
+    sql: `INSERT INTO benchmark_run_tasks (benchmark_run_id, benchmark_id, dataset, task_id, position)
+          VALUES (?, ?, 'validation', ?, ?)`,
+    args: [benchmarkRunId, benchmarkId, taskId, position],
+  }));
+  for (let start = 0; start < rows.length; start += 500) {
+    await db.batch(rows.slice(start, start + 500), 'write');
+  }
+}
+
+export async function insertResult(input: {
+  benchmarkRunId: number;
+  benchmarkId: number;
+  result: 'passed' | 'failed' | 'error' | 'skipped';
+  tasksTotal: number;
+  tasksPassed: number;
+  tasksFailed: number;
+  tasksError: number;
+  tasksSkipped: number;
+  criteriaTotal: number;
+  criteriaPassed: number;
+  criteriaFailed: number;
+  passRate: number | null;
+  reward: number | null;
+  resultPath: string;
+  metrics: Record<string, unknown>;
+}): Promise<number> {
+  const at = now();
+  return insert(
+    `INSERT INTO benchmark_results (
+       benchmark_run_id, benchmark_id, result,
+       tasks_total, tasks_passed, tasks_failed, tasks_error, tasks_skipped,
+       criteria_total, criteria_passed, criteria_failed, pass_rate, reward,
+       result_path, metrics_json, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      input.benchmarkRunId, input.benchmarkId, input.result,
+      input.tasksTotal, input.tasksPassed, input.tasksFailed, input.tasksError, input.tasksSkipped,
+      input.criteriaTotal, input.criteriaPassed, input.criteriaFailed, input.passRate, input.reward,
+      input.resultPath, JSON.stringify(input.metrics), at, at,
+    ],
+  );
+}
+
+export async function insertTaskResult(input: {
+  benchmarkResultId: number;
+  benchmarkId: number;
+  taskId: string;
+  trialName: string;
+  result: 'passed' | 'failed' | 'error' | 'skipped';
+  reward: number | null;
+  criteriaTotal: number;
+  criteriaPassed: number;
+  criteriaFailed: number;
+  resultPath: string | null;
+  metrics: Record<string, unknown>;
+}): Promise<number> {
+  const at = now();
+  return insert(
+    `INSERT INTO task_results (
+       benchmark_result_id, benchmark_id, dataset, task_id, trial_name, result, reward,
+       criteria_total, criteria_passed, criteria_failed, result_path, metrics_json, created_at, updated_at
+     ) VALUES (?, ?, 'validation', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      input.benchmarkResultId, input.benchmarkId, input.taskId, input.trialName, input.result, input.reward,
+      input.criteriaTotal, input.criteriaPassed, input.criteriaFailed, input.resultPath,
+      JSON.stringify(input.metrics), at, at,
+    ],
+  );
+}
+
+export async function insertCriterionResult(input: {
+  taskResultId: number;
+  catalogCriterionId: number;
+  taskId: string;
+  trialName: string;
+  criterionId: string;
+  title: string;
+  result: 'pass' | 'fail' | 'error';
+  reasoning: string;
+  matchCriteria: string;
+  judgeModel: string;
+  judgeError: boolean;
+  errorType: string | null;
+}): Promise<void> {
+  const at = now();
+  await run(
+    `INSERT INTO criterion_results (
+       task_result_id, benchmark_task_criterion_id, task_id, trial_name, criterion_id,
+       criterion_title, result, reasoning, match_criteria, judge_model, judge_error, error_type,
+       created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      input.taskResultId, input.catalogCriterionId, input.taskId, input.trialName, input.criterionId,
+      input.title, input.result, input.reasoning, input.matchCriteria, input.judgeModel,
+      input.judgeError ? 1 : 0, input.errorType, at, at,
+    ],
+  );
+}
+
+export async function updateResult(
+  resultId: number,
+  input: {
+    result: 'passed' | 'failed' | 'error' | 'skipped';
+    tasksTotal: number;
+    tasksPassed: number;
+    tasksFailed: number;
+    tasksError: number;
+    tasksSkipped: number;
+    criteriaTotal: number;
+    criteriaPassed: number;
+    criteriaFailed: number;
+    passRate: number | null;
+    reward: number | null;
+    metrics: Record<string, unknown>;
+  },
+): Promise<void> {
+  await run(
+    `UPDATE benchmark_results SET
+       result = ?, tasks_total = ?, tasks_passed = ?, tasks_failed = ?, tasks_error = ?, tasks_skipped = ?,
+       criteria_total = ?, criteria_passed = ?, criteria_failed = ?, pass_rate = ?, reward = ?,
+       metrics_json = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      input.result, input.tasksTotal, input.tasksPassed, input.tasksFailed, input.tasksError, input.tasksSkipped,
+      input.criteriaTotal, input.criteriaPassed, input.criteriaFailed, input.passRate, input.reward,
+      JSON.stringify(input.metrics), now(), resultId,
+    ],
+  );
+}
+
+export async function existingTaskIds(benchmarkId: number, taskIds: string[]): Promise<Set<string>> {
+  if (taskIds.length === 0) return new Set();
+  const found = new Set<string>();
+  for (let start = 0; start < taskIds.length; start += 500) {
+    const page = taskIds.slice(start, start + 500);
+    const placeholders = page.map(() => '?').join(', ');
+    const rows = await all<Row & { task_id: string }>(
+      `SELECT task_id FROM benchmark_tasks WHERE benchmark_id = ? AND task_id IN (${placeholders})`,
+      [benchmarkId, ...page],
+    );
+    for (const row of rows) found.add(row.task_id);
+  }
+  return found;
 }

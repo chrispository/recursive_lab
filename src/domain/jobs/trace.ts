@@ -33,6 +33,8 @@ export type Trace = {
   succeed: (result?: unknown) => Promise<void>;
   /** Close the job as failed, recording the error text. */
   fail: (error: unknown) => Promise<void>;
+  /** Record the process group so cancel can kill gym's children, not just the pid. */
+  setPgid: (pgid: number) => Promise<void>;
 };
 
 /**
@@ -86,6 +88,9 @@ export async function start(
       const message = error instanceof Error ? error.message : String(error);
       await log(message, 'err');
       await close('failed', 'exit_code = 1, error = ?', [message]);
+    },
+    setPgid: async (pgid) => {
+      await run(`UPDATE jobs SET pgid = ? WHERE id = ?`, [pgid, jobId]);
     },
   };
 }

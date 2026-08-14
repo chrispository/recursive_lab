@@ -279,8 +279,57 @@
 }
 .m-import-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--s2);
+}
+.m-import-body [data-status='error'] {
+  color: var(--fail);
+}
+.m-import-body [data-status='ok'] {
+  color: var(--pass);
+}
+.m-import-progress.htmx-indicator {
+  display: none;
+  gap: 6px;
+  color: var(--brand-ink);
+  font: 500 var(--t-label) / 1.3 var(--mono);
+}
+.htmx-request .m-import-progress.htmx-indicator {
+  display: grid;
+}
+.m-import-progress-label {
+  letter-spacing: 0.02em;
+}
+.m-import-progress-track {
+  position: relative;
+  height: 5px;
+  overflow: hidden;
+  background: var(--raised-2);
+  border: 1px solid var(--line);
+}
+.m-import-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 -38%;
+  width: 38%;
+  background: var(--brand);
+  box-shadow: 0 0 9px var(--brand);
+  animation: m-import-sweep 1.25s linear infinite;
+}
+@keyframes m-import-sweep {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(365%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-import-progress-fill {
+    animation: none;
+    inset: 0;
+    width: 100%;
+    opacity: 0.55;
+  }
 }
 .m-task-toolbar {
   display: flex;

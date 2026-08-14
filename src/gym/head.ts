@@ -11,9 +11,9 @@ import { config } from '../config.ts';
 
 /** One server as the head registry reports it. */
 export type GymServer = {
-  /** Config key, e.g. `legal_agent_bench` or `legal_agent_bench_harbor_agent`. */
+  /** Config key / process name from the registry, e.g. `{bench}_harbor_agent`. */
   processName: string;
-  /** Component name inside its type, e.g. `harbor_agent`. */
+  /** Component name inside its type, e.g. `harbor_agent` or `inference_provider`. */
   name: string;
   /** `resources_servers` | `responses_api_agents` | `responses_api_models`. */
   serverType: string;

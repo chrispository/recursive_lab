@@ -6,9 +6,9 @@ export type ImportPlan = {
   lab: string;
   description: string;
   /**
-   * The gym resources server that will run this benchmark. Empty until the gym
-   * connector is wired: a benchmark can be catalogued and browsed without being
-   * runnable, and `benchmarks.runnable` records exactly that difference.
+   * Process name of the gym resources server that executes this catalog.
+   * Empty until bind time: a benchmark can be catalogued without being
+   * runnable. `benchmarks.runnable` records that difference.
    */
   adapter: string;
 };

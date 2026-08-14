@@ -117,6 +117,10 @@ kbd {
   outline-offset: 3px;
 }
 
+select:focus-visible {
+  outline: none;
+}
+
 /* Form controls ------------------------------------------------------------
    One button scale: 36px default, 28px compact. Emphasis is independent of
    size — use .secondary / .ghost / .danger, never a different height. */

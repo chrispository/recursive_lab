@@ -208,9 +208,7 @@
     var action = event.target.closest('[data-benchmark-action]');
     var status = document.getElementById('benchmark-config-status');
     if (action && status) {
-      status.textContent = action.dataset.benchmarkAction === 'manual'
-        ? 'Manual run configuration is ready. The imported lab ledger remains read-only in this local view.'
-        : 'Full-process configuration is ready. The imported lab ledger remains read-only in this local view.';
+      status.textContent = 'Full-process configuration is ready. Recurse is not wired yet.';
     }
   });
 

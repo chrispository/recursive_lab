@@ -12,6 +12,7 @@ import { benchmarksApi } from './http/api/benchmarks.ts';
 import { gymApi } from './http/api/gym.ts';
 import { settingsApi } from './http/api/settings.ts';
 import { pages } from './http/pages.tsx';
+import { benchmarksUi } from './http/ui/benchmarks.tsx';
 import { schemaDocument } from './http/schema.ts';
 
 const staticFiles = await staticPlugin({
@@ -26,6 +27,7 @@ const app = new Elysia()
   .use(settingsApi)
   .use(gymApi)
   .use(benchmarksApi)
+  .use(benchmarksUi)
   .use(pages)
   .get('/schema.html', schemaDocument)
   .listen({ hostname: config.host, port: config.port });

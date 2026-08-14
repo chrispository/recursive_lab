@@ -6,7 +6,7 @@
  * interpolations, which the gym resolves at its own read time:
  *
  *   ${oc.env:VAR,fallback}                     environment variable, or fallback
- *   ${legal_agent_bench.resources_servers...}  another key in the same document
+ *   ${resources_server.resources_servers...}   another key in the same document
  *
  * We resolve both here so callers see plain strings. This is the app's single
  * source of truth for gym paths — never hardcode one; ask the running server.
@@ -48,6 +48,11 @@ function resolveExpression(root: GymConfig, body: string, depth: number): string
 function resolveString(root: GymConfig, raw: string, depth = 0): string {
   if (depth > 8) return raw;
   return raw.replace(INTERPOLATION, (_match, body: string) => resolveExpression(root, body, depth));
+}
+
+/** True when `a.b.c` exists, even if the value is null or a number. */
+export function has(root: GymConfig, path: string): boolean {
+  return lookup(root, path) !== undefined;
 }
 
 /** Reads a string at `a.b.c`, with interpolations resolved. */

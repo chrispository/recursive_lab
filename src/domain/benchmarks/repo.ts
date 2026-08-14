@@ -125,13 +125,14 @@ type CatalogDbRow = Row & {
 };
 
 /**
- * The catalog, with counts done in SQL.
+ * The catalog, with counts done in SQL and the task list loaded separately.
  *
  * The previous version left-joined every task row and grouped in TypeScript,
  * so rendering one count dragged a benchmark's entire task list across the
- * boundary. Sample tasks are a separate, bounded query.
+ * boundary. Task rows are still separate from the count query, and criteria
+ * remain excluded from this list response.
  */
-export async function listCatalogs(sampleTasks = 5): Promise<BenchmarkCatalog[]> {
+export async function listCatalogs(): Promise<BenchmarkCatalog[]> {
   const rows = await all<CatalogDbRow>(`
     SELECT b.id AS benchmark_id, b.name AS benchmark_name, b.lab, b.source_url,
            b.source_kind, b.source_identifier, b.revision, b.detected_format,
@@ -160,7 +161,7 @@ export async function listCatalogs(sampleTasks = 5): Promise<BenchmarkCatalog[]>
       description: row.description,
       taskCount: row.task_count,
       criterionCount: row.criterion_count,
-      tasks: await listTasks(row.benchmark_id, sampleTasks),
+      tasks: await listTasks(row.benchmark_id, row.task_count),
     });
   }
   return catalogs;
@@ -181,4 +182,89 @@ export async function listTasks(benchmarkId: number, limit = 50, offset = 0) {
     sourcePath: row.source_path,
     position: row.position,
   }));
+}
+
+export async function get(benchmarkId: number): Promise<BenchmarkCatalog | null> {
+  const rows = await all<CatalogDbRow>(`
+    SELECT b.id AS benchmark_id, b.name AS benchmark_name, b.lab, b.source_url,
+           b.source_kind, b.source_identifier, b.revision, b.detected_format,
+           b.adapter, b.status, b.runnable, b.description,
+           (SELECT COUNT(*) FROM benchmark_tasks t WHERE t.benchmark_id = b.id) AS task_count,
+           (SELECT COUNT(*) FROM benchmark_task_criteria c WHERE c.benchmark_id = b.id) AS criterion_count
+      FROM benchmarks b WHERE b.id = ?
+  `, [benchmarkId]);
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    benchmarkId: row.benchmark_id,
+    benchmarkCode: code('benchmarks', row.benchmark_id),
+    name: row.benchmark_name,
+    lab: row.lab,
+    sourceUrl: row.source_url,
+    sourceKind: row.source_kind,
+    sourceIdentifier: row.source_identifier,
+    revision: row.revision,
+    detectedFormat: row.detected_format,
+    adapter: row.adapter,
+    status: row.status,
+    runnable: row.runnable === 1,
+    description: row.description,
+    taskCount: row.task_count,
+    criterionCount: row.criterion_count,
+    tasks: [],
+  };
+}
+
+/**
+ * Names the gym resources server that can execute this catalog.
+ *
+ * `runnable` is 1 only when an adapter is present. Health of that server is
+ * checked at run time, not stored — a gym restart must not require a write.
+ */
+export async function setAdapter(benchmarkId: number, adapter: string, runnable: boolean): Promise<void> {
+  await run(
+    `UPDATE benchmarks SET adapter = ?, runnable = ?, updated_at = ? WHERE id = ?`,
+    [adapter, runnable ? 1 : 0, now(), benchmarkId],
+  );
+}
+
+export type CriterionRef = {
+  id: number;
+  taskId: string;
+  criterionId: string;
+  title: string;
+  matchCriteria: string;
+};
+
+/** Catalog criteria for a set of tasks, keyed for result writes. */
+export async function listCriteriaFor(benchmarkId: number, taskIds: string[]): Promise<CriterionRef[]> {
+  if (taskIds.length === 0) return [];
+  const found: CriterionRef[] = [];
+  for (let start = 0; start < taskIds.length; start += BATCH) {
+    const page = taskIds.slice(start, start + BATCH);
+    const placeholders = page.map(() => '?').join(', ');
+    const rows = await all<Row & {
+      id: number;
+      task_id: string;
+      criterion_id: string;
+      title: string;
+      match_criteria: string;
+    }>(
+      `SELECT id, task_id, criterion_id, title, match_criteria
+         FROM benchmark_task_criteria
+        WHERE benchmark_id = ? AND task_id IN (${placeholders})
+        ORDER BY task_id, position`,
+      [benchmarkId, ...page],
+    );
+    for (const row of rows) {
+      found.push({
+        id: row.id,
+        taskId: row.task_id,
+        criterionId: row.criterion_id,
+        title: row.title,
+        matchCriteria: row.match_criteria,
+      });
+    }
+  }
+  return found;
 }

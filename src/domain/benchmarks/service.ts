@@ -21,6 +21,8 @@ import { code } from '../../db/ids.ts';
 import * as archive from '../../lib/archive.ts';
 import * as formats from '../../lib/formats.ts';
 import * as source from '../../lib/source.ts';
+import * as head from '../../gym/head.ts';
+import * as servers from '../../gym/servers.ts';
 import { audit } from '../audit/service.ts';
 import * as jobs from '../jobs/trace.ts';
 import type { ImportPlan, ImportPreview, ImportTally } from './model.ts';
@@ -32,6 +34,8 @@ export { ArchiveError } from '../../lib/archive.ts';
 
 export const list = repo.listCatalogs;
 export const tasks = repo.listTasks;
+export const get = repo.get;
+export const criteriaFor = repo.listCriteriaFor;
 
 /** Tasks are written in pages so the trace shows movement on a long import. */
 const PAGE = 100;
@@ -226,4 +230,38 @@ export async function importFromUrl(
   options: { replace?: boolean; echo?: boolean } = {},
 ): Promise<ImportTally> {
   return commit(await preview(url, ref), {}, options);
+}
+
+/**
+ * Attach the running gym resources server to a catalog so it can be executed.
+ *
+ * The adapter is the process name from `/server_instances`, not a format
+ * default. Harbor is the eval profile we have; a stored adapter wins when that
+ * process is healthy, otherwise the unique healthy resources server is used.
+ * Health is re-checked at run time.
+ */
+export async function bindAdapter(benchmarkId: number): Promise<string> {
+  const catalog = await repo.get(benchmarkId);
+  if (!catalog) throw new ImportError(`Unknown benchmark ${benchmarkId}.`);
+  if (catalog.status !== 'ready') throw new ImportError(`${catalog.benchmarkCode} is ${catalog.status}, not ready.`);
+  if (catalog.detectedFormat !== 'harbor') {
+    throw new ImportError(
+      `${catalog.benchmarkCode} is ${catalog.detectedFormat || 'an unknown'} format; ` +
+        'gym eval is wired for Harbor resources servers.',
+    );
+  }
+
+  const health = await head.health();
+  if (!health.reachable) {
+    throw new ImportError(`NeMo Gym is not running (${health.headUrl}). Start it with gym env start.`);
+  }
+  try {
+    const resources = servers.pickResources(health, catalog.adapter);
+    servers.pickAgent(health, resources);
+    servers.pickModelType(health);
+    await repo.setAdapter(benchmarkId, resources.processName, true);
+    return resources.processName;
+  } catch (cause) {
+    throw new ImportError(cause instanceof Error ? cause.message : String(cause));
+  }
 }

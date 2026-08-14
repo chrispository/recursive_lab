@@ -12,7 +12,7 @@
  */
 
 export const PREFIX = {
-  benchmarks: 'BM',
+  benchmarks: 'BMS',
   benchmark_task_criteria: 'BTC',
   benchmark_runs: 'BR',
   benchmark_results: 'BRS',

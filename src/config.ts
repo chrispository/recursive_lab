@@ -31,13 +31,12 @@ export const config = {
   },
 
   gym: {
-    /** The NeMo Gym checkout we shell into. All gym paths are relative to it. */
-    root: env('GYM_ROOT', '/home/chris/Documents/recursive'),
     /**
-     * The head server started by `gym env start` in that checkout. It is the
-     * registry every other gym server is discovered through — we never hardcode
-     * a resources-server port, we ask this endpoint for it.
+     * Point these two at a different NeMo Gym checkout / head server. Child
+     * ports, adapter names, and `--model-type` are discovered from the head
+     * (`/server_instances`), not configured here.
      */
+    root: env('GYM_ROOT', '/home/chris/Documents/recursive'),
     headUrl: env('GYM_HEAD_URL', 'http://127.0.0.1:11000'),
     /** Head server calls are local and cheap; nothing should hang a page load. */
     timeoutMs: Number(env('GYM_TIMEOUT_MS', '5000')),

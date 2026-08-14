@@ -215,6 +215,9 @@ bearing; a convenience change that breaks one silently invalidates results.
   configured endpoint; resources-server, agent and model URLs come from
   `/server_instances`, and gym paths come from `/global_config_dict_yaml`.
   Hardcoding any other port or path is how this breaks after the next restart.
+  Adapter and `--model-type` are those process/component names too — never a
+  specific bench such as `legal_agent_bench`. A different gym checkout is
+  `GYM_ROOT` + `GYM_HEAD_URL`.
 - Every invocation runs with `cwd: config.gym.root` — gym config paths are
   repo-relative and break otherwise.
 - Spawn **detached** and cancel by **process group** (`-pgid`), not pid. Gym

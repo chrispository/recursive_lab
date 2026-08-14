@@ -3,13 +3,9 @@
 Outstanding work, roughly in dependency order. Rules live in `AGENTS.md`;
 phase-level history lives in `PLAN.md`. This file is what is *left*.
 
-**State as of 2026-08-14.** The catalog is filled from URL imports and the gym
-endpoint is live, but nothing can execute a benchmark yet:
-
-```
-BM-00001  Harvey Labs        harbor    1,749 tasks  104,467 criteria  runnable=0
-BM-00002  Grade School Math  tabular  18,903 tasks   17,584 criteria  runnable=0
-```
+**State as of 2026-08-14.** Harvey Labs is `BMS-00001`. Gym is up.
+Manually Benchmark starts `gym eval run --no-serve` as a `BR` job. Recurse is
+not wired. Pick one task for a first walkthrough.
 
 Every result, failure-map, forge and environment table is empty and waiting on
 the first real run.
@@ -18,27 +14,27 @@ the first real run.
 
 ## 1. Make an imported benchmark runnable
 
-Nothing today maps a benchmark to something that can execute it. `adapter` is
-written empty on purpose and `runnable` stays 0.
+Harbor catalogs bind to the healthy gym resources server at run time (the
+unique one, or a previously stored adapter). `runnable` flips on when that
+server and its agent are healthy. There is still no cancel button in the UI.
 
-- [ ] Decide how a benchmark acquires an adapter — matched against the running
-      gym's resources servers, chosen by the user at import, or generated. This
-      is a design question, not just wiring.
-- [ ] Set `runnable = 1` only when an adapter is present *and* the gym reports
-      that server as healthy.
-- [ ] `src/gym/{spawn,eval,results}.ts` — start `gym eval run`, stream its
+- [x] Decide how a benchmark acquires an adapter — the running gym resources
+      server, not a named bench. A different gym is `GYM_ROOT` + `GYM_HEAD_URL`.
+- [x] Set `runnable = 1` only when an adapter is present *and* the gym reports
+      that server as healthy (health re-checked at run time).
+- [x] `src/gym/{spawn,eval,results}.ts` — start `gym eval run`, stream its
       output, read the rollout and metrics files back.
-- [ ] Spawn **detached**, cancel by **process group** (`-pgid`), never by pid —
+- [x] Spawn **detached**, cancel by **process group** (`-pgid`), never by pid —
       gym starts child servers via Ray and uv, and killing the pid orphans them.
 
 ## 2. Run a benchmark end to end
 
-- [ ] Create a run: write `benchmark_runs` + `benchmark_run_tasks` **before**
+- [x] Create a run: write `benchmark_runs` + `benchmark_run_tasks` **before**
       anything executes, so a run that dies early still records its intent.
-- [ ] Write exactly one `task_results` row per selected task and trial,
+- [x] Write exactly one `task_results` row per selected task and trial,
       including `error` and `skipped`, then its `criterion_results`.
-- [ ] Roll up into the single `benchmark_results` row for the run.
-- [ ] Enforce one model per run at the API boundary (`AGENTS.md` § Domain rules).
+- [x] Roll up into the single `benchmark_results` row for the run.
+- [x] Enforce one model per run at the API boundary (`AGENTS.md` § Domain rules).
 
 ## 3. Jobs runner
 
@@ -53,9 +49,9 @@ Schema and the write side (`domain/jobs/trace.ts`) exist; the supervisor does no
 
 The engine works and is verified; the edges are not done.
 
-- [ ] **Wire the Benchmarks tab to it.** The "Import benchmark" button is still
-      rendered `disabled` — importing is a POST today, not a click. Needs the
-      preview → confirm → commit flow as fragments.
+- [x] **Wire the Benchmarks tab to it.** One "Import benchmark" control;
+      inspect is not a separate step — `importFromUrl` rejects unsupported
+      hosts and layouts in the form. JSON preview/commit remain for scripts.
 - [ ] Delete / re-import a benchmark from the UI. `replace` exists only as an
       API flag, and a benchmark with runs is correctly blocked by `ON DELETE
       RESTRICT` — that path needs a real error message, not a raw FK failure.
