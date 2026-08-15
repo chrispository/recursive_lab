@@ -3,6 +3,19 @@ import type { InValue } from '@libsql/client';
 export type JsonObject = Record<string, InValue>;
 
 /**
+ * Where collecting rollouts stops and ingesting them begins, on the run's
+ * 0..1 progress scale.
+ *
+ * Rollouts own 0 → 0.9 and ingest owns the rest, so the bar only ever moves
+ * forward. Within that 0.9, `gym/progress.ts` counts finished tasks plus a
+ * fraction of the in-flight Harbor trial (turns, then scoring), so a 1-task
+ * run is not stuck at 0 until gym writes its JSONL line. It lives here
+ * because both halves of the run need it and neither owns the other —
+ * `service.ts` counts up to it, `ingest.ts` starts from it.
+ */
+export const ROLLOUT_SHARE = 0.9;
+
+/**
  * One judge verdict, exactly as it was recorded.
  *
  * Every field here comes from `criterion_results` — the historical record — and

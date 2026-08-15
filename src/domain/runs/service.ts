@@ -4,15 +4,23 @@
  * The run row and its task selection are written *before* gym starts, so a
  * crash still records intent. Exactly one model per run. Gym spawn lives in
  * `src/gym/`; this file only orchestrates.
+ *
+ * This is the front half — decide what to run, start it, and follow it. Once
+ * the process exits, `ingest.ts` takes over and turns its rollouts into rows.
  */
+import { benchmarkRunDir, harborJobsDir } from '../../config.ts';
 import { code } from '../../db/ids.ts';
 import * as evalRun from '../../gym/eval.ts';
-import * as gymResults from '../../gym/results.ts';
+import * as gymProgress from '../../gym/progress.ts';
 import { audit } from '../audit/service.ts';
 import * as benchmarks from '../benchmarks/service.ts';
+import { isLive } from '../jobs/model.ts';
+import * as jobRows from '../jobs/service.ts';
 import * as jobs from '../jobs/trace.ts';
-import type { BenchmarkTaskCriteria, RunRequest, RunSettings } from './model.ts';
+import { ingest } from './ingest.ts';
+import { ROLLOUT_SHARE, type BenchmarkRunSummary, type BenchmarkTaskCriteria, type RunRequest, type RunSettings } from './model.ts';
 import * as repo from './repo.ts';
+import { starting, stepOf } from './steps.ts';
 
 export type {
   BenchmarkCriterionResult,
@@ -59,6 +67,44 @@ export async function current() {
   return benchmarkRun ?? null;
 }
 
+/**
+ * Re-read Harbor's trial folder and gym's output file, then publish a
+ * user-facing step onto the live job.
+ *
+ * The background follow loop does this too, but a `--watch` reload abandons
+ * that loop while gym keeps writing. The ledger poll calls this so the bar
+ * and the subtitle still move.
+ */
+export async function syncProgress(run: BenchmarkRunSummary): Promise<void> {
+  const rows = await jobRows.listByBenchmarkRun(run.benchmarkRunId);
+  const job = rows.find((item) => item.kind === 'benchmark_run');
+  if (!isLive(job) || !job) return;
+  const repeats = typeof run.settings.repeats === 'number' ? run.settings.repeats : 1;
+  const total = Math.max(1, run.taskCount * repeats);
+  const maxTurns = typeof run.settings.maxTurns === 'number' ? run.settings.maxTurns : 60;
+  try {
+    const hint = await criteriaHintOf(run.benchmarkRunId, run.taskCount);
+    const live = await gymProgress.snapshot({
+      outputPath: `${benchmarkRunDir(run.benchmarkRunCode)}/rollouts.jsonl`,
+      harborJobsDir: harborJobsDir(run.benchmarkRunCode),
+      total,
+      maxTurns,
+      criteriaHint: hint,
+    });
+    await jobs.setStep(job.jobId, stepOf(live.phase), live.fraction * ROLLOUT_SHARE);
+  } catch {
+    // A missing file is not a failed run.
+  }
+}
+
+async function criteriaHintOf(benchmarkRunId: number, taskCount: number): Promise<number | undefined> {
+  if (taskCount !== 1) return undefined;
+  const selected = await repo.taskIdsByRun(benchmarkRunId);
+  if (selected.taskIds.length !== 1) return undefined;
+  const rows = await benchmarks.criteriaFor(selected.benchmarkId, selected.taskIds);
+  return rows.length || undefined;
+}
+
 export class RunError extends Error {}
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -83,7 +129,7 @@ export function settingsOf(raw: Partial<RunSettings> = {}): RunSettings {
     agentModelTimeout: numberOf(raw.agentModelTimeout, 1800, 30, 7200),
     judgeParallelism: numberOf(raw.judgeParallelism, 6, 1, 32),
     judgeTimeout: numberOf(raw.judgeTimeout, 90, 10, 600),
-    judgeMaxTokens: numberOf(raw.judgeMaxTokens, 4096, 256, 16384),
+    judgeMaxTokens: numberOf(raw.judgeMaxTokens, 8192, 256, 16384),
     judgeRetries: numberOf(raw.judgeRetries, 1, 0, 5),
   };
 }
@@ -125,7 +171,7 @@ export async function start(input: RunRequest): Promise<{ benchmarkRunId: number
   await audit('benchmark_runs', benchmarkRunId, 'create', { model, adapter, tasks: taskIds.length });
 
   const trace = await jobs.start('benchmark_run', 'benchmark_runs', benchmarkRunId, {
-    step: 'starting gym eval',
+    step: starting(),
     params: { model, adapter, tasks: taskIds.length, repeats: settings.repeats },
   });
 
@@ -147,6 +193,39 @@ export async function start(input: RunRequest): Promise<{ benchmarkRunId: number
   });
 
   return { benchmarkRunId, benchmarkRunCode };
+}
+
+/** How often the run asks its own output file how far gym has got. */
+const POLL_MS = 1000;
+
+/**
+ * Follow gym and Harbor while the eval runs and publish a user-facing step.
+ *
+ * Nothing here may throw: this races the process it is watching, so a file that
+ * is momentarily unreadable or a write that loses to a restart must cost the
+ * run nothing. The loop ends when the caller flips `running`.
+ */
+async function follow(
+  opts: gymProgress.LiveOpts,
+  trace: jobs.Trace,
+  running: { value: boolean },
+): Promise<void> {
+  let published = '';
+  while (running.value) {
+    try {
+      const live = await gymProgress.snapshot(opts);
+      const fraction = live.fraction * ROLLOUT_SHARE;
+      const step = stepOf(live.phase);
+      const key = `${step}\0${fraction.toFixed(4)}`;
+      if (key !== published) {
+        published = key;
+        await trace.step(step, fraction);
+      }
+    } catch {
+      // A transient read or write is not worth failing a run over.
+    }
+    await Bun.sleep(POLL_MS);
+  }
 }
 
 async function execute(work: {
@@ -190,203 +269,28 @@ async function execute(work: {
   );
   await trace.setPgid(handle.spawned.pgid);
   await trace.log(`$ ${handle.command.join(' ')}`);
-  await trace.step('collecting rollouts', 0.1);
+
+  const total = work.taskIds.length * settings.repeats;
+  const criteriaHint = await criteriaHintOf(work.benchmarkRunId, work.taskIds.length);
+  const liveOpts: gymProgress.LiveOpts = {
+    outputPath: handle.outputPath,
+    harborJobsDir: handle.harborJobsDir,
+    total,
+    maxTurns: settings.maxTurns,
+    criteriaHint,
+  };
+  const opening = await gymProgress.snapshot(liveOpts);
+  await trace.step(stepOf(opening.phase), opening.fraction * ROLLOUT_SHARE);
+
+  const running = { value: true };
+  const watching = follow(liveOpts, trace, running);
 
   const exit = await handle.spawned.wait();
+  running.value = false;
+  await watching;
+
   await trace.log(`[process exited ${exit}]`, exit === 0 ? 'out' : 'err');
   if (exit !== 0) throw new RunError(`gym eval run exited ${exit}.`);
 
   await ingest(work, handle.outputPath);
-}
-
-/** How every trial of one task turned out. Rolled up into one task outcome. */
-type TaskTally = { passed: number; failed: number; error: number };
-
-/**
- * One task's verdict across its trials.
- *
- * A task with any errored trial is an error — the run cannot claim it graded
- * that task. Otherwise any failed trial makes the task failed, since a task
- * that passes only sometimes has not been passed. No trials at all is skipped.
- */
-function taskOutcome(tally: TaskTally | undefined): 'passed' | 'failed' | 'error' | 'skipped' {
-  if (!tally) return 'skipped';
-  if (tally.error) return 'error';
-  if (tally.failed) return 'failed';
-  if (tally.passed) return 'passed';
-  return 'skipped';
-}
-
-async function ingest(
-  work: { benchmarkRunId: number; benchmarkId: number; taskIds: string[]; trace: jobs.Trace },
-  outputPath: string,
-): Promise<void> {
-  await work.trace.step('reading rollouts', 0.8);
-  const rollouts = await gymResults.read(outputPath);
-  await work.trace.log(`rollouts              ${rollouts.length}`);
-
-  const catalog = await benchmarks.criteriaFor(work.benchmarkId, work.taskIds);
-  const byTask = new Map<string, Map<string, (typeof catalog)[number]>>();
-  for (const row of catalog) {
-    let inner = byTask.get(row.taskId);
-    if (!inner) {
-      inner = new Map();
-      byTask.set(row.taskId, inner);
-    }
-    inner.set(row.criterionId, row);
-  }
-
-  const requested = new Set(work.taskIds);
-  /** Trial names already used per task — `task_results` is unique on that pair. */
-  const usedTrials = new Set<string>();
-  /** Per-task trial outcomes, which is what the run-level rollup counts. */
-  const tallies = new Map<string, TaskTally>();
-  const counts = { rollouts: 0, criteria: 0, criteriaPassed: 0, criteriaFailed: 0 };
-
-  const expected = work.taskIds.length;
-  const resultId = await repo.insertResult({
-    benchmarkRunId: work.benchmarkRunId,
-    benchmarkId: work.benchmarkId,
-    result: 'error',
-    tasksTotal: expected,
-    tasksPassed: 0,
-    tasksFailed: 0,
-    tasksError: 0,
-    tasksSkipped: 0,
-    criteriaTotal: 0,
-    criteriaPassed: 0,
-    criteriaFailed: 0,
-    passRate: null,
-    reward: null,
-    resultPath: outputPath,
-    metrics: {},
-  });
-
-  for (const rollout of rollouts) {
-    // A rollout for a task this run never asked for cannot be stored — the
-    // task_results FK is to the catalog. Say so rather than crash on the FK.
-    if (!requested.has(rollout.taskId)) {
-      await work.trace.log(`unrequested task      ${rollout.taskId} (rollout discarded)`, 'err');
-      continue;
-    }
-
-    // Gym repeats a task by rollout index. When it does not label the repeats
-    // distinctly, keep them apart here rather than let the unique constraint
-    // silently reduce N trials to one.
-    let trialName = rollout.trialName;
-    for (let n = 2; usedTrials.has(`${rollout.taskId}\0${trialName}`); n += 1) {
-      trialName = `${rollout.trialName}-${n}`;
-      if (n === 2) {
-        await work.trace.log(
-          `duplicate trial name  ${rollout.taskId} ${rollout.trialName} → ${trialName}`,
-          'err',
-        );
-      }
-    }
-    usedTrials.add(`${rollout.taskId}\0${trialName}`);
-    counts.rollouts += 1;
-
-    const tally = tallies.get(rollout.taskId) ?? { passed: 0, failed: 0, error: 0 };
-    if (rollout.result !== 'skipped') tally[rollout.result] += 1;
-    tallies.set(rollout.taskId, tally);
-
-    const taskResultId = await repo.insertTaskResult({
-      benchmarkResultId: resultId,
-      benchmarkId: work.benchmarkId,
-      taskId: rollout.taskId,
-      trialName,
-      result: rollout.result,
-      reward: rollout.reward,
-      criteriaTotal: rollout.criteria.length,
-      criteriaPassed: rollout.criteria.filter((item) => item.result === 'pass').length,
-      criteriaFailed: rollout.criteria.filter((item) => item.result === 'fail').length,
-      resultPath: rollout.trialDir,
-      metrics: { error: rollout.error },
-    });
-
-    const catalogForTask = byTask.get(rollout.taskId);
-    for (const criterion of rollout.criteria) {
-      const ref = catalogForTask?.get(criterion.criterionId);
-      if (!ref) {
-        await work.trace.log(`unmatched criterion   ${rollout.taskId} ${criterion.criterionId}`, 'err');
-        continue;
-      }
-      counts.criteria += 1;
-      if (criterion.result === 'pass') counts.criteriaPassed += 1;
-      if (criterion.result === 'fail') counts.criteriaFailed += 1;
-      await repo.insertCriterionResult({
-        taskResultId,
-        catalogCriterionId: ref.id,
-        taskId: rollout.taskId,
-        trialName,
-        criterionId: criterion.criterionId,
-        title: criterion.title || ref.title,
-        result: criterion.result,
-        reasoning: criterion.reasoning,
-        matchCriteria: ref.matchCriteria,
-        judgeModel: criterion.judgeModel,
-        judgeError: criterion.judgeError,
-        errorType: criterion.errorType,
-      });
-    }
-  }
-
-  // A task the run asked for but gym never returned still gets a row, so the
-  // ledger says what happened to every task the run intended to execute.
-  for (const taskId of work.taskIds) {
-    if (tallies.has(taskId)) continue;
-    await repo.insertTaskResult({
-      benchmarkResultId: resultId,
-      benchmarkId: work.benchmarkId,
-      taskId,
-      trialName: 'trial-1',
-      result: 'skipped',
-      reward: null,
-      criteriaTotal: 0,
-      criteriaPassed: 0,
-      criteriaFailed: 0,
-      resultPath: null,
-      metrics: {},
-    });
-  }
-
-  // Roll trials up into tasks *before* counting. `tasks_*` are task counts and
-  // must sum to `tasks_total`; counting rollouts here made a passing run with
-  // repeats > 1 record itself as failed, because N passing trials of one task
-  // never equal the one task that was asked for.
-  const tasks = { passed: 0, failed: 0, error: 0, skipped: 0 };
-  for (const taskId of work.taskIds) tasks[taskOutcome(tallies.get(taskId))] += 1;
-
-  const passRate = counts.criteria > 0 ? counts.criteriaPassed / counts.criteria : null;
-  let result: 'passed' | 'failed' | 'error' | 'skipped' = 'failed';
-  if (tasks.error) result = 'error';
-  else if (tasks.passed === expected) result = 'passed';
-  else if (tasks.skipped === expected) result = 'skipped';
-
-  await repo.updateResult(resultId, {
-    result,
-    tasksTotal: expected,
-    tasksPassed: tasks.passed,
-    tasksFailed: tasks.failed,
-    tasksError: tasks.error,
-    tasksSkipped: tasks.skipped,
-    criteriaTotal: counts.criteria,
-    criteriaPassed: counts.criteriaPassed,
-    criteriaFailed: counts.criteriaFailed,
-    passRate,
-    reward: passRate,
-    metrics: { pass_rate: passRate, criteria_total: counts.criteria, rollouts: counts.rollouts },
-  });
-
-  await work.trace.log(
-    `benchmark_results     ${result}  tasks ${tasks.passed}/${expected} passed ` +
-      `(${counts.rollouts} rollouts)  criteria ${counts.criteriaPassed}/${counts.criteria}`,
-  );
-  await work.trace.succeed({
-    benchmarkRunId: work.benchmarkRunId,
-    result,
-    tasks: expected,
-    rollouts: counts.rollouts,
-    criteria: counts.criteria,
-  });
 }

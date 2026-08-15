@@ -48,3 +48,6 @@ export const gymBin = () => resolve(config.gym.root, '.venv/bin/gym');
 
 /** Where a benchmark run's inputs and rollouts live, e.g. results/lab/BR-00012. */
 export const benchmarkRunDir = (benchmarkRunCode: string) => resolve(config.gym.root, 'results/lab', benchmarkRunCode);
+
+/** Harbor trial folders for this run, pinned so we never watch another eval's jobs. */
+export const harborJobsDir = (benchmarkRunCode: string) => resolve(benchmarkRunDir(benchmarkRunCode), 'harbor_jobs');

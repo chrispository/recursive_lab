@@ -17,6 +17,14 @@ export const db: Client = createClient({
 /** SQLite enforces foreign keys only when asked, and it is asked per connection. */
 await db.execute('PRAGMA foreign_keys = ON');
 
+/**
+ * Wait for a writer instead of failing instantly. A run has two writers now —
+ * the progress follower every two seconds and the ingest inserting task and
+ * criterion rows — so `SQLITE_BUSY` is reachable, and losing an hour of
+ * rollouts to a lock held for 5ms is not a trade worth making.
+ */
+await db.execute('PRAGMA busy_timeout = 5000');
+
 /** Every row we read back is a flat record of SQLite's scalar types. */
 export type Row = Record<string, InValue>;
 

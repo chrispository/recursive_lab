@@ -11,7 +11,7 @@
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
-import { benchmarkRunDir, config } from '../config.ts';
+import { benchmarkRunDir, config, harborJobsDir } from '../config.ts';
 import * as gymConfig from './config.ts';
 import * as head from './head.ts';
 import { pickAgent, pickModelType, pickResources } from './servers.ts';
@@ -49,6 +49,7 @@ export type EvalRequest = {
 export type EvalHandle = {
   inputPath: string;
   outputPath: string;
+  harborJobsDir: string;
   command: string[];
   spawned: Spawned;
 };
@@ -76,7 +77,12 @@ type Bound = {
   modelType: string;
 };
 
-function overlaysOf(bound: Bound, settings: EvalSettings, live: gymConfig.GymConfig): string[] {
+function overlaysOf(
+  bound: Bound,
+  settings: EvalSettings,
+  live: gymConfig.GymConfig,
+  jobsRel: string,
+): string[] {
   const resources = `${bound.resourcesProcess}.resources_servers.${bound.resourcesName}`;
   const agent = `${bound.agentProcess}.responses_api_agents.${bound.agentName}`;
   const wanted: [string, string | number][] = [
@@ -87,6 +93,7 @@ function overlaysOf(bound: Bound, settings: EvalSettings, live: gymConfig.GymCon
     [`${agent}.harbor_agent_kwargs.max_turns`, settings.maxTurns],
     [`${agent}.harbor_agent_kwargs.shell_timeout`, settings.shellTimeout],
     [`${agent}.harbor_agent_kwargs.agent_model_timeout_seconds`, settings.agentModelTimeout],
+    [`${agent}.harbor_jobs_dir`, jobsRel],
   ];
   return wanted
     .filter(([path]) => gymConfig.has(live, path))
@@ -114,7 +121,7 @@ export function commandOf(
     '--concurrency', String(settings.concurrency),
     '--temperature', String(settings.temperature),
     '--top-p', String(settings.topP),
-    ...overlaysOf(bound, settings, live),
+    ...overlaysOf(bound, settings, live, rel(harborJobsDir(request.benchmarkRunCode))),
     '+reuse_existing_data_preparation=true',
   ];
   if (settings.outputTokenStrategy === 'fixed') {
@@ -147,7 +154,9 @@ export async function start(
   const dir = benchmarkRunDir(request.benchmarkRunCode);
   const inputPath = resolve(dir, 'selected-tasks.jsonl');
   const outputPath = resolve(dir, 'rollouts.jsonl');
+  const jobsDir = harborJobsDir(request.benchmarkRunCode);
   await mkdir(dirname(inputPath), { recursive: true });
+  await mkdir(jobsDir, { recursive: true });
 
   const lines = request.tasks.map((task) =>
     JSON.stringify(rowOf(bound.resourcesName, bound.agentProcess, task, request.settings)),
@@ -156,5 +165,5 @@ export async function start(
 
   const command = commandOf(request, rel(inputPath), rel(outputPath), bound, live);
   const spawned = gym(command, { cwd: config.gym.root, onLine });
-  return { inputPath, outputPath, command: ['gym', ...command], spawned };
+  return { inputPath, outputPath, harborJobsDir: jobsDir, command: ['gym', ...command], spawned };
 }

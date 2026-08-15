@@ -22,6 +22,27 @@
 > from `/server_instances`. Recurse is still a stub. Pick **one** task for a
 > first walkthrough — Harbor trials are slow.
 >
+> `BR-00001` is the first real run end to end: one Harbor task, one rollout,
+> 50 criteria graded, 48 passed, rolled up and ingested. The run ledger polls
+> `/ui/benchmarks/ledger` every 1s while its job is live. Each poll (and the
+> background follow loop) reads the pinned Harbor jobs dir plus gym's JSONL
+> and publishes a user-facing step: Starting → Preparing the environment →
+> The agent is working (turn N of max) → Scoring answers → Finishing this
+> task → N of M tasks done → Saving results. Copy lives in
+> `domain/runs/steps.ts`; Harbor file watching lives in `gym/progress.ts`.
+> The bar is finished tasks plus
+> a fraction of the in-flight trial, so a 1-task run is not stuck at 0 until
+> Harbor returns. Eval pins `harbor_jobs_dir` to `results/lab/BR-xxxxx/harbor_jobs`.
+> Starting a run collapses the configuration panel. The job-log tail
+> (`/ui/jobs/:code/log`) exists but is not mounted on this tab.
+>
+> **A dev-server gotcha that cost an afternoon:** `bun run db:reset` unlinks
+> `data/lab.db`. A `bun run dev` that was already up keeps the deleted inode,
+> and every write then fails `SQLITE_READONLY_DBMOVED` — surfaced as
+> "attempt to write a readonly database" — while reads keep working off the old
+> file, so the app looks healthy and only mutations fail. Restart `dev` after a
+> reset.
+>
 > NeMo Gym is **launched from `~/Documents/recursive`** with
 > `gym env start --resources-server legal_agent_bench --model-type inference_provider`.
 > The head server is on `:11000`; `legal_agent_bench`, `legal_agent_bench_harbor_agent`
@@ -222,7 +243,7 @@ Schema is ready (`jobs` + `job_log_lines`); no runner yet.
 - [x] `src/domain/jobs/trace.ts` — job + log-line writer; used by the importer
 - [ ] `src/domain/jobs/runner.ts` — spawning side, for gym subprocesses
 - [ ] `/ui/jobs/strip` polled fragment (`hx-trigger="every 3s"`)
-- [ ] Incremental log tail `/ui/jobs/:id/log?after=<seq>` + `hx-swap="beforeend"`
+- [x] Incremental log tail `/ui/jobs/:code/log?after=<seq>` (sentinel swap, not `beforeend`)
 - [ ] Cancel by **process group**, not pid
 - [ ] Startup sweep: force-fail orphaned `queued`/`running` jobs
 

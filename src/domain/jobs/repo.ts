@@ -1,6 +1,6 @@
-import { all, type Row } from '../../db/client.ts';
+import { all, one, type Row } from '../../db/client.ts';
 import { code, type Entity } from '../../db/ids.ts';
-import type { JobRow } from './model.ts';
+import type { JobLogLine, JobRow } from './model.ts';
 
 type JobDb = Row & {
   id: number;
@@ -11,12 +11,34 @@ type JobDb = Row & {
   step: string;
   progress: number;
   exit_code: number | null;
+  error: string | null;
 };
+
+function asJob(row: JobDb): JobRow {
+  return {
+    jobId: row.id,
+    jobCode: code('jobs', row.id),
+    kind: row.kind,
+    subjectCode: code(row.subject_type as Entity, row.subject_id),
+    status: row.status,
+    step: row.step,
+    progress: row.progress,
+    exitCode: row.exit_code,
+    error: row.error ?? '',
+  };
+}
+
+const JOB_COLS = `j.id, j.kind, j.subject_type, j.subject_id, j.status, j.step,
+            j.progress, j.exit_code, j.error`;
+
+export async function get(id: number): Promise<JobRow | null> {
+  const row = await one<JobDb>(`SELECT ${JOB_COLS} FROM jobs j WHERE j.id = ?`, [id]);
+  return row ? asJob(row) : null;
+}
 
 export async function listByBenchmarkRun(benchmarkRunId: number): Promise<JobRow[]> {
   const rows = await all<JobDb>(
-    `SELECT j.id, j.kind, j.subject_type, j.subject_id, j.status, j.step,
-            j.progress, j.exit_code
+    `SELECT ${JOB_COLS}
        FROM jobs j
       WHERE (j.subject_type = 'benchmark_runs' AND j.subject_id = ?)
          OR j.subject_id IN (
@@ -36,13 +58,30 @@ export async function listByBenchmarkRun(benchmarkRunId: number): Promise<JobRow
       ORDER BY j.created_at ASC, j.id ASC`,
     [benchmarkRunId, benchmarkRunId, benchmarkRunId, benchmarkRunId, benchmarkRunId],
   );
+  return rows.map(asJob);
+}
+
+/**
+ * Lines after `seq`, oldest first. A first paint passes `after = 0` and gets
+ * the most recent `limit` lines — not the first `limit` — so a job that has
+ * been running for an hour still opens on what it is doing now.
+ */
+export async function linesAfter(jobId: number, after: number, limit = 120): Promise<JobLogLine[]> {
+  const rows = await all<Row & JobLogLine>(
+    `SELECT seq, at, stream, line FROM (
+        SELECT seq, at, stream, line
+          FROM job_log_lines
+         WHERE job_id = ? AND seq > ?
+         ORDER BY seq DESC
+         LIMIT ?
+      ) t
+      ORDER BY seq ASC`,
+    [jobId, after, limit],
+  );
   return rows.map((row) => ({
-    jobCode: code('jobs', row.id),
-    kind: row.kind,
-    subjectCode: code(row.subject_type as Entity, row.subject_id),
-    status: row.status,
-    step: row.step,
-    progress: row.progress,
-    exitCode: row.exit_code,
+    seq: Number(row.seq),
+    at: String(row.at),
+    stream: row.stream === 'err' ? 'err' : 'out',
+    line: String(row.line),
   }));
 }

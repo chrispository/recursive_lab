@@ -1,7 +1,7 @@
 import type { PublicSettings } from '../../gym/settings.ts';
 import type { BenchmarkCatalog } from '../../domain/benchmarks/model.ts';
+import { isLive, type JobRow } from '../../domain/jobs/model.ts';
 import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
-import type { JobRow } from '../../domain/jobs/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Panel } from '../ui/Panel.tsx';
 import {
@@ -52,6 +52,8 @@ export function Benchmarks({
   settings: PublicSettings;
 }) {
   const model = benchmarkRun?.model || settings.policy_model_name;
+  const runJob = jobs.find((item) => item.kind === 'benchmark_run') ?? null;
+  const live = isLive(runJob);
 
   return (
     <>
@@ -64,19 +66,20 @@ export function Benchmarks({
       </div>
 
       <div class="m-config-layout">
-        <section class="m-config-panel">
-          <div class="m-config-head">
+        <div class="m-config-stack">
+        <details id="benchmarks-config" class="m-config-panel" open={live ? undefined : true}>
+          <summary class="m-config-head">
             <h3>Run configuration</h3>
             <div class="m-config-head-right">
               <span class="m-code">NEMO GYM × HARBOR</span>
               <a class="m-settings-link" href="/settings" hx-boost="true" hx-target="#workspace" hx-swap="innerHTML" aria-label="Open settings" title="Open settings">⚙</a>
             </div>
-          </div>
+          </summary>
 
           <div class="m-config-body">
             <ImportForm />
 
-            <div id="benchmarks-run-fields">
+            <div id="benchmarks-run-fields" class="m-config-fields">
             <div class="m-config-field full">
               <label for="benchmark-select">Benchmark <Help text="Choose the benchmark directly. Its source, revision, and adapter remain attached as provenance." /></label>
               <CatalogSelect catalogs={catalogs} selectedId={catalog?.benchmarkId ?? null} />
@@ -93,7 +96,7 @@ export function Benchmarks({
 
             <div class="m-config-field full">
               <label for="task-filter">Benchmark tasks <Help text="Choose the immutable validation tasks this run will evaluate. The selected task snapshot is saved with the run." /></label>
-              <input id="task-filter" placeholder="Filter tasks by ID" autocomplete="off" />
+              <input id="task-filter" placeholder="Filter tasks by id or name" autocomplete="off" />
               <div class="m-task-toolbar">
                 <TaskCount catalog={catalog} />
                 <span>
@@ -135,7 +138,7 @@ export function Benchmarks({
                   <div class="m-config-grid">
                     <NumberField id="judge-parallelism" label="Judge parallelism" value={6} min={1} max={32} help="Maximum concurrent criterion-judge requests." />
                     <NumberField id="judge-timeout" label="Judge timeout (seconds)" value={90} min={10} max={600} help="Maximum time for one criterion-judge request." />
-                    <NumberField id="judge-max-tokens" label="Judge max tokens" value={4096} min={256} max={16384} step={256} help="Maximum judge response tokens." />
+                    <NumberField id="judge-max-tokens" label="Judge max tokens" value={8192} min={256} max={16384} step={256} help="Maximum judge response tokens. A verdict is about 100 tokens; the headroom is for judge models that reason before answering, which spend from the same budget." />
                     <NumberField id="judge-retries" label="Judge retries" value={1} min={0} max={5} help="Additional attempts after a failed judge request." />
                   </div>
                 </div>
@@ -162,7 +165,10 @@ export function Benchmarks({
             </div>
           </div>
           <div id="benchmark-config-status" class="m-config-status" role="status" aria-live="polite"></div>
-        </section>
+        </details>
+
+        <RunLedger benchmarkRun={benchmarkRun} jobs={jobs} />
+        </div>
 
         <aside class="m-config-aside">
           <Panel title="System preflight" code="STATUS">
@@ -175,8 +181,6 @@ export function Benchmarks({
           </Panel>
         </aside>
       </div>
-
-      <RunLedger benchmarkRun={benchmarkRun} jobs={jobs} />
     </>
   );
 }

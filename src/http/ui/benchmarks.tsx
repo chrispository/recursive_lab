@@ -58,14 +58,30 @@ function runRequestOf(body: unknown): runs.RunRequest {
       agentModelTimeout: numbers(source, 'agent-model-timeout') ?? 1800,
       judgeParallelism: numbers(source, 'judge-parallelism') ?? 6,
       judgeTimeout: numbers(source, 'judge-timeout') ?? 90,
-      judgeMaxTokens: numbers(source, 'judge-max-tokens') ?? 4096,
+      judgeMaxTokens: numbers(source, 'judge-max-tokens') ?? 8192,
       judgeRetries: numbers(source, 'judge-retries') ?? 1,
     },
   };
 }
 
+/** The ledger always reports the newest run — the one the whole tab is about. */
+async function ledger() {
+  const benchmarkRun = await runs.current();
+  if (benchmarkRun) await runs.syncProgress(benchmarkRun);
+  const rows = benchmarkRun ? await jobs.listByBenchmarkRun(benchmarkRun.benchmarkRunId) : [];
+  return <RunLedger benchmarkRun={benchmarkRun} jobs={rows} />;
+}
+
 export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })
   .get('/ui/benchmarks/import', () => <ImportForm />)
+  /**
+   * Polled by the region itself while its job is running, at the interval set
+   * in RunLedger. The response carries the poll attributes only while the run
+   * is still live, so a finished run stops the polling by rendering without
+   * them — there is no timer anywhere to cancel. Gym stdout lives on
+   * `/ui/jobs/:code/log`, not here.
+   */
+  .get('/ui/benchmarks/ledger', () => ledger())
   .post('/ui/benchmarks/import', async ({ body }) => {
     const url = urlOf(body);
     if (!url) {
@@ -95,10 +111,11 @@ export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })
       const benchmarkRun = await runs.byBenchmarkRunId(started.benchmarkRunId);
       // Only the runnable badge is swapped here, so headers are enough.
       const catalog = benchmarks.select(await benchmarks.list(), request.benchmarkId);
+      const runJobs = await jobs.listByBenchmarkRun(started.benchmarkRunId);
       return (
         <>
-          Started {started.benchmarkRunCode}. Gym eval is running — Harbor trials can take minutes per task.
-          <RunLedger benchmarkRun={benchmarkRun} jobs={await jobs.listByBenchmarkRun(started.benchmarkRunId)} oob />
+          <span data-run-started>Started {started.benchmarkRunCode}. Gym eval is running — Harbor trials can take minutes per task.</span>
+          <RunLedger benchmarkRun={benchmarkRun} jobs={runJobs} oob />
           <RunnableStatus catalog={catalog} oob />
           <Rail tab="benchmarks" state={current.rail} oob />
         </>

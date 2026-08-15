@@ -266,6 +266,16 @@ export async function updateResult(
   );
 }
 
+export async function taskIdsByRun(benchmarkRunId: number): Promise<{ benchmarkId: number; taskIds: string[] }> {
+  const rows = await all<Row & { benchmark_id: number; task_id: string }>(
+    `SELECT benchmark_id, task_id FROM benchmark_run_tasks
+      WHERE benchmark_run_id = ? ORDER BY position`,
+    [benchmarkRunId],
+  );
+  if (rows.length === 0) return { benchmarkId: 0, taskIds: [] };
+  return { benchmarkId: rows[0]!.benchmark_id, taskIds: rows.map((row) => row.task_id) };
+}
+
 export async function existingTaskIds(benchmarkId: number, taskIds: string[]): Promise<Set<string>> {
   if (taskIds.length === 0) return new Set();
   const found = new Set<string>();

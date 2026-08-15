@@ -134,7 +134,7 @@
 }
 
 .m-title {
-  padding-bottom: var(--s4);
+  padding-bottom: var(--s3);
   border-bottom: 1px solid var(--line);
 }
 .m-title p {
@@ -167,7 +167,20 @@
   grid-template-columns: minmax(0, 1fr) 260px;
   align-items: start;
   gap: var(--s4);
-  margin-top: var(--s4);
+  margin-top: var(--s3);
+}
+/* Config and ledger share this column, so they cannot disagree on width —
+   including after HTMX replaces the ledger in place. */
+.m-config-stack {
+  display: grid;
+  gap: var(--s4);
+  min-width: 0;
+}
+.m-config-layout:has(.m-config-panel:not([open])) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.m-config-layout:has(.m-config-panel:not([open])) > .m-config-aside {
+  display: none;
 }
 .m-config-panel {
   min-width: 0;
@@ -178,16 +191,33 @@
 .m-config-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--s4);
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
   background: var(--deep);
+  cursor: pointer;
+  list-style: none;
+}
+.m-config-head::-webkit-details-marker {
+  display: none;
+}
+.m-config-head::before {
+  content: '▾';
+  color: var(--text-2);
+  font: 700 22px / 1 var(--mono);
+  width: 18px;
+}
+.m-config-panel:not([open]) > .m-config-head::before {
+  content: '▸';
+}
+.m-config-panel:not([open]) > .m-config-head {
+  border-bottom: 0;
 }
 .m-config-head-right {
   display: flex;
   align-items: center;
   gap: var(--s3);
+  margin-left: auto;
 }
 .m-settings-link {
   display: grid;
@@ -202,14 +232,22 @@
   color: var(--text-1);
   background: var(--raised-2);
 }
-.m-config-body {
+.m-config-body,
+.m-config-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s4);
+}
+.m-config-body {
   padding: var(--s4);
 }
 .m-config-body > .full,
-.m-config-body > .m-advanced.full {
+.m-config-body > .m-advanced.full,
+.m-config-fields {
+  grid-column: 1 / -1;
+}
+.m-config-fields > .full,
+.m-config-fields > .m-advanced.full {
   grid-column: 1 / -1;
 }
 .m-config-field {
@@ -360,6 +398,11 @@
   font-size: var(--t-label);
   line-height: 1.35;
 }
+/* `.m-task-row { display: grid }` beats the UA `[hidden] { display: none }`,
+   so a filtered row stayed in the list while the count dropped. */
+.m-task-row[hidden] {
+  display: none;
+}
 .m-task-row:last-child {
   border-bottom: 0;
 }
@@ -482,6 +525,7 @@
   font-size: var(--t-label);
 }
 .m-config-aside {
+  grid-column: 2;
   position: sticky;
   top: var(--s4);
 }
@@ -494,6 +538,9 @@
   margin-top: var(--s4);
   border: 1px solid var(--line);
   background: var(--panel);
+}
+.m-config-stack > .m-tablebox {
+  margin-top: 0;
 }
 
 .m-cap {
@@ -695,9 +742,20 @@
 .m-criterion.pass .m-criterion-result {
   color: var(--pass);
 }
-.m-criterion.fail .m-criterion-result,
-.m-criterion.error .m-criterion-result {
+.m-criterion.fail .m-criterion-result {
   color: var(--fail);
+}
+/* Not --fail. An ungraded criterion is a broken measurement, not a wrong
+   answer, and colouring them alike is the same mistake as counting them alike. */
+.m-criterion.error .m-criterion-result {
+  color: var(--warn);
+}
+/* Why the judge could not grade it, on the summary line. */
+.m-criterion-error {
+  color: var(--warn);
+  font: 500 var(--t-micro) / 1 var(--mono);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 .m-criterion-title {
   min-width: 0;
@@ -977,6 +1035,7 @@
   flex: 1;
   min-width: 60px;
   height: 4px;
+  overflow: hidden;
   background: var(--raised-2);
 }
 .m-bar-fill {
@@ -986,6 +1045,62 @@
 }
 .m-bar-fill[data-below='1'] {
   background: var(--warn);
+}
+
+/* Job progress reuses the same bar, coloured by job status rather than reward.
+   Declared after [data-below] so a toned fill wins if both are ever set. */
+.m-bar-fill[data-tone='queued'],
+.m-bar-fill[data-tone='running'] {
+  background: var(--run);
+}
+.m-bar-fill[data-tone='failed'] {
+  background: var(--fail);
+}
+.m-bar-fill[data-tone='cancelled'] {
+  background: var(--text-4);
+}
+
+/* Run ledger progress cell: the bar, and the job's own words under it. */
+.m-run-progress {
+  display: grid;
+  gap: 3px;
+  min-width: 150px;
+}
+.m-run-progress .m-bar-track {
+  min-width: 0;
+}
+
+/* Job log tail. Own region so the ledger poll stays a status row. */
+.m-job-log {
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.m-job-log.is-empty {
+  display: none;
+}
+.m-job-log-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s3);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--deep);
+}
+.m-job-log-body {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--text-2);
+  background: var(--raised);
+  font: 500 11px / 1.45 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.m-log-line[data-stream='err'] {
+  color: var(--fail);
 }
 
 /* Empty state. */
@@ -1022,6 +1137,7 @@
   .m-run-picker,
   .m-config-layout,
   .m-config-body,
+  .m-config-fields,
   .m-config-grid,
   .m-run-actions {
     grid-template-columns: 1fr;
@@ -1039,6 +1155,7 @@
     grid-column: 1 / -1;
   }
   .m-config-body > .full,
+  .m-config-fields > .full,
   .m-config-grid > .full {
     grid-column: auto;
   }
@@ -1054,6 +1171,7 @@
   }
   .m-config-aside {
     position: static;
+    grid-row: auto;
   }
   .m-run-card {
     align-items: stretch;

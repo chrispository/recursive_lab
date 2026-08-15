@@ -171,7 +171,8 @@
     var visible = 0;
     var selected = 0;
     rows.forEach(function (row) {
-      var matches = !needle || String(row.dataset.taskId || '').includes(needle);
+      var haystack = String(row.dataset.taskId || '') + ' ' + String(row.textContent || '').toLowerCase();
+      var matches = !needle || haystack.includes(needle);
       row.hidden = !matches;
       if (matches) visible += 1;
       var checkbox = row.querySelector('[data-task-checkbox]');
@@ -211,10 +212,34 @@
     var action = event.target.closest('[data-benchmark-action]');
     var status = document.getElementById('benchmark-config-status');
     if (action && status) {
+      collapseRunConfig();
       status.textContent = 'Full-process configuration is ready. Recurse is not wired yet.';
     }
   });
 
   document.addEventListener('htmx:afterSwap', refreshTaskPicker);
   refreshTaskPicker();
+
+  /* After a run starts, fold the configuration so the ledger is on screen.
+     Gear clicks must not toggle the <details> they live in. */
+
+  function collapseRunConfig() {
+    var panel = document.getElementById('benchmarks-config');
+    if (panel) panel.open = false;
+    var ledger = document.getElementById('benchmarks-ledger');
+    if (ledger) ledger.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  document.addEventListener('click', function (event) {
+    if (event.target.closest('#benchmarks-config .m-settings-link')) {
+      event.stopPropagation();
+    }
+  }, true);
+
+  document.addEventListener('htmx:afterSwap', function (event) {
+    var target = event.detail && event.detail.target;
+    if (target && target.id === 'benchmark-config-status' && target.querySelector('[data-run-started]')) {
+      collapseRunConfig();
+    }
+  });
 })();

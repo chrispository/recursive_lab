@@ -22,6 +22,7 @@ export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
   const total = numberOf(benchmarkRun?.resultCriteriaTotal ?? metrics.criteria_total);
   const passed = numberOf(benchmarkRun?.resultCriteriaPassed ?? metrics.criteria_passed);
   const failed = numberOf(benchmarkRun?.resultCriteriaFailed ?? Math.max(0, total - passed));
+  const errored = tasks.reduce((sum, task) => sum + task.errored, 0);
   const rate = total > 0 ? passed / total : 0;
   const resultStatus = benchmarkRun?.result ?? 'pending';
 
@@ -51,6 +52,11 @@ export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
             { value: total, label: 'criteria' },
             { value: passed, label: 'passed' },
             { value: failed, label: 'failed', hot: failed > 0 },
+            // Ungraded is its own column, never folded into failed: a criterion
+            // the judge could not grade is not one the model got wrong, and it
+            // means the pass rate beside it is over a smaller denominator than
+            // the run asked for.
+            { value: errored, label: 'ungraded', hot: errored > 0 },
             { value: `${(rate * 100).toFixed(1)}%`, label: 'pass rate' },
           ]} />
         </Cap>
@@ -89,12 +95,19 @@ export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
                     {task.errored > 0 ? <> · {task.errored} ungraded</> : null}
                   </span>
                 </header>
+                {/* Errored criteria open alongside failed ones. A judge that
+                    could not grade is a problem with the run, not a quiet
+                    footnote — the reason it errored belongs on the summary
+                    line, not two disclosures down. */}
                 {task.criteria.map((criterion) => (
-                  <details class={`m-criterion ${criterion.result}`} open={criterion.result === 'fail'}>
+                  <details class={`m-criterion ${criterion.result}`} open={criterion.result !== 'pass'}>
                     <summary>
                       <span class="m-criterion-result">{criterion.result.toUpperCase()}</span>
                       <span class="m-id">{criterion.criterionId}</span>
                       <span class="m-criterion-title">{criterion.title}</span>
+                      {criterion.judgeError ? (
+                        <span class="m-criterion-error">{criterion.errorType ?? 'judge error'}</span>
+                      ) : null}
                     </summary>
                     <div class="m-criterion-body">
                       <p class="m-criterion-reasoning">{criterion.reasoning}</p>
@@ -111,7 +124,18 @@ export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
               </section>
             ))}
           </div>
-        ) : <div class="m-empty">No criterion-level inspection was imported.</div>}
+        ) : (
+          // "Nothing imported" is only one reason this list is empty, and it was
+          // the wrong one to show a run that errored before it graded anything —
+          // it sent you looking at the import for a fault in the run.
+          <div class="m-empty">
+            {resultStatus === 'error'
+              ? 'This run errored before anything was graded. The execution ledger below has the reason.'
+              : resultStatus === 'pending'
+                ? 'No run selected yet.'
+                : 'No criterion-level inspection was imported.'}
+          </div>
+        )}
       </TableBox>
 
       <TableBox>
@@ -124,7 +148,10 @@ export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
                 <td><span class="m-id">{job.jobCode}</span></td>
                 <td>{job.kind.replaceAll('_', ' ')}</td>
                 <td><span class="m-id">{job.subjectCode}</span></td>
-                <td>{job.step}</td>
+                {/* A failed job's error is the whole point of the row. Showing
+                    the step instead left the ledger reporting the phase it died
+                    in and nothing about what killed it. */}
+                <td>{job.error || job.step}</td>
                 <td><Badge state={job.status}>{job.status}</Badge></td>
               </tr>
             ))}</tbody>

@@ -22,6 +22,13 @@ export type JobKind =
   | 'env_publish'
   | 'training';
 
+/**
+ * Terminal steps, kept generic because this layer serves every job kind. A
+ * caller with better words for its own ending passes them to `succeed`/`fail`.
+ */
+const DONE = 'Done';
+const FAILED = 'Failed';
+
 export type Trace = {
   jobId: number;
   jobCode: string;
@@ -30,9 +37,9 @@ export type Trace = {
   /** Update the human-readable phase and 0..1 progress. */
   step: (step: string, progress?: number) => Promise<void>;
   /** Close the job as succeeded, storing whatever the caller wants to keep. */
-  succeed: (result?: unknown) => Promise<void>;
+  succeed: (result?: unknown, step?: string) => Promise<void>;
   /** Close the job as failed, recording the error text. */
-  fail: (error: unknown) => Promise<void>;
+  fail: (error: unknown, step?: string) => Promise<void>;
   /** Record the process group so cancel can kill gym's children, not just the pid. */
   setPgid: (pgid: number) => Promise<void>;
 };
@@ -71,12 +78,18 @@ export async function start(
    * Success completes the progress bar; failure leaves it where it stopped.
    * Resetting it to 0 erased how far the job actually got, which is the one
    * thing you want to know about a job that died.
+   *
+   * Closing also overwrites `step`. The views render `step || status`, so a
+   * job that closed while its last step still read "Saving results" went on
+   * advertising that phase forever — a finished run was indistinguishable from
+   * a hung one, which is the single most expensive thing this ledger can get
+   * wrong. A terminal step is the only honest value once `finished_at` is set.
    */
-  const close = async (status: JobStatus, patch: string, args: unknown[]) => {
+  const close = async (status: JobStatus, step: string, patch: string, args: unknown[]) => {
     const progress = status === 'succeeded' ? ', progress = 1' : '';
     await run(
-      `UPDATE jobs SET status = ?${progress}, finished_at = ?, ${patch} WHERE id = ?`,
-      [status, now(), ...(args as never[]), jobId],
+      `UPDATE jobs SET status = ?, step = ?${progress}, finished_at = ?, ${patch} WHERE id = ?`,
+      [status, step, now(), ...(args as never[]), jobId],
     );
   };
 
@@ -87,16 +100,21 @@ export async function start(
     step: async (step, progress = 0) => {
       await run(`UPDATE jobs SET step = ?, progress = ? WHERE id = ?`, [step, progress, jobId]);
     },
-    succeed: async (result) => {
-      await close('succeeded', 'exit_code = 0, result_json = ?', [JSON.stringify(result ?? {})]);
+    succeed: async (result, step = DONE) => {
+      await close('succeeded', step, 'exit_code = 0, result_json = ?', [JSON.stringify(result ?? {})]);
     },
-    fail: async (error) => {
+    fail: async (error, step = FAILED) => {
       const message = error instanceof Error ? error.message : String(error);
       await log(message, 'err');
-      await close('failed', 'exit_code = 1, error = ?', [message]);
+      await close('failed', step, 'exit_code = 1, error = ?', [message]);
     },
     setPgid: async (pgid) => {
       await run(`UPDATE jobs SET pgid = ? WHERE id = ?`, [pgid, jobId]);
     },
   };
+}
+
+/** Update step/progress on an already-open job, without a Trace handle. */
+export async function setStep(jobId: number, step: string, progress: number): Promise<void> {
+  await run(`UPDATE jobs SET step = ?, progress = ? WHERE id = ?`, [step, progress, jobId]);
 }
