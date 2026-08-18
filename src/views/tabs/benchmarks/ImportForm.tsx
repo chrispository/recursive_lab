@@ -115,7 +115,10 @@ export function ImportForm({
   tally?: ImportTally;
 }) {
   const note = tally
-    ? `Imported ${tally.benchmarkCode}: ${tally.benchmarkTasks.toLocaleString()} tasks, ${tally.benchmarkTaskCriteria.toLocaleString()} criteria.`
+    ? `Imported ${tally.benchmarkCode}: ${tally.benchmarkTasks.toLocaleString()} tasks, ${tally.benchmarkTaskCriteria.toLocaleString()} criteria.` +
+      (tally.gymSync
+        ? ` Gym re-pinned to ${tally.gymSync.revision.slice(0, 10)} — ${tally.gymSync.taskCount.toLocaleString()} tasks, ${tally.gymSync.note.toLowerCase()}`
+        : '')
     : undefined;
   const status = error ? 'error' : note ? 'ok' : undefined;
 

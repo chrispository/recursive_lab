@@ -33,19 +33,26 @@
 > results because that run errored; no checkpoints, ever, because nothing here
 > trains. `Panel` gained an optional `id` for in-page anchors only.
 >
-> **Current state (2026-08-17):** Fresh start, first import done. The whole
-> benchmark chain was wiped, then `BMS-00002` / `Harvey Labs` imported from
-> `https://github.com/harveyai/harvey-labs` at `7be41d57fd` (2,010 tasks —
-> id 2 because SQLite AUTOINCREMENT never reuses the deleted id 1). The gym
-> checkout lives inside this repo at `gym/` (`GYM_ROOT` default
-> `resolve(ROOT, 'gym')`); the old `~/Documents/recursive` checkout is
-> **deleted**. `env.yaml` (live keys) was carried over and the venv works.
-> **Gym is down and nothing is prepared.** Upstream `prepare.py` pins
-> `f46ef86e` (1,749 tasks) and *cannot* prepare `7be41d57fd`: it rejects the
-> `firm-knowledge` family for having no per-task `documents/` dir. Attempts
-> to bump the pin were reverted — the gym stays upstream-pristine until the
-> run workflow is needed. `public/schema.html` gained an **API tab** listing
-> all 14 `/api/v1` routes. Earlier state follows. The Settings tab gained a **NeMo Gym
+> **Current state (2026-08-17, end of session):** Fresh start, complete and
+> **verified aligned**: `BMS-00005` / `Harvey Labs` imported at `7be41d57fd`
+> (2,010 tasks), the gym re-pinned to the same revision and prepared —
+> marker `task_count: 2010`, `all.jsonl` 2010 ids, **0 catalog tasks missing
+> from the runnable set** (firm-knowledge + diligence included). The sync
+> pipeline: imports and `/api/v1/benchmarks/:id/gym-sync` call
+> `src/gym/repin.ts` (git-reset prepare.py → anchored edits to
+> revision/sha256/task-count, shared-`docs_dir` hydration via a `_shared/`
+> dir that both task-count validators skip → parse check) then clear caches
+> and restart the gym if it was up. `archive.stage()` records
+> `.archive-sha256` beside each snapshot so syncs never re-hash; `hashOf()`
+> is the fallback for snapshots from before the sidecar existed.
+> `lifecycle.start()` spawns the gym with **file-backed stdio**
+> (`spawn.ts gymLogged`) so it outlives short-lived sync processes.
+> `bun run dev` auto-starts the gym (`src/boot.ts`); SIGINT removes its own
+> handler, fires an 8s best-effort gym stop ladder, and `process.exit(0)`s —
+> the frontend always dies with Ctrl+C, second Ctrl+C is instant. Watch mode
+> dropped from `dev`. `public/schema.html` has an **API tab** (15 routes).
+> Gym checkout lives at `gym/` (old `~/Documents/recursive` deleted, keys
+> carried over in `env.yaml`). Earlier state follows. The Settings tab gained a **NeMo Gym
 > environment** panel (start/stop through `gym/lifecycle.ts` — stop is the
 > SIGINT ladder `gym env start` itself uses, since gym has no `env stop`) and
 > a **storage** panel (`gym/storage.ts`: usage per bucket, delete per entry or

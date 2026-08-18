@@ -291,6 +291,7 @@
         routes: [
           { method: 'GET', path: '/api/v1/benchmarks', note: 'Every imported benchmark with its revision, format and runnable flag. <b>No task rows</b> — the list stays small.' },
           { method: 'GET', path: '/api/v1/benchmarks/:id/tasks', query: 'limit, offset', note: 'One benchmark’s tasks, paginated. Default 50 per page.' },
+          { method: 'POST', path: '/api/v1/benchmarks/:id/gym-sync', note: 'Re-pin the gym’s prepared copy of an imported Harbor benchmark to the catalog’s revision — rewrites the pin in the gym’s prepare.py, clears the prepared caches, restarts the gym if it was running. Runs as a benchmark_import job with the full log.' },
           { method: 'POST', path: '/api/v1/benchmark-imports/preview', note: 'Phase one: resolve the URL to an immutable commit, download and inspect. <b>Writes nothing.</b> 400 on a bad URL, host or layout.' },
           { method: 'POST', path: '/api/v1/benchmark-imports', note: 'Phase two: persist exactly what the preview staged. Takes the preview object back, not a re-resolve. 201 with the tally. Never collapse the two phases.' },
         ],

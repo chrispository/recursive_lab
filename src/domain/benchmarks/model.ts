@@ -45,6 +45,17 @@ export type ImportTally = {
   benchmarkTasks: number;
   benchmarkTaskCriteria: number;
   jobCode: string;
+  /** Set when the import also re-pinned the gym's prepared copy. */
+  gymSync?: GymSyncSummary;
+};
+
+/** The outcome of pointing the gym's prepared assets at a catalog revision. */
+export type GymSyncSummary = {
+  server: string;
+  revision: string;
+  taskCount: number;
+  restarted: boolean;
+  note: string;
 };
 
 /** Row shape for writing one task and its criteria. */
@@ -93,6 +104,8 @@ export type BenchmarkCatalog = {
   status: 'importing' | 'ready' | 'failed';
   runnable: boolean;
   description: string;
+  /** Where the committed snapshot lives; null only for rows still importing. */
+  snapshotPath: string | null;
   taskCount: number;
   criterionCount: number;
   tasks: BenchmarkTask[];

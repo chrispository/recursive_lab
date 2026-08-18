@@ -42,7 +42,12 @@ autostartGym();
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
+    // First hit: run the gym stop ladder, then exit. Remove this handler so a
+    // second Ctrl+C during a slow ladder falls through to the default — the
+    // frontend must always die when its terminal says so.
+    for (const each of ['SIGINT', 'SIGTERM'] as const) process.removeAllListeners(each);
     autostopGym();
+    process.exit(0);
   });
 }
 

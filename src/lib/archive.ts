@@ -41,7 +41,12 @@ export type StagedSnapshot = {
   files: number;
   /** Bytes actually written. */
   bytes: number;
+  /** sha256 of the downloaded archive itself, compressed form. */
+  archiveSha256: string;
 };
+
+/** Sidecar name holding `archiveSha256`, so a cached preview remembers it. */
+export const SHA_SIDECAR = '.archive-sha256';
 
 const decoder = new TextDecoder();
 const field = (block: Uint8Array, start: number, length: number) =>
@@ -100,7 +105,8 @@ export async function stage(
   await rm(base, { recursive: true, force: true });
   await mkdir(base, { recursive: true });
 
-  const snapshot: StagedSnapshot = { root: base, scanned: 0, files: 0, bytes: 0 };
+  const snapshot: StagedSnapshot = { root: base, scanned: 0, files: 0, bytes: 0, archiveSha256: '' };
+  const hasher = new Bun.CryptoHasher('sha256');
   /**
    * Both hosts wrap everything in one folder named for the repo and revision.
    * Stripping it keeps stored paths stable across revisions — otherwise every
@@ -115,7 +121,16 @@ export async function stage(
   let paxOverride: string | null = null;
   let done = false;
 
-  const stream = response.body.pipeThrough(new DecompressionStream('gzip'));
+  const stream = (response.body as unknown as ReadableStream<Uint8Array>)
+    .pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          hasher.update(chunk);
+          controller.enqueue(chunk);
+        },
+      }),
+    )
+    .pipeThrough(new DecompressionStream('gzip') as unknown as TransformStream<Uint8Array, Uint8Array>);
   for await (const rawChunk of stream as unknown as AsyncIterable<Uint8Array>) {
     if (done) break;
     let chunk = rawChunk;
@@ -206,7 +221,36 @@ export async function stage(
   }
 
   if (snapshot.scanned === 0) throw new ArchiveError('The snapshot contains no files.');
+  snapshot.archiveSha256 = hasher.digest('hex');
+  await writeFile(resolve(base, SHA_SIDECAR), `${snapshot.archiveSha256}\n`);
   return snapshot;
+}
+
+/**
+ * sha256 of a remote archive, streamed and never stored.
+ *
+ * The gym's prepare step verifies its download against a pinned checksum, so a
+ * re-pin needs the digest of exactly the bytes that URL serves — hashed from
+ * the same stream rather than a second download kept on disk.
+ */
+export async function hashOf(
+  archiveUrl: string,
+  onProgress?: (bytes: number) => void,
+  timeoutMs = 600_000,
+): Promise<string> {
+  const response = await fetch(archiveUrl, {
+    signal: AbortSignal.timeout(timeoutMs),
+    headers: { accept: 'application/gzip, application/x-gzip, application/octet-stream' },
+  });
+  if (!response.ok || !response.body) throw new ArchiveError(`Fetching ${archiveUrl} failed: HTTP ${response.status}.`);
+  const hasher = new Bun.CryptoHasher('sha256');
+  let bytes = 0;
+  for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+    hasher.update(chunk);
+    bytes += chunk.length;
+    onProgress?.(bytes);
+  }
+  return hasher.digest('hex');
 }
 
 /** Delete a staged tree. Safe to call on a path that no longer exists. */

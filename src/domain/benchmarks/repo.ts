@@ -127,6 +127,7 @@ type CatalogDbRow = Row & {
   status: BenchmarkCatalog['status'];
   runnable: number;
   description: string;
+  snapshot_path: string | null;
   task_count: number;
   criterion_count: number;
 };
@@ -145,7 +146,7 @@ export async function listCatalogs(): Promise<BenchmarkCatalog[]> {
   const rows = await all<CatalogDbRow>(`
     SELECT b.id AS benchmark_id, b.name AS benchmark_name, b.lab, b.source_url,
            b.source_kind, b.source_identifier, b.revision, b.detected_format,
-           b.adapter, b.status, b.runnable, b.description,
+           b.adapter, b.status, b.runnable, b.description, b.snapshot_path,
            (SELECT COUNT(*) FROM benchmark_tasks t WHERE t.benchmark_id = b.id) AS task_count,
            (SELECT COUNT(*) FROM benchmark_task_criteria c WHERE c.benchmark_id = b.id) AS criterion_count
       FROM benchmarks b
@@ -170,6 +171,7 @@ function toCatalog(row: CatalogDbRow): BenchmarkCatalog {
     status: row.status,
     runnable: row.runnable === 1,
     description: row.description,
+    snapshotPath: row.snapshot_path,
     taskCount: row.task_count,
     criterionCount: row.criterion_count,
     tasks: [],
@@ -197,7 +199,7 @@ export async function get(benchmarkId: number): Promise<BenchmarkCatalog | null>
   const rows = await all<CatalogDbRow>(`
     SELECT b.id AS benchmark_id, b.name AS benchmark_name, b.lab, b.source_url,
            b.source_kind, b.source_identifier, b.revision, b.detected_format,
-           b.adapter, b.status, b.runnable, b.description,
+           b.adapter, b.status, b.runnable, b.description, b.snapshot_path,
            (SELECT COUNT(*) FROM benchmark_tasks t WHERE t.benchmark_id = b.id) AS task_count,
            (SELECT COUNT(*) FROM benchmark_task_criteria c WHERE c.benchmark_id = b.id) AS criterion_count
       FROM benchmarks b WHERE b.id = ?

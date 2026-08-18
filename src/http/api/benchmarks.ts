@@ -11,7 +11,8 @@ const message = (error: unknown) => (error instanceof Error ? error.message : 'U
 const status = (error: unknown) =>
   error instanceof benchmarks.SourceError ||
   error instanceof benchmarks.ArchiveError ||
-  error instanceof benchmarks.ImportError
+  error instanceof benchmarks.ImportError ||
+  error instanceof benchmarks.RepinError
     ? 400
     : 500;
 
@@ -23,6 +24,17 @@ export const benchmarksApi = new Elysia({ name: 'benchmarks-api' })
   .get('/api/v1/benchmarks/:id/tasks', async ({ params, query }) =>
     benchmarks.tasks(Number(params.id), Number(query.limit ?? 50), Number(query.offset ?? 0)),
   )
+  /**
+   * Re-pin the gym's prepared copy of an imported Harbor benchmark to the
+   * catalog's revision: rewrite the pin, clear the caches, restart if running.
+   */
+  .post('/api/v1/benchmarks/:id/gym-sync', async ({ params, status: reply }) => {
+    try {
+      return await benchmarks.syncGym(Number(params.id));
+    } catch (error) {
+      return reply(status(error), { error: message(error) });
+    }
+  })
   /**
    * Phase one: resolve, download and inspect. Writes nothing to the database,
    * so a wrong URL costs a download and nothing else.

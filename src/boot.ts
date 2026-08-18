@@ -28,14 +28,23 @@ export function autostartGym(): void {
  * Take the gym down with the app — the same SIGINT ladder the Settings stop
  * button uses, so child servers and Ray shut down gracefully rather than
  * orphaning when the dev server dies.
+ *
+ * Synchronous on purpose: it *fires* the ladder (signals out, kill after
+ * grace) and lets the process exit immediately; it never blocks shutdown on
+ * gym answering. A lingering gym is recoverable, a frontend that ignores
+ * Ctrl+C is not.
  */
 export function autostopGym(): void {
-  void lifecycle
-    .stop()
-    .then(({ stopped, killed }) => {
-      if (stopped.length || killed.length) {
-        console.log(`gym stopped with the app (${stopped.length} exited, ${killed.length} killed).`);
-      }
-    })
-    .catch(() => undefined);
+  try {
+    void lifecycle
+      .stop(8_000)
+      .then(({ stopped, killed }) => {
+        if (stopped.length || killed.length) {
+          console.log(`gym stopped with the app (${stopped.length} exited, ${killed.length} killed).`);
+        }
+      })
+      .catch(() => undefined);
+  } catch {
+    // Shutdown must never throw.
+  }
 }
