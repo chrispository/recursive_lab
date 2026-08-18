@@ -73,12 +73,12 @@ function runRequestOf(body: unknown): runs.RunRequest {
   };
 }
 
-/** The ledger always reports the newest run — the one the whole tab is about. */
+/** The ledger reports every run — newest first — and follows the live one. */
 async function ledger() {
   const benchmarkRun = await runs.current();
   if (benchmarkRun) await runs.syncProgress(benchmarkRun);
   const rows = benchmarkRun ? await jobs.listByBenchmarkRun(benchmarkRun.benchmarkRunId) : [];
-  return <RunLedger benchmarkRun={benchmarkRun} jobs={rows} />;
+  return <RunLedger benchmarkRun={benchmarkRun} runs={await runs.list()} jobs={rows} />;
 }
 
 export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })
@@ -139,7 +139,7 @@ export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })
       return (
         <>
           <span data-run-started>Started {started.benchmarkRunCode}. Gym eval is running — Harbor trials can take minutes per task.</span>
-          <RunLedger benchmarkRun={benchmarkRun} jobs={runJobs} oob />
+          <RunLedger benchmarkRun={benchmarkRun} runs={await runs.list()} jobs={runJobs} oob />
           <RunnableStatus catalog={catalog} oob />
           <Rail tab="benchmarks" state={current.rail} oob />
         </>

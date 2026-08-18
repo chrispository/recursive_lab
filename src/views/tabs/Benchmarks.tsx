@@ -34,12 +34,15 @@ function NumberField({ id, label, value, min, max, step, help }: {
 
 export function Benchmarks({
   benchmarkRun,
+  runs,
   jobs,
   catalogs,
   catalog,
   settings,
 }: {
   benchmarkRun: BenchmarkRunSummary | null;
+  /** Every run — the ledger is a per-run history. */
+  runs: BenchmarkRunSummary[];
   jobs: JobRow[];
   /** Headers only — these fill the dropdown and carry no task rows. */
   catalogs: BenchmarkCatalog[];
@@ -163,7 +166,7 @@ export function Benchmarks({
           <div id="benchmark-config-status" class="m-config-status" role="status" aria-live="polite"></div>
         </details>
 
-        <RunLedger benchmarkRun={benchmarkRun} jobs={jobs} />
+        <RunLedger benchmarkRun={benchmarkRun} runs={runs} jobs={jobs} />
         </div>
       </div>
     </>

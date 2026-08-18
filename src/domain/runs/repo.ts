@@ -17,6 +17,8 @@ type BenchmarkRunDbRow = Row & {
   metrics_json: string;
   output_path: string | null;
   result: BenchmarkRunSummary['result'];
+  result_tasks_total: number | null;
+  result_tasks_passed: number | null;
   result_criteria_total: number | null;
   result_criteria_passed: number | null;
   result_criteria_failed: number | null;
@@ -44,6 +46,8 @@ const SELECT = `
          br.label, br.model, br.task_count, br.settings_json,
          result.metrics_json, result.result_path AS output_path,
          result.result,
+         result.tasks_total AS result_tasks_total,
+         result.tasks_passed AS result_tasks_passed,
          result.criteria_total AS result_criteria_total,
          result.criteria_passed AS result_criteria_passed,
          result.criteria_failed AS result_criteria_failed
@@ -68,6 +72,8 @@ function toBenchmarkRun(row: BenchmarkRunDbRow): BenchmarkRunSummary {
     metrics: json<JsonObject>(row.metrics_json, {}),
     outputPath: row.output_path,
     result: row.result,
+    resultTasksTotal: row.result_tasks_total,
+    resultTasksPassed: row.result_tasks_passed,
     resultCriteriaTotal: row.result_criteria_total,
     resultCriteriaPassed: row.result_criteria_passed,
     resultCriteriaFailed: row.result_criteria_failed,

@@ -44,6 +44,7 @@ export const pages = new Elysia({ name: 'pages' })
         body = (
           <Benchmarks
             benchmarkRun={benchmarkRun}
+            runs={await runs.list()}
             jobs={benchmarkRunJobs}
             catalogs={catalogs}
             catalog={await benchmarks.withTasks(benchmarks.select(catalogs, preferred?.benchmarkId)?.benchmarkId)}

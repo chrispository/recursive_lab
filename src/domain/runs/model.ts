@@ -82,6 +82,9 @@ export type BenchmarkRunSummary = {
   outputPath: string | null;
   /** `benchmark_results.result` — null until the run has produced one. */
   result: 'passed' | 'failed' | 'error' | 'skipped' | null;
+  /** Tasks that passed every criterion — the all-pass headline, per run. */
+  resultTasksTotal: number | null;
+  resultTasksPassed: number | null;
   resultCriteriaTotal: number | null;
   resultCriteriaPassed: number | null;
   resultCriteriaFailed: number | null;
