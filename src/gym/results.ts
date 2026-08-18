@@ -124,7 +124,7 @@ const messageOf = (value: unknown): string => {
 /**
  * Why this rollout produced no verdict, or '' if it ran to completion.
  *
- * Two fields carry a hard failure and only one of them is the OpenAI-shaped
+ * Three fields carry a hard failure and two of them are not the OpenAI-shaped
  * one, which is the whole trap here:
  *
  *   * `response.error` — the model call itself failed.
@@ -132,6 +132,9 @@ const messageOf = (value: unknown): string => {
  *     dataset that resolved to zero runnable tasks, a container that would not
  *     start, a verifier that never ran. Gym still reports a well-formed
  *     response (`status: "completed"`, zero tokens) with `reward: 0.0`.
+ *   * `metadata.exception_info` — a trial-level failure with the full
+ *     traceback, e.g. a bash command killed by the shell timeout. This one is
+ *     the easiest to miss because it carries no `reward` semantics at all.
  *
  * Reading only the first is why a harness failure arrived here indistinguishable
  * from a model that scored zero, and was recorded as a graded `failed` — a
@@ -139,7 +142,16 @@ const messageOf = (value: unknown): string => {
  * never shown. An eval that reports that is worse than one that reports nothing.
  */
 function rolloutError(row: Json): string {
-  return messageOf(asObject(row.response).error) || messageOf(asObject(row.metadata).harbor_error);
+  const metadata = asObject(row.metadata);
+  const exception = asObject(metadata.exception_info);
+  const exceptionType = asString(exception.exception_type);
+  const exceptionMessage = asString(exception.exception_message);
+  const exceptionInfo = exceptionType || exceptionMessage ? `${exceptionType}: ${exceptionMessage}`.trim() : '';
+  return (
+    messageOf(asObject(row.response).error) ||
+    messageOf(metadata.harbor_error) ||
+    exceptionInfo
+  );
 }
 
 /**

@@ -153,7 +153,7 @@ export function settingsOf(raw: Partial<RunSettings> = {}): RunSettings {
     outputTokenStrategy: strategy,
     maxOutputTokens: numberOf(raw.maxOutputTokens, 24576, 256, 131072),
     maxTurns: numberOf(raw.maxTurns, 60, 1, 200),
-    shellTimeout: numberOf(raw.shellTimeout, 60, 5, 600),
+    shellTimeout: numberOf(raw.shellTimeout, 300, 5, 600),
     agentModelTimeout: numberOf(raw.agentModelTimeout, 1800, 30, 7200),
     judgeParallelism: numberOf(raw.judgeParallelism, 6, 1, 32),
     judgeTimeout: numberOf(raw.judgeTimeout, 90, 10, 600),
