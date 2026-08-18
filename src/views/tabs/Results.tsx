@@ -1,9 +1,6 @@
 import type { BenchmarkCriterionResult, BenchmarkTaskCriteria, BenchmarkRunSummary } from '../../domain/runs/model.ts';
-import type { JobRow } from '../../domain/jobs/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Cap } from '../ui/Cap.tsx';
-import { Field } from '../ui/Field.tsx';
-import { Panel } from '../ui/Panel.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
@@ -75,9 +72,8 @@ function CriterionDialog({ taskId, criterion }: { taskId: string; criterion: Ben
   );
 }
 
-export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
+export function Results({ benchmarkRun, tasks, availableRuns }: {
   benchmarkRun: BenchmarkRunSummary | null;
-  jobs: JobRow[];
   /** Criterion verdicts grouped by task — `C-001` repeats across tasks. */
   tasks: BenchmarkTaskCriteria[];
   availableRuns: BenchmarkRunSummary[];
@@ -209,37 +205,6 @@ export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
         )}
       </TableBox>
 
-      <TableBox>
-        <Cap title="Execution ledger" code={`${jobs.length} jobs`} />
-        {jobs.length ? (
-          <Table>
-            <thead><tr><th>Job</th><th>Stage</th><th>Subject</th><th>Step</th><th>Status</th></tr></thead>
-            <tbody>{jobs.map((job) => (
-              <tr data-state={job.status}>
-                <td><span class="m-id">{job.jobCode}</span></td>
-                <td>{job.kind.replaceAll('_', ' ')}</td>
-                <td><span class="m-id">{job.subjectCode}</span></td>
-                {/* A failed job's error is the whole point of the row. Showing
-                    the step instead left the ledger reporting the phase it died
-                    in and nothing about what killed it. */}
-                <td>{job.error || job.step}</td>
-                <td><Badge state={job.status}>{job.status}</Badge></td>
-              </tr>
-            ))}</tbody>
-          </Table>
-        ) : <div class="m-empty">No execution jobs for this run.</div>}
-      </TableBox>
-
-      <div class="m-split">
-        <Panel title="Interpretation" code="criteria">
-          <p class="m-note">The result is a criterion pass rate, not a document-quality score. The {failed} failed criteria are the source of the current failure map.</p>
-        </Panel>
-        <Panel title="Run settings" code="saved with BR">
-          <Field label="Repeats"><div class="m-input">{String(benchmarkRun?.settings.repeats ?? '—')}</div></Field>
-          {/* `settings_json` is written from RunSettings, so the keys are camelCase. */}
-          <Field label="Judge parallelism"><div class="m-input">{String(benchmarkRun?.settings.judgeParallelism ?? '—')}</div></Field>
-        </Panel>
-      </div>
     </>
   );
 }

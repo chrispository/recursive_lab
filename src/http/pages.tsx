@@ -61,12 +61,10 @@ export const pages = new Elysia({ name: 'pages' })
             ? availableRuns.find((run) => run.benchmarkRunId === requestedRunId) ?? null
             : null;
           const resultRun = selectedRun ?? benchmarkRun ?? availableRuns[0] ?? null;
-          const resultJobs = resultRun ? await jobs.listByBenchmarkRun(resultRun.benchmarkRunId) : [];
           const resultTasks = resultRun ? await runs.criteriaByTask(resultRun.benchmarkRunId) : [];
           body = (
             <Results
               benchmarkRun={resultRun}
-              jobs={resultJobs}
               tasks={resultTasks}
               availableRuns={availableRuns}
             />

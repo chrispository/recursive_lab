@@ -1,7 +1,6 @@
 import type { BenchmarkRunSummary } from '../../../domain/runs/model.ts';
 import { isLive, type JobRow } from '../../../domain/jobs/model.ts';
 import type { LiveProgress } from '../../../gym/progress.ts';
-import { Badge } from '../../ui/Badge.tsx';
 import { Cap } from '../../ui/Cap.tsx';
 import { Id } from '../../ui/Id.tsx';
 import { Tally } from '../../ui/Tally.tsx';
@@ -72,24 +71,38 @@ function CompletedRun({ run }: { run: BenchmarkRunSummary }) {
     run.resultTasksTotal && run.resultTasksTotal > 0 && run.resultTasksPassed !== null
       ? run.resultTasksPassed / run.resultTasksTotal
       : null;
-  const criterionRate =
-    run.resultCriteriaTotal && run.resultCriteriaTotal > 0 && run.resultCriteriaPassed !== null
-      ? run.resultCriteriaPassed / run.resultCriteriaTotal
-      : null;
   const state = run.result === 'failed' || run.result === 'error' ? 'error' : run.result === 'passed' ? 'succeeded' : 'pending';
+  const tasksTotal = run.resultTasksTotal ?? run.taskCount;
+  const tasksPassed = run.resultTasksPassed ?? 0;
+  const checksTotal = run.resultCriteriaTotal ?? 0;
+  const checksPassed = run.resultCriteriaPassed ?? 0;
+  const completed = run.result === 'passed' || run.result === 'failed' || run.result === 'error' || run.result === 'skipped';
+  const kicker = run.result === 'passed' ? 'Complete' : run.result === 'failed' ? 'Complete with failures' : run.result === 'error' ? 'Could not complete' : 'Not completed';
+  const headline = run.result === 'error' ? 'The run could not be completed' : `${tasksPassed} of ${tasksTotal} tasks passed`;
+  const detail = checksTotal
+    ? `${checksPassed} of ${checksTotal} checks passed · ${pct(allPass)} tasks all-pass`
+    : 'No checks were recorded.';
+  const mark = run.result === 'passed' ? '✓' : run.result === 'failed' ? '×' : run.result === 'error' ? '!' : '—';
+  const bar = allPass === null ? 0 : Math.max(0, Math.min(1, allPass)) * 100;
   return (
     <article class="m-ledger-row m-ledger-complete" data-state={state}>
+      <div class="m-ledger-orb-wrap">
+        <Id value={run.benchmarkRunCode} />
+        <span class="m-ledger-result-mark" aria-label={kicker}>{mark}</span>
+      </div>
       <div class="m-ledger-identity">
-        <strong>{run.label}</strong>
-        <span class="sub"><Id value={run.benchmarkRunCode} /> · <span class="m-id">{run.model}</span> · {run.taskCount} {run.taskCount === 1 ? 'task' : 'tasks'}</span>
+        <strong>{run.benchmarkName}</strong>
+        <span class="sub"><span class="m-id">{run.model}</span> · {run.taskCount} selected {run.taskCount === 1 ? 'task' : 'tasks'}</span>
       </div>
-      <div class="m-ledger-outcome">
-        <Badge state={state}>{run.result ?? 'not run'}</Badge>
-        <span class="sub">{run.result === 'failed' ? 'One or more tasks did not all-pass.' : run.result === 'error' ? 'The run could not be completed.' : 'Verifier closed the run.'}</span>
-      </div>
-      <div class="m-ledger-scores">
-        <strong>{pct(allPass)} all-pass</strong>
-        <span class="sub">{run.resultTasksPassed ?? 0}/{run.resultTasksTotal ?? 0} tasks · {pct(criterionRate)} ({run.resultCriteriaPassed ?? 0}/{run.resultCriteriaTotal ?? 0} checks)</span>
+      <div class="m-ledger-progress">
+        <span class="m-ledger-kicker">{kicker}</span>
+        <strong>{headline}</strong>
+        <span class="sub">{detail}</span>
+        {completed ? (
+          <span class="m-ledger-track" role="progressbar" aria-label={detail} aria-valuenow={Math.round(bar)} aria-valuemax={100}>
+            <i style={`width:${bar}%`} />
+          </span>
+        ) : null}
       </div>
     </article>
   );
