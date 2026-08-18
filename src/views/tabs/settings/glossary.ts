@@ -251,6 +251,12 @@ function copies(ctx: GlossaryContext): Section {
         yours: `Frozen at ${short(ctx.gymRevision)} — an older moment than your import.`,
       },
       {
+        term: 'Why the gym’s copy is not in this folder',
+        plain:
+          'The gym’s copy is built by the gym itself, inside its own checkout. NeMo Gym is a separate Python project; its resources server prepares harbor tasks from the vendored harvey_labs tree and writes its cache next to its own code. The lab never writes there — src/gym/pins.ts exists precisely because neither copy follows the other, and AGENTS.md pins GYM_ROOT as the only handle on it.',
+        yours: `Your copy is in this folder, under data. The gym’s copy is under ${ctx.gymRoot}, and the lab only ever reads it.`,
+      },
+      {
         term: 'Runnable',
         plain:
           'A question that exists in both copies can be run. A question that exists only in yours cannot: the gym has never heard of it, and the run stops immediately saying it found zero questions to run.',

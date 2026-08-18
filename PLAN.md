@@ -33,10 +33,19 @@
 > results because that run errored; no checkpoints, ever, because nothing here
 > trains. `Panel` gained an optional `id` for in-page anchors only.
 >
-> **Current state (2026-08-15):** The gym checkout now lives **inside this
-> repo** at `gym/` (fresh upstream clone of NVIDIA-NeMo/Gym, `GYM_ROOT` in
-> `.env` points there; the old `~/Documents/recursive` checkout is no longer
-> referenced and can be deleted). The Settings tab gained a **NeMo Gym
+> **Current state (2026-08-17):** Fresh start, first import done. The whole
+> benchmark chain was wiped, then `BMS-00002` / `Harvey Labs` imported from
+> `https://github.com/harveyai/harvey-labs` at `7be41d57fd` (2,010 tasks —
+> id 2 because SQLite AUTOINCREMENT never reuses the deleted id 1). The gym
+> checkout lives inside this repo at `gym/` (`GYM_ROOT` default
+> `resolve(ROOT, 'gym')`); the old `~/Documents/recursive` checkout is
+> **deleted**. `env.yaml` (live keys) was carried over and the venv works.
+> **Gym is down and nothing is prepared.** Upstream `prepare.py` pins
+> `f46ef86e` (1,749 tasks) and *cannot* prepare `7be41d57fd`: it rejects the
+> `firm-knowledge` family for having no per-task `documents/` dir. Attempts
+> to bump the pin were reverted — the gym stays upstream-pristine until the
+> run workflow is needed. `public/schema.html` gained an **API tab** listing
+> all 14 `/api/v1` routes. Earlier state follows. The Settings tab gained a **NeMo Gym
 > environment** panel (start/stop through `gym/lifecycle.ts` — stop is the
 > SIGINT ladder `gym env start` itself uses, since gym has no `env stop`) and
 > a **storage** panel (`gym/storage.ts`: usage per bucket, delete per entry or
@@ -314,7 +323,7 @@ cd ~/Documents/recursive_lab/gym
 ```
 
 Facts already established, so no re-research is needed:
-`/home/chris/Documents/recursive/.venv/bin/gym` exists and works. Run with
+`gym/.venv/bin/gym` exists and works. Run with
 `cwd: GYM_ROOT` and `PYTHONUNBUFFERED=1`. Gym derives `<stem>_materialized_inputs.jsonl`,
 `<stem>_failures.jsonl`, `<stem>_aggregate_metrics.json` from `--output`.
 Rollouts come out unordered — sort by `(_ng_task_index, _ng_rollout_index)`.

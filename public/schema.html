@@ -51,17 +51,42 @@
     .legend i.dashed { border-top-color: var(--text-4); border-top-style: dashed; }
     .zoom { position: fixed; z-index: 4; right: 16px; bottom: 14px; display: flex; gap: 4px; }
     .zoom button { min-width: 32px; padding: 6px 8px; font: 700 13px var(--mono); }
+    .views { display: flex; gap: 0; border: 1px solid var(--edge); border-radius: 2px; overflow: hidden; }
+    .views button { border: 0; border-radius: 0; padding: 7px 12px; color: var(--text-3); background: var(--raised); }
+    .views button + button { border-left: 1px solid var(--edge); }
+    .views button[aria-selected="true"] { color: var(--btn-ink); background: var(--brand); }
+    .api-view { position: fixed; inset: 58px 0 0; overflow-y: auto; padding: 26px 16px 60px; scrollbar-width: thin; scrollbar-color: var(--edge) transparent; }
+    .api-view[hidden] { display: none; }
+    .api-groups { max-width: 860px; margin: 0 auto; display: grid; gap: 26px; }
+    .api-group > h2 { margin: 0 0 4px; color: var(--text-1); font: 700 13px/1.2 var(--mono); }
+    .api-group > p { margin: 0 0 12px; color: var(--text-4); font: 10px/1.5 var(--mono); }
+    .route { border: 1px solid var(--line); background: var(--panel-bg); box-shadow: 5px 6px 0 var(--shadow); margin-bottom: 8px; }
+    .route-line { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+    .method { min-width: 46px; text-align: center; padding: 3px 0; border-radius: 2px; color: var(--btn-ink); font: 700 10px/1 var(--mono); letter-spacing: .04em; }
+    .method.get { background: var(--run); }
+    .method.post { background: var(--brand); }
+    .path { color: var(--text-1); font: 12px/1.3 var(--mono); overflow-wrap: anywhere; }
+    .path i { color: var(--brand-ink); font-style: normal; }
+    .path small { color: var(--text-4); font-size: 10px; }
+    .route-note { padding: 0 12px 9px 68px; color: var(--text-3); font: 11px/1.5 var(--sans); }
+    .route-note b { color: var(--text-2); font-weight: 600; }
+    .route.filtered { display: none; }
+    body[data-view="api"] .legend, body[data-view="api"] .zoom { display: none; }
     @media (max-width: 760px) { .schema-head { gap: 9px; } .head-copy, .hint, .toolbar input { display: none; } .toolbar { margin-left: auto; } .count { display: none; } }
   </style>
 </head>
 <body>
   <header class="schema-head">
     <div class="wordmark">recursive<span>( )</span><b> /</b></div>
-    <div class="head-copy"><strong>Schema map</strong><small>24 tables · derived progress · drag the canvas or any table</small></div>
+    <div class="head-copy"><strong id="view-title">Schema map</strong><small id="view-sub">24 tables · derived progress · drag the canvas or any table</small></div>
     <div class="hint">pan · move · wheel zoom · layout persists locally</div>
     <div class="toolbar">
       <input id="search" type="search" placeholder="filter tables or fields" aria-label="Filter tables or fields">
       <span class="count" id="count"></span>
+      <div class="views" role="tablist" aria-label="Switch view">
+        <button id="view-schema" type="button" role="tab" aria-selected="true">Schema</button>
+        <button id="view-api" type="button" role="tab" aria-selected="false">API</button>
+      </div>
       <button id="fit" type="button">Fit</button>
       <button id="reset" type="button">Reset</button>
       <button id="theme" type="button" aria-label="Toggle light and dark theme">Theme</button>
@@ -72,6 +97,9 @@
   </main>
   <div class="legend"><span><i></i>foreign key</span><span><i class="dashed"></i>logical / polymorphic reference</span><span>◆ primary key</span><span>dashed card = derived, not stored</span><span>← drag empty space to pan</span></div>
   <div class="zoom"><button id="zoom-out" type="button" aria-label="Zoom out">−</button><button id="zoom-in" type="button" aria-label="Zoom in">+</button></div>
+  <main class="api-view" id="api-view" hidden aria-label="API routes">
+    <div class="api-groups" id="api-groups"></div>
+  </main>
   <script>
     const spec = (name, fields, x, y, kind = 'domain') => ({ name, fields, x, y, kind });
     const tables = [
@@ -165,7 +193,7 @@
       persist();
     };
     const highlight = name => { svg.querySelectorAll('.edge').forEach(edge => edge.style.opacity = edge.dataset.from === name || edge.dataset.to === name ? '1' : '.18'); };
-    const applyFilter = () => { const needle = search.toLowerCase(); document.querySelectorAll('.table').forEach(card => { const table = byName.get(card.dataset.table); const hit = !needle || table.name.includes(needle) || table.fields.some(raw => raw.toLowerCase().includes(needle)); card.classList.toggle('filtered', !hit); card.querySelectorAll('.field').forEach(field => field.classList.toggle('hot', Boolean(needle) && field.textContent.toLowerCase().includes(needle))); }); };
+    const applyFilter = () => { const needle = search.toLowerCase(); document.querySelectorAll('.table').forEach(card => { const table = byName.get(card.dataset.table); const hit = !needle || table.name.includes(needle) || table.fields.some(raw => raw.toLowerCase().includes(needle)); card.classList.toggle('filtered', !hit); card.querySelectorAll('.field').forEach(field => field.classList.toggle('hot', Boolean(needle) && field.textContent.toLowerCase().includes(needle))); }); document.querySelectorAll('.route').forEach(route => { route.classList.toggle('filtered', Boolean(needle) && !route.dataset.route.toLowerCase().includes(needle) && !route.textContent.toLowerCase().includes(needle)); }); };
     const updateEdges = () => {
       svg.querySelectorAll('.edge').forEach(node => node.remove());
       const width = strokeWidth();
@@ -202,6 +230,11 @@
     };
     const updateCount = () => {
       const stored = tables.filter(table => table.kind !== 'derived').length;
+      if (document.body.dataset.view === 'api') {
+        const visible = [...document.querySelectorAll('.route:not(.filtered)')].length;
+        document.querySelector('#count').textContent = `${visible}/${totalRoutes} routes`;
+        return;
+      }
       const visible = [...document.querySelectorAll('.table:not(.filtered)')].length;
       document.querySelector('#count').textContent = `${visible}/${tables.length} · ${stored} tables · ${links.length} links`;
     };
@@ -250,6 +283,74 @@
     document.querySelector('#zoom-out').addEventListener('click', () => { zoom = Math.max(.16, zoom / 1.15); updateTransform(); persist(); });
     document.querySelector('#theme').addEventListener('click', () => { const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = next; localStorage.setItem('recursive-theme', next); });
     const savedTheme = localStorage.getItem('recursive-theme'); document.documentElement.dataset.theme = savedTheme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+
+    const apiGroups = [
+      {
+        name: '/api/v1/benchmarks · /api/v1/benchmark-imports',
+        note: 'src/http/api/benchmarks.ts — the catalog and the two-phase URL import. Pages and fragments call the same domain service; these routes are for scripts, tests and future clients.',
+        routes: [
+          { method: 'GET', path: '/api/v1/benchmarks', note: 'Every imported benchmark with its revision, format and runnable flag. <b>No task rows</b> — the list stays small.' },
+          { method: 'GET', path: '/api/v1/benchmarks/:id/tasks', query: 'limit, offset', note: 'One benchmark’s tasks, paginated. Default 50 per page.' },
+          { method: 'POST', path: '/api/v1/benchmark-imports/preview', note: 'Phase one: resolve the URL to an immutable commit, download and inspect. <b>Writes nothing.</b> 400 on a bad URL, host or layout.' },
+          { method: 'POST', path: '/api/v1/benchmark-imports', note: 'Phase two: persist exactly what the preview staged. Takes the preview object back, not a re-resolve. 201 with the tally. Never collapse the two phases.' },
+        ],
+      },
+      {
+        name: '/api/v1/gym',
+        note: 'src/http/api/gym.ts — registry health plus lifecycle and storage controls. The head URL is the only gym address; child servers are resolved through it.',
+        routes: [
+          { method: 'GET', path: '/api/v1/gym/health', note: 'Head server registry: which child servers are up, on which ports.' },
+          { method: 'GET', path: '/api/v1/gym/servers/:processName', note: 'Resolved URL for one server, e.g. policy_model. 404 when it is not running.' },
+          { method: 'GET', path: '/api/v1/gym/lifecycle', note: 'Head health plus whether this app started the running gym.' },
+          { method: 'POST', path: '/api/v1/gym/lifecycle/start', note: 'Detached gym env start by component names (resourcesServer, modelType). 409 if a head server is already listening.' },
+          { method: 'POST', path: '/api/v1/gym/lifecycle/stop', note: 'The SIGINT ladder gym itself uses — child servers first, then the head, SIGKILL after the grace period.' },
+          { method: 'GET', path: '/api/v1/gym/storage', note: 'Bucket usage: gym cache, prepared assets, harbor trials, run artifacts, staging, snapshots — with sizes.' },
+          { method: 'POST', path: '/api/v1/gym/storage/clear', note: 'Clear one bucket (bucket) or a single entry inside it (target). Targets come from an allowlist of directory roles — a caller-supplied path is rejected.' },
+        ],
+      },
+      {
+        name: '/api/v1/settings',
+        note: 'src/http/api/settings.ts — credentials for the four model roles. Values live only in the gym’s env.yaml; this surface returns presence booleans, never values.',
+        routes: [
+          { method: 'GET', path: '/api/v1/settings', note: 'Which credentials are set, as booleans per role.' },
+          { method: 'POST', path: '/api/v1/settings', note: 'Rewrite only the keys sent. env.yaml is written atomically: tmp → chmod 0600 → rename.' },
+          { method: 'POST', path: '/api/v1/settings/test', note: 'Try the sent credentials against their endpoints without saving.' },
+        ],
+      },
+    ];
+    const totalRoutes = apiGroups.reduce((sum, group) => sum + group.routes.length, 0);
+    const apiView = document.querySelector('#api-view');
+    apiView.querySelector('#api-groups').innerHTML = apiGroups.map(group => `
+      <section class="api-group">
+        <h2>${group.name}</h2>
+        <p>${group.note}</p>
+        ${group.routes.map(route => `
+          <div class="route" data-route="${route.method} ${route.path}">
+            <div class="route-line"><span class="method ${route.method.toLowerCase()}">${route.method}</span><span class="path">${route.path}${route.query ? ` <small>?</small><i>${route.query}</i>` : ''}</span></div>
+            <div class="route-note">${route.note}</div>
+          </div>`).join('')}
+      </section>`).join('');
+    const viewApi = document.querySelector('#view-api');
+    const viewSchema = document.querySelector('#view-schema');
+    const setView = next => {
+      document.body.dataset.view = next;
+      apiView.hidden = next !== 'api';
+      document.querySelector('#viewport').style.visibility = next === 'api' ? 'hidden' : 'visible';
+      document.querySelector('.legend').style.display = next === 'api' ? 'none' : '';
+      viewApi.setAttribute('aria-selected', String(next === 'api'));
+      viewSchema.setAttribute('aria-selected', String(next !== 'api'));
+      document.querySelector('#fit').style.display = next === 'api' ? 'none' : '';
+      document.querySelector('#reset').style.display = next === 'api' ? 'none' : '';
+      document.querySelector('#view-title').textContent = next === 'api' ? 'API routes' : 'Schema map';
+      document.querySelector('#view-sub').textContent = next === 'api'
+        ? `${totalRoutes} routes · 3 modules · scripts, tests and future clients`
+        : '24 tables · derived progress · drag the canvas or any table';
+      document.querySelector('#search').placeholder = next === 'api' ? 'filter routes' : 'filter tables or fields';
+      applyFilter(); updateCount();
+    };
+    viewApi.addEventListener('click', () => setView('api'));
+    viewSchema.addEventListener('click', () => setView('schema'));
+
     render();
     if (!restored) requestAnimationFrame(fit);
   </script>

@@ -36,7 +36,7 @@ export const config = {
      * ports, adapter names, and `--model-type` are discovered from the head
      * (`/server_instances`), not configured here.
      */
-    root: env('GYM_ROOT', '/home/chris/Documents/recursive'),
+    root: env('GYM_ROOT', resolve(ROOT, 'gym')),
     headUrl: env('GYM_HEAD_URL', 'http://127.0.0.1:11000'),
     /** Head server calls are local and cheap; nothing should hang a page load. */
     timeoutMs: Number(env('GYM_TIMEOUT_MS', '5000')),
