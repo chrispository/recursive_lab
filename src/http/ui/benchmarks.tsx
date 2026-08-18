@@ -76,9 +76,9 @@ function runRequestOf(body: unknown): runs.RunRequest {
 /** The ledger reports every run — newest first — and follows the live one. */
 async function ledger() {
   const benchmarkRun = await runs.current();
-  if (benchmarkRun) await runs.syncProgress(benchmarkRun);
+  const live = benchmarkRun ? await runs.syncProgress(benchmarkRun) : null;
   const rows = benchmarkRun ? await jobs.listByBenchmarkRun(benchmarkRun.benchmarkRunId) : [];
-  return <RunLedger benchmarkRun={benchmarkRun} runs={await runs.list()} jobs={rows} />;
+  return <RunLedger benchmarkRun={benchmarkRun} runs={await runs.list()} jobs={rows} live={live} />;
 }
 
 export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })

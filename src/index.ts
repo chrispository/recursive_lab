@@ -15,13 +15,20 @@ import { pages } from './http/pages.tsx';
 import { benchmarksUi } from './http/ui/benchmarks.tsx';
 import { jobsUi } from './http/ui/jobs.tsx';
 import { settingsUi } from './http/ui/settings.tsx';
-import { schemaDocument } from './http/schema.ts';
-import { autostartGym, autostopGym } from './boot.ts';
+import { ledgerOptionsDocument, schemaDocument } from './http/schema.ts';
+import { acquireServerLock, autostartGym, autostopGym } from './boot.ts';
+
+const releaseServerLock = await acquireServerLock();
+process.once('exit', releaseServerLock);
 
 const staticFiles = await staticPlugin({
   assets: `${ROOT}/public`,
   prefix: '/',
   alwaysStatic: process.env.NODE_ENV === 'production',
+  // Development must show exactly what is on disk after a refresh. Production
+  // cache policy belongs to a release pass, not to active UI iteration.
+  etag: false,
+  headers: { 'Cache-Control': 'no-store' },
 });
 
 const app = new Elysia()
@@ -35,19 +42,29 @@ const app = new Elysia()
   .use(settingsUi)
   .use(pages)
   .get('/schema.html', schemaDocument)
-  .listen({ hostname: config.host, port: config.port });
+  .get('/ledger-options.html', ledgerOptionsDocument);
+
+try {
+  app.listen({ hostname: config.host, port: config.port });
+} catch (error) {
+  releaseServerLock();
+  throw error;
+}
 
 console.log(`recursive( ) lab → http://${config.host}:${config.port}`);
 autostartGym();
 
-for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
   process.on(signal, () => {
-    // First hit: run the gym stop ladder, then exit. Remove this handler so a
-    // second Ctrl+C during a slow ladder falls through to the default — the
-    // frontend must always die when its terminal says so.
-    for (const each of ['SIGINT', 'SIGTERM'] as const) process.removeAllListeners(each);
-    autostopGym();
-    process.exit(0);
+    // First hit: wait briefly for Gym's stop ladder. Remove this handler so a
+    // second Ctrl+C during that window falls through to the default immediately.
+    for (const each of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.removeAllListeners(each);
+    const deadline = setTimeout(() => process.exit(0), 8_500);
+    void autostopGym().finally(() => {
+      clearTimeout(deadline);
+      releaseServerLock();
+      process.exit(0);
+    });
   });
 }
 

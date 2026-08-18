@@ -73,6 +73,16 @@ export type CriterionScore = {
   errorType: string | null;
 };
 
+/** Token counts extracted from the Harbor transcript and verifier scores. */
+export type TokenUsage = {
+  agentInputTokens: number;
+  agentOutputTokens: number;
+  agentTurns: number;
+  judgeInputTokens: number;
+  judgeOutputTokens: number;
+  judgeWallClockSeconds: number;
+};
+
 export type Rollout = {
   taskId: string;
   trialName: string;
@@ -81,6 +91,7 @@ export type Rollout = {
   error: string;
   trialDir: string | null;
   criteria: CriterionScore[];
+  tokens: TokenUsage;
 };
 
 type Json = Record<string, unknown>;
@@ -190,19 +201,71 @@ function criterionOf(raw: Json, fallbackJudge: string): CriterionScore {
   };
 }
 
-async function scoresOf(trialDir: string | null): Promise<CriterionScore[]> {
-  if (!trialDir) return [];
+type ScoresResult = {
+  criteria: CriterionScore[];
+  judgeInputTokens: number;
+  judgeOutputTokens: number;
+  judgeWallClockSeconds: number;
+};
+
+async function scoresOf(trialDir: string | null): Promise<ScoresResult> {
+  const empty: ScoresResult = { criteria: [], judgeInputTokens: 0, judgeOutputTokens: 0, judgeWallClockSeconds: 0 };
+  if (!trialDir) return empty;
   const file = Bun.file(`${trialDir}/verifier/scores.json`);
-  if (!(await file.exists())) return [];
+  if (!(await file.exists())) return empty;
   try {
     const body = (await file.json()) as Json;
     const fallbackJudge = asString(body.judge_model) || asString(body.model);
     const list = Array.isArray(body.criteria_results) ? body.criteria_results : [];
-    return list
+    const criteria = list
       .filter((item): item is Json => !!item && typeof item === 'object')
       .map((item) => criterionOf(item, fallbackJudge));
+    const cost = asObject(body.cost);
+    return {
+      criteria,
+      judgeInputTokens: asNumber(cost.input_tokens) ?? 0,
+      judgeOutputTokens: asNumber(cost.output_tokens) ?? 0,
+      judgeWallClockSeconds: asNumber(cost.wall_clock_seconds) ?? 0,
+    };
   } catch {
-    return [];
+    return empty;
+  }
+}
+
+/**
+ * Sum agent token usage from the Harbor transcript.
+ *
+ * Each assistant entry in transcript.jsonl carries `input_tokens` and
+ * `output_tokens` for that turn. We sum them all and count the turns.
+ */
+async function agentTokensOf(
+  trialDir: string | null,
+): Promise<{ inputTokens: number; outputTokens: number; turns: number }> {
+  const zero = { inputTokens: 0, outputTokens: 0, turns: 0 };
+  if (!trialDir) return zero;
+  const file = Bun.file(`${trialDir}/agent/artifacts/lab-run/transcript.jsonl`);
+  if (!(await file.exists())) return zero;
+  try {
+    const text = await file.text();
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let turns = 0;
+    for (const line of text.split('\n')) {
+      if (!line.trim()) continue;
+      let entry: Json;
+      try {
+        entry = JSON.parse(line) as Json;
+      } catch {
+        continue;
+      }
+      if (entry.role !== 'assistant') continue;
+      inputTokens += (asNumber(entry.input_tokens) ?? 0);
+      outputTokens += (asNumber(entry.output_tokens) ?? 0);
+      turns += 1;
+    }
+    return { inputTokens, outputTokens, turns };
+  } catch {
+    return zero;
   }
 }
 

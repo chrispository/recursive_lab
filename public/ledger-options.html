@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Benchmark ledger directions</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; background-color: var(--black); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 32px 32px; color: var(--text-1); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      .page { width: min(1180px, calc(100% - 48px)); margin: 48px auto 80px; }
+      .eyebrow, .meta, .option-label, .run-code, .kicker { font: 500 10px/1.3 "IBM Plex Mono", "DM Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+      .eyebrow { color: var(--brand-ink); }
+      h1 { max-width: 800px; margin: 10px 0 12px; font-size: clamp(29px, 5vw, 48px); line-height: 1.04; letter-spacing: -.055em; }
+      .intro { max-width: 660px; margin: 0; color: var(--text-2); line-height: 1.55; }
+      .principles { display: flex; flex-wrap: wrap; gap: 8px; margin: 25px 0 34px; }
+      .principles span { padding: 6px 9px; border: 1px solid var(--line); background: var(--panel-bg); color: var(--text-3); font: 500 10px/1.2 "IBM Plex Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
+      .option { margin: 24px 0; border: 1px solid var(--line); background: var(--panel-bg); box-shadow: 0 12px 32px var(--inset); }
+      .option-head { display: grid; grid-template-columns: 122px 1fr; gap: 18px; padding: 16px 18px; border-bottom: 1px solid var(--line); background: var(--deep); }
+      .option-label { color: var(--brand-ink); }
+      .option h2 { margin: 0; font-size: 16px; letter-spacing: -.02em; }
+      .option-head p { grid-column: 2; margin: -9px 0 0; color: var(--text-3); font-size: 13px; line-height: 1.4; }
+      .live-row { position: relative; display: grid; grid-template-columns: 120px minmax(190px, 1fr) minmax(240px, 1.45fr) auto; align-items: center; gap: 20px; padding: 20px 22px; border-bottom: 1px solid var(--line-soft); }
+      .live-row:last-child { border-bottom: 0; }
+      .live-row.running { border-left: 3px solid var(--run); padding-left: 19px; background: linear-gradient(90deg, color-mix(in srgb, var(--run) 7%, transparent), transparent 62%); }
+      .run-code { display: block; margin-top: 6px; color: var(--text-3); font-size: 9px; }
+      .run-name { font-weight: 650; letter-spacing: -.015em; }
+      .model { color: var(--text-2); font: 500 12px/1.4 "IBM Plex Mono", monospace; }
+      .meta { color: var(--text-3); font-size: 9px; }
+      .pill { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 5px 8px; border: 1px solid var(--edge); color: var(--text-2); font: 500 9px/1 "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+      .pill::before { width: 5px; height: 5px; background: currentColor; content: ""; }
+      .pill.running { border-color: var(--run); color: var(--run); }
+      .pill.failed { border-color: var(--fail); color: var(--fail); }
+      .orb { --orb-ink: var(--run); display: block; width: 96px; height: 96px; }
+      .orb.small { width: 54px; height: 54px; }
+      .progress-copy strong { display: block; margin-bottom: 6px; font-size: 15px; letter-spacing: -.02em; }
+      .progress-copy p { max-width: 360px; margin: 0; color: var(--text-2); font-size: 13px; line-height: 1.4; }
+      .progress-copy .meta { display: block; margin-top: 9px; }
+      .result { text-align: right; }
+      .result b { display: block; font: 500 13px/1.3 "IBM Plex Mono", monospace; }
+      .result .meta { display: block; margin-top: 5px; }
+      .compact-running { grid-template-columns: 74px minmax(180px, 1fr) minmax(180px, 1fr) auto; }
+      .compact-running .orb { width: 64px; height: 64px; }
+      .timeline { display: flex; align-items: center; gap: 0; margin-top: 11px; }
+      .timeline span { display: flex; align-items: center; color: var(--text-4); font: 500 9px/1 "IBM Plex Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }
+      .timeline span:not(:last-child)::after { width: 18px; height: 1px; margin: 0 5px; background: var(--line); content: ""; }
+      .timeline .done { color: var(--pass); }.timeline .now { color: var(--run); }.timeline .now::before { width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--run); box-shadow: 0 0 0 4px color-mix(in srgb, var(--run) 15%, transparent); content: ""; }
+      .card-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); }
+      .run-card { min-height: 166px; padding: 20px; background: var(--panel); }
+      .run-card.running { grid-column: span 2; display: grid; grid-template-columns: 128px 1fr auto; align-items: center; gap: 20px; background: linear-gradient(112deg, color-mix(in srgb, var(--run) 9%, var(--panel)), var(--panel) 58%); }
+      .run-card h3 { margin: 6px 0 3px; font-size: 18px; letter-spacing: -.025em; }.run-card p { margin: 0; color: var(--text-3); font-size: 13px; }.run-card .orb { width: 116px; height: 116px; }
+      .summary { align-self: stretch; display: flex; flex-direction: column; justify-content: space-between; min-width: 180px; padding-left: 20px; border-left: 1px solid var(--line); text-align: right; }
+      .summary strong { font-size: 20px; letter-spacing: -.04em; }.summary .pill { align-self: end; }
+      .finished { display: flex; align-items: start; justify-content: space-between; gap: 14px; }.finished strong { display: block; margin-top: 8px; }.failed-text { color: var(--fail); }
+      .caption { padding: 13px 18px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 12px; line-height: 1.45; }
+      @media (max-width: 700px) { .page { width: min(100% - 28px, 1180px); margin-top: 28px; }.option-head { grid-template-columns: 1fr; }.option-head p { grid-column: 1; margin-top: -8px; }.live-row, .compact-running { grid-template-columns: 64px 1fr; gap: 14px; }.live-row .result, .live-row > .pill { grid-column: 2; text-align: left; }.live-row .orb { width: 64px; height: 64px; }.timeline { flex-wrap: wrap; }.card-list { grid-template-columns: 1fr; }.run-card.running { grid-column: span 1; grid-template-columns: 78px 1fr; }.run-card.running .orb { width: 72px; height: 72px; }.summary { grid-column: span 2; min-height: 62px; padding: 12px 0 0; border-top: 1px solid var(--line); border-left: 0; }.summary .pill { align-self: start; } }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <span class="eyebrow">Benchmarks / ledger study</span>
+      <h1>Make a live run feel alive.</h1>
+      <p class="intro">Three directions for replacing the crowded ledger. Each treats the live run as the primary object, gives the composing orb room to breathe, and moves uncertain metrics out of the way until Harbor has actually scored them.</p>
+      <div class="principles"><span>No benchmark column</span><span>Expected checks before scoring</span><span>State lives with progress</span><span>Live run first</span></div>
+
+      <section class="option">
+        <header class="option-head"><span class="option-label">Option 01</span><div><h2>Run feed</h2></div><p>The closest descendant of the current table. History stays dense, but the live row becomes a focused status update instead of eight competing cells.</p></header>
+        <div class="live-row running">
+          <canvas class="orb" data-orb width="64" height="64" aria-label="Run is composing"></canvas>
+          <div class="progress-copy"><strong>Harvey Labs <span class="run-code">BR-00008 · glm-5.2 · 1 task</span></strong><p>Reading and mapping the task workspace</p><span class="meta">Turn 3 of 60 · 1 expected check · Harbor agent active</span></div>
+          <div class="result"><span class="pill running">Running</span></div>
+        </div>
+        <div class="live-row">
+          <div><span class="run-name">Harvey Labs</span><span class="run-code">BR-00007</span></div><div class="model">glm-5.2 · 1 task</div><div class="progress-copy"><strong class="failed-text">Failed</strong><p>One task closed without its required deliverable.</p></div><div class="result"><b>0 / 1 all-pass</b><span class="meta">0 / 1 criteria</span></div>
+        </div>
+        <p class="caption">Best if you want an operational ledger: straightforward scanning, one row per run, and the big orb only where action is happening.</p>
+      </section>
+
+      <section class="option">
+        <header class="option-head"><span class="option-label">Option 02</span><div><h2>Run state machine</h2></div><p>Progress becomes the row’s organizing principle. A compact orb sits beside an explicit phase trail, which makes “where is it?” more legible than a generic running badge.</p></header>
+        <div class="live-row compact-running running">
+          <canvas class="orb" data-orb width="64" height="64" aria-label="Run is composing"></canvas>
+          <div><span class="run-name">Harvey Labs</span><span class="run-code">BR-00008 · glm-5.2 · 1 task · 1 expected check</span></div>
+          <div class="progress-copy"><strong>Agent is working</strong><div class="timeline"><span class="done">Start</span><span class="done">Prepare</span><span class="now">Work</span><span>Score</span><span>Save</span></div><span class="meta">Turn 3 of 60</span></div>
+          <span class="pill running">Running</span>
+        </div>
+        <div class="live-row">
+          <div><span class="run-name">Harvey Labs</span><span class="run-code">BR-00007</span></div><div class="model">glm-5.2 · 1 task</div><div class="progress-copy"><strong class="failed-text">Stopped at scoring</strong><div class="timeline"><span class="done">Start</span><span class="done">Prepare</span><span class="done">Work</span><span class="now">Score</span><span>Save</span></div></div><div class="result"><b>0 / 1 all-pass</b><span class="meta">0 / 1 criteria</span></div>
+        </div>
+        <p class="caption">Best if the run phase is the question people ask most. This also supports richer multi-task progress later without falsely showing criterion counts before results exist.</p>
+      </section>
+
+      <section class="option">
+        <header class="option-head"><span class="option-label">Option 03</span><div><h2>Active run + archive cards</h2></div><p>The active run gets a dedicated, calm surface. Finished runs become a compact archive beneath it, where outcome numbers make sense and can be compared.</p></header>
+        <div class="card-list">
+          <article class="run-card running"><canvas class="orb" data-orb width="64" height="64" aria-label="Run is composing"></canvas><div><span class="kicker">Live benchmark run · BR-00008</span><h3>Harvey Labs</h3><p><span class="model">glm-5.2</span> · one task · one expected check</p><div class="timeline"><span class="done">Start</span><span class="done">Prepare</span><span class="now">Work</span><span>Score</span><span>Save</span></div><p style="margin-top:12px">Mapping the task workspace · turn 3 of 60</p></div><div class="summary"><span class="pill running">Running</span><span class="meta">Pass/fail scores will appear after the verifier finishes.</span></div></article>
+          <article class="run-card"><div class="finished"><div><span class="kicker">BR-00007 · glm-5.2</span><strong>Harvey Labs</strong><p>1 task · closed</p></div><span class="pill failed">Failed</span></div><div class="summary" style="margin-top:24px"><strong class="failed-text">0 / 1</strong><span class="meta">all-pass · 0 / 1 criteria</span></div></article>
+          <article class="run-card"><div class="finished"><div><span class="kicker">Older run</span><strong>Future completed run</strong><p>Model and task count</p></div><span class="pill">Passed</span></div><div class="summary" style="margin-top:24px"><strong>1 / 1</strong><span class="meta">all-pass · criterion score</span></div></article>
+        </div>
+        <p class="caption">Best if one run at a time is the normal workflow. It gives the orb maximum presence and makes the live state feel distinct from historical reporting.</p>
+      </section>
+    </main>
+    <script>
+      /* MIT-derived composing (ribbon) renderer from Jakub Antalik's
+         thinking-orbs: https://github.com/Jakubantalik/thinking-orbs */
+      document.querySelectorAll('[data-orb]').forEach((canvas) => {
+        const size = 64, scale = Math.min(2, devicePixelRatio || 1), ctx = canvas.getContext('2d');
+        canvas.width = size * scale; canvas.height = size * scale;
+        const fibDir = (i, n) => { const a = i * Math.PI * (3 - Math.sqrt(5)), y = 1 - 2 * (i + .5) / n, r = Math.sqrt(1 - y * y); return [r * Math.cos(a), y, r * Math.sin(a)]; };
+        const project = (x, y, z, tilt) => [size / 2 + x, size / 2 - (y * Math.cos(tilt) - z * Math.sin(tilt)), y * Math.sin(tilt) + z * Math.cos(tilt)];
+        function frame(time) {
+          const t = time * 2.34, R = size * .39, tilt = .3, dots = [], rs = (size / 300) ** .6, lanes = 12, segs = 44;
+          for (let i = 0; i < 38; i++) { const d = fibDir(i, 38), p = project(d[0] * R, d[1] * R, d[2] * R, tilt), depth = (p[2] / R + 1) / 2; dots.push([p[0], p[1], p[2], .8 * rs, .78, .1 + .22 * depth]); }
+          const ta = .55, ux = 1, uy = 0, uz = 0, vx = 0, vy = Math.cos(ta), vz = Math.sin(ta), nx = 0, ny = -Math.sin(ta), nz = Math.cos(ta);
+          for (let lane = 0; lane < lanes; lane++) { const off0 = (lane - (lanes - 1) / 2) * .075, edge = Math.abs(lane - (lanes - 1) / 2) / ((lanes - 1) / 2); for (let k = 0; k < segs; k++) { const a = k / segs * Math.PI * 2, wob = .16 * Math.sin(a * 3 - t * 1.7 + lane * .22) + .07 * Math.sin(a * 5 + t * 1.1), off = off0 + wob, x = ux * Math.cos(a) + vx * Math.sin(a) + nx * off, y = uy * Math.cos(a) + vy * Math.sin(a) + ny * off, z = uz * Math.cos(a) + vz * Math.sin(a) + nz * off, l = Math.hypot(x, y, z), p = project(x / l * R, y / l * R, z / l * R, tilt), depth = (p[2] / R + 1) / 2; dots.push([p[0], p[1], p[2], (.935 + 1.445 * depth) * (1 - .25 * edge) * rs, .52 - .44 * depth + .18 * edge, .4 + .6 * depth]); } }
+          return dots.sort((a, b) => a[2] - b[2]);
+        }
+        function draw(now, animate = true) { const dark = getComputedStyle(document.documentElement).colorScheme === 'dark'; ctx.setTransform(scale, 0, 0, scale, 0, 0); ctx.clearRect(0, 0, size, size); for (const d of frame(now / 1000)) { const ink = Math.round((dark ? 1 - d[4] : d[4]) * 255); ctx.fillStyle = `rgba(${ink},${ink},${ink},${d[5]})`; ctx.beginPath(); ctx.arc(d[0], d[1], Math.max(.3, d[3]), 0, Math.PI * 2); ctx.fill(); } if (animate) requestAnimationFrame(draw); }
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) draw(600, false); else requestAnimationFrame(draw);
+      });
+    </script>
+  </body>
+</html>

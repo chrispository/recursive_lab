@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Benchmark progress mockup</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --page: #f4f7f7;
+        --panel: #fbfcfc;
+        --ink: #354147;
+        --muted: #718087;
+        --line: #d2dcde;
+        --soft: #e9f1f2;
+        --accent: #3f8da0;
+        --accent-soft: #d9edf1;
+        --green: #4b9275;
+        --gold: #b8883e;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 40px 20px;
+        background: var(--page);
+        color: var(--ink);
+        font: 14px/1.35 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .frame {
+        width: min(100%, 1000px);
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: 0 18px 60px rgb(30 54 58 / 8%);
+      }
+      .ledger-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        min-height: 39px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .eyebrow, .metrics, .state-label, .task-state, .note {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .095em;
+        text-transform: uppercase;
+      }
+      .eyebrow { color: #243137; }
+      .metrics { display: flex; color: var(--muted); }
+      .metrics span { padding: 0 13px; border-left: 1px solid var(--line); }
+      .metrics b { margin-right: 5px; color: var(--ink); }
+      .run-card {
+        position: relative;
+        display: grid;
+        grid-template-columns: 78px 210px minmax(0, 1fr);
+        gap: 20px;
+        min-height: 200px;
+        padding: 33px 36px 28px;
+        overflow: hidden;
+      }
+      .run-card::before {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 3px;
+        content: "";
+        background: var(--accent);
+      }
+      .run-code {
+        position: absolute;
+        top: 17px;
+        left: 36px;
+        color: var(--accent);
+        font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: .07em;
+      }
+      .orb-stack {
+        display: grid;
+        justify-items: center;
+        align-self: center;
+      }
+      .thinking-orb {
+        width: 74px;
+        height: 74px;
+      }
+      .identity { align-self: center; }
+      .identity h1 { margin: 0; font-size: 20px; letter-spacing: -.03em; }
+      .identity p { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+      .identity .model { color: #526268; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .progress-area { display: grid; align-content: center; min-width: 0; }
+      .state-label { margin-bottom: 7px; color: var(--accent); }
+      .state-window { position: relative; min-height: 112px; overflow: hidden; }
+      .state {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        opacity: 0;
+        transform: translateY(18px);
+        transition: opacity .48s ease, transform .48s cubic-bezier(.2,.7,.2,1);
+        pointer-events: none;
+      }
+      .state.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+      .state.leaving { opacity: 0; transform: translateY(-18px); }
+      .headline { font-size: 18px; font-weight: 650; letter-spacing: -.022em; }
+      .subline { color: var(--muted); font-size: 13px; }
+      .track { height: 4px; margin-top: 13px; overflow: hidden; background: var(--soft); }
+      .fill { width: 20%; height: 100%; background: var(--accent); }
+      .task-lines { display: grid; gap: 4px; margin-top: 2px; }
+      .task-line { display: flex; align-items: baseline; gap: 8px; color: var(--muted); font-size: 12px; }
+      .task-line strong { color: var(--ink); font-weight: 650; }
+      .more-tasks { margin: 2px 0 0 14px; color: var(--muted); font-size: 12px; font-style: italic; }
+      .dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); }
+      .dot.gold { background: var(--gold); }
+      @media (max-width: 680px) {
+        body { padding: 16px; }
+        .metrics span:nth-child(2) { display: none; }
+        .run-card { grid-template-columns: 64px minmax(0, 1fr); gap: 14px; padding: 26px 22px 38px; }
+        .orb-stack { grid-row: span 2; }
+        .thinking-orb { width: 58px; height: 58px; }
+        .progress-area { grid-column: 2; }
+        .run-code { top: 13px; left: 22px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="frame">
+      <header class="ledger-head">
+        <span class="eyebrow">Benchmark run ledger</span>
+        <div class="metrics"><span><b>2</b> runs</span><span><b>10</b> tasks · current</span><span><b>8</b> checks · expected</span></div>
+      </header>
+      <article class="run-card" aria-live="polite">
+        <div class="run-code">BR-00010</div>
+        <div class="orb-stack">
+          <canvas class="thinking-orb" id="thinking-orb" width="74" height="74" role="img" aria-label="Thinking while the benchmark runs"></canvas>
+        </div>
+        <section class="identity">
+          <h1>Legal Agent Bench</h1>
+          <p><span class="model">glm-5.2</span> · 10 selected tasks</p>
+        </section>
+        <section class="progress-area">
+          <div class="state-label" id="state-label">Overall progress</div>
+          <div class="state-window">
+            <div class="state active" data-state="overall">
+              <div class="headline">2 of 10 tasks completed · 5 in progress · 3 waiting</div>
+              <div class="subline">The run advances when each task has been fully checked.</div>
+              <div class="track" aria-label="2 of 10 tasks complete"><div class="fill"></div></div>
+            </div>
+            <div class="state" data-state="tasks">
+              <div class="headline">Running tasks</div>
+              <div class="task-lines">
+                <div class="task-line"><i class="dot"></i><strong>contract-summary</strong> — agent working · turn 5 / 60 limit</div>
+                <div class="task-line"><i class="dot gold"></i><strong>disclosure-review</strong> — checking 4 / 8 checks</div>
+                <div class="more-tasks">and 3 more</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </article>
+    </main>
+    <script>
+      const states = [...document.querySelectorAll('.state')];
+      const label = document.querySelector('#state-label');
+      let current = 0;
+      function show(next) {
+        if (next === current) return;
+        const old = states[current];
+        old.classList.remove('active'); old.classList.add('leaving');
+        states[next].classList.add('active');
+        setTimeout(() => old.classList.remove('leaving'), 500);
+        current = next;
+        const tasks = states[current].dataset.state === 'tasks';
+        label.textContent = tasks ? 'Active tasks' : 'Overall progress';
+      }
+      setInterval(() => show(current ? 0 : 1), 5000);
+
+      // The light-mode ribbon orb used by the live ledger, kept inline so this
+      // file remains completely standalone when opened from disk.
+      const canvas = document.querySelector('#thinking-orb');
+      const ctx = canvas.getContext('2d');
+      const size = 74;
+      const ratio = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(size * ratio);
+      canvas.height = Math.round(size * ratio);
+      function direction(index, total) {
+        const angle = index * Math.PI * (3 - Math.sqrt(5));
+        const y = 1 - 2 * (index + .5) / total;
+        const radius = Math.sqrt(1 - y * y);
+        return [radius * Math.cos(angle), y, radius * Math.sin(angle)];
+      }
+      function project(x, y, z, tilt) {
+        return [size / 2 + x, size / 2 - (y * Math.cos(tilt) - z * Math.sin(tilt)), y * Math.sin(tilt) + z * Math.cos(tilt)];
+      }
+      function dotsAt(seconds) {
+        const dots = [], radius = size * .39, tilt = .3, t = seconds * 2.34;
+        // Reference small-orb scale; the largest near ribbon dot is ~1.03px.
+        const radiusScale = Math.pow(size / 300, .6);
+        for (let ghost = 0; ghost < 38; ghost++) {
+          const d = direction(ghost, 38), point = project(d[0] * radius, d[1] * radius, d[2] * radius, tilt);
+          dots.push([point[0], point[1], point[2], .8 * radiusScale, .78, .1 + .22 * ((point[2] / radius + 1) / 2)]);
+        }
+        const vy = Math.cos(.55), vz = Math.sin(.55), ny = -Math.sin(.55), nz = Math.cos(.55);
+        for (let lane = 0; lane < 12; lane++) for (let segment = 0; segment < 44; segment++) {
+          const angle = segment / 44 * Math.PI * 2;
+          const offset = (lane - 5.5) * .075 + .16 * Math.sin(angle * 3 - t * 1.7 + lane * .22) + .07 * Math.sin(angle * 5 + t * 1.1);
+          const x = Math.cos(angle), y = vy * Math.sin(angle) + ny * offset, z = vz * Math.sin(angle) + nz * offset;
+          const length = Math.hypot(x, y, z), point = project(x / length * radius, y / length * radius, z / length * radius, tilt);
+          const depth = (point[2] / radius + 1) / 2, edge = Math.abs(lane - 5.5) / 5.5;
+          dots.push([point[0], point[1], point[2], (.935 + 1.445 * depth) * (1 - .25 * edge) * radiusScale, .52 - .44 * depth + .18 * edge, .4 + .6 * depth]);
+        }
+        return dots.sort((a, b) => a[2] - b[2]);
+      }
+      function draw(now) {
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.clearRect(0, 0, size, size);
+        dotsAt(now / 1000).forEach(([x, y, _z, radius, shade, alpha]) => {
+          const ink = Math.round(shade * 255);
+          ctx.fillStyle = `rgba(${ink},${ink},${ink},${alpha})`;
+          ctx.beginPath(); ctx.arc(x, y, Math.max(.3, radius), 0, Math.PI * 2); ctx.fill();
+        });
+        requestAnimationFrame(draw);
+      }
+      requestAnimationFrame(draw);
+    </script>
+  </body>
+</html>

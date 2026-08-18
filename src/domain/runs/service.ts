@@ -101,10 +101,10 @@ async function harborJobsDirFor(adapter: string): Promise<string> {
  * that loop while gym keeps writing. The ledger poll calls this so the bar
  * and the subtitle still move.
  */
-export async function syncProgress(run: BenchmarkRunSummary): Promise<void> {
+export async function syncProgress(run: BenchmarkRunSummary): Promise<gymProgress.LiveProgress | null> {
   const rows = await jobRows.listByBenchmarkRun(run.benchmarkRunId);
   const job = rows.find((item) => item.kind === 'benchmark_run');
-  if (!isLive(job) || !job) return;
+  if (!isLive(job) || !job) return null;
   const repeats = typeof run.settings.repeats === 'number' ? run.settings.repeats : 1;
   const total = Math.max(1, run.taskCount * repeats);
   const maxTurns = typeof run.settings.maxTurns === 'number' ? run.settings.maxTurns : 60;
@@ -120,8 +120,10 @@ export async function syncProgress(run: BenchmarkRunSummary): Promise<void> {
       since: Number.isFinite(startedAt) ? startedAt : undefined,
     });
     await jobs.setStep(job.jobId, stepOf(live.phase), live.fraction * ROLLOUT_SHARE);
+    return live;
   } catch {
     // A missing file is not a failed run.
+    return null;
   }
 }
 

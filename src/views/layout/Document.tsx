@@ -35,8 +35,8 @@ export function Document({ tab, title, rail, children }: DocumentProps) {
           <script>{PREPAINT}</script>
           <link rel="stylesheet" href="/css/tokens.css" />
           <link rel="stylesheet" href="/css/base.css" />
-          <link rel="stylesheet" href="/css/ledger.css?v=2" />
-          <link rel="stylesheet" href="/css/settings.css?v=2" />
+          <link rel="stylesheet" href="/css/ledger.css" />
+          <link rel="stylesheet" href="/css/settings.css" />
           <script src="/js/htmx.min.js" defer />
           <script src="/js/app.js" defer />
         </head>

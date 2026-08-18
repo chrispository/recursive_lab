@@ -77,6 +77,8 @@ export type BenchmarkRunSummary = {
   label: string;
   model: string;
   taskCount: number;
+  /** Criteria in the immutable task selection, known before Harbor starts. */
+  expectedCriteria: number;
   settings: JsonObject;
   metrics: JsonObject;
   outputPath: string | null;

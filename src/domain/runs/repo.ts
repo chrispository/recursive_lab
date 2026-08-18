@@ -13,6 +13,7 @@ type BenchmarkRunDbRow = Row & {
   label: string;
   model: string;
   task_count: number;
+  expected_criteria: number;
   settings_json: string;
   metrics_json: string;
   output_path: string | null;
@@ -43,7 +44,15 @@ type CriterionDbRow = Row & {
 const SELECT = `
   SELECT br.id AS benchmark_run_id, b.id AS benchmark_id, b.name AS benchmark_name,
          b.lab, b.adapter, b.status AS benchmark_status, b.runnable,
-         br.label, br.model, br.task_count, br.settings_json,
+         br.label, br.model, br.task_count,
+         (SELECT COUNT(*)
+            FROM benchmark_run_tasks chosen
+            JOIN benchmark_task_criteria expected
+              ON expected.benchmark_id = chosen.benchmark_id
+             AND expected.dataset = chosen.dataset
+             AND expected.task_id = chosen.task_id
+           WHERE chosen.benchmark_run_id = br.id) AS expected_criteria,
+         br.settings_json,
          result.metrics_json, result.result_path AS output_path,
          result.result,
          result.tasks_total AS result_tasks_total,
@@ -68,6 +77,7 @@ function toBenchmarkRun(row: BenchmarkRunDbRow): BenchmarkRunSummary {
     label: row.label,
     model: row.model,
     taskCount: row.task_count,
+    expectedCriteria: row.expected_criteria,
     settings: json<JsonObject>(row.settings_json, {}),
     metrics: json<JsonObject>(row.metrics_json, {}),
     outputPath: row.output_path,

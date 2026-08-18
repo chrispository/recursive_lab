@@ -53,6 +53,8 @@ export type RunPhase =
 
 export type LiveProgress = {
   done: number;
+  /** Harbor trials still running or waiting for gym to flush their output row. */
+  active: number;
   /** 0–1 of the requested tasks, including the in-flight trial's fraction. */
   fraction: number;
   phase: RunPhase;
@@ -205,7 +207,7 @@ async function measure(trial: Trial, maxTurns: number, criteriaHint?: number): P
 export async function snapshot(opts: LiveOpts): Promise<LiveProgress> {
   const total = Math.max(1, opts.total);
   const done = await completeLines(opts.outputPath);
-  if (done >= total) return { done, fraction: 1, phase: { kind: 'tasks', done, total } };
+  if (done >= total) return { done, active: 0, fraction: 1, phase: { kind: 'tasks', done, total } };
 
   // Every trial under here that belongs to this run. The directory itself says
   // nothing — it is shared, so it is non-empty long before this run starts and
@@ -232,5 +234,5 @@ export async function snapshot(opts: LiveOpts): Promise<LiveProgress> {
   else if (lag > 0) phase = { kind: 'finishing' };
   else if (done > 0) phase = { kind: 'tasks', done, total };
 
-  return { done, fraction, phase };
+  return { done, active: incomplete.length + lag, fraction, phase };
 }

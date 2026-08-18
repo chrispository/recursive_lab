@@ -36,19 +36,19 @@
 .m-railhead > a.m-wordmark {
   display: block;
   color: var(--text-1);
-  font-family: var(--mono);
+  font-family: 'DM Mono', var(--mono);
   font-size: 19px;
   font-weight: 500;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.05em;
   text-transform: none;
 }
 .m-railhead > a.m-wordmark .m-wordmark-mark {
   color: var(--brand);
-  font-family: var(--mono);
+  font-family: 'DM Mono', var(--mono);
   font-size: 1.12em;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 500;
+  letter-spacing: -0.05em;
   -webkit-text-stroke: 0.55px currentColor;
   paint-order: stroke fill;
 }
@@ -1160,14 +1160,34 @@
   background: var(--text-4);
 }
 
-/* Run ledger progress cell: the bar, and the job's own words under it. */
-.m-run-progress {
-  display: grid;
-  gap: 3px;
-  min-width: 150px;
+/* Benchmark run ledger — the live run is work, history is outcome. */
+.m-run-ledger { background: var(--panel); }
+.m-ledger-row { display: grid; align-items: center; gap: 20px; padding: 18px 20px; border-bottom: 1px solid var(--line-soft); }
+.m-ledger-row:last-child { border-bottom: 0; }
+.m-ledger-live { grid-template-columns: 96px minmax(190px, .85fr) minmax(260px, 1.55fr); min-height: 168px; border-left: 3px solid var(--run); padding: 26px 28px 22px 24px; background: linear-gradient(90deg, color-mix(in srgb, var(--run) 8%, transparent), transparent 62%); }
+.m-ledger-complete { grid-template-columns: minmax(180px, 1fr) minmax(190px, 1.1fr) minmax(190px, 1fr); }
+.m-ledger-identity, .m-ledger-progress, .m-ledger-outcome, .m-ledger-scores { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.m-ledger-identity > strong, .m-ledger-progress > strong, .m-ledger-scores > strong { font-size: 14px; letter-spacing: -.012em; }
+.m-ledger-progress > strong { font-size: 16px; letter-spacing: -.022em; }
+.m-ledger-orb-wrap { display: grid; justify-items: center; align-self: center; gap: 13px; }
+.m-ledger-orb-wrap .m-id { color: var(--run); font-size: 11px; letter-spacing: .07em; }
+.m-ledger-kicker { color: var(--run); font-size: 10px; font-weight: 700; letter-spacing: .095em; text-transform: uppercase; }
+.m-ledger-track { display: block; width: min(100%, 430px); height: 4px; margin-top: 7px; overflow: hidden; background: var(--line-soft); }
+.m-ledger-track > i { display: block; height: 100%; background: var(--run); }
+.m-ledger-scores { align-items: end; text-align: right; }
+.m-ledger-orb { width: 96px; height: 96px; }
+.m-thinking-orb {
+  display: block;
+  width: 52px;
+  height: 52px;
 }
-.m-run-progress .m-bar-track {
-  min-width: 0;
+@media (max-width: 760px) {
+  .m-ledger-live, .m-ledger-complete { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .m-ledger-live { min-height: 0; padding-left: 13px; }
+  .m-ledger-orb { width: 64px; height: 64px; }
+  .m-ledger-orb-wrap { grid-row: span 2; }
+  .m-ledger-progress { grid-column: 2; }
+  .m-ledger-complete .m-ledger-outcome, .m-ledger-complete .m-ledger-scores { grid-column: 2; justify-self: start; align-items: start; text-align: left; }
 }
 
 /* Job log tail. Own region so the ledger poll stays a status row. */

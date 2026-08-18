@@ -9,16 +9,76 @@
  * venv means the checkout has not been built yet, which the Settings panel
  * reports better than a boot crash.
  */
+import { mkdir, open, readFile } from 'node:fs/promises';
+import { unlinkSync as unlinkNow } from 'node:fs';
+import { resolve } from 'node:path';
+import { ROOT } from './config.ts';
+import * as head from './gym/head.ts';
 import * as lifecycle from './gym/lifecycle.ts';
 
 const RESOURCES_SERVER = 'legal_agent_bench';
 const MODEL_TYPE = 'inference_provider';
+const LOCK_PATH = resolve(ROOT, 'data', 'dev-server.lock');
+
+/**
+ * One local server owns the app. Bun permits multiple listeners on one port,
+ * which makes requests round-robin between different source revisions — a
+ * disastrous failure mode for development. This lock fails the second launch
+ * before it can listen or start Gym.
+ */
+export async function acquireServerLock(): Promise<() => void> {
+  await mkdir(resolve(LOCK_PATH, '..'), { recursive: true });
+  for (;;) {
+    try {
+      const handle = await open(LOCK_PATH, 'wx', 0o600);
+      await handle.writeFile(`${process.pid}\n`);
+      await handle.close();
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        try { unlinkNow(LOCK_PATH); } catch { /* Already gone. */ }
+      };
+    } catch (error: unknown) {
+      if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error;
+      const pid = Number((await readFile(LOCK_PATH, 'utf8').catch(() => '')).trim());
+      try {
+        if (Number.isInteger(pid) && pid > 1) {
+          process.kill(pid, 0);
+          throw new Error(`Another dev server is already running (pid ${pid}). Stop it before starting another.`);
+        }
+      } catch (alive) {
+        if (alive instanceof Error && alive.message.startsWith('Another dev server')) throw alive;
+      }
+      // A previous process died without running its signal handler. Only its
+      // stale lock remains, so remove it and retry the exclusive create.
+      try { unlinkNow(LOCK_PATH); } catch { /* Another starter won the race. */ }
+    }
+  }
+}
 
 /** Bring the gym up with the app, unless it is already running or unbuilt. */
+async function reportGymReady(resourcesServer: string): Promise<void> {
+  // Cold preparation can download several GiB. Keep watching rather than
+  // declaring the environment ready merely because its head listener bound.
+  for (;;) {
+    const gym = await head.health();
+    const resources = gym.servers.find((server) => server.processName === resourcesServer);
+    if (resources?.healthy) {
+      console.log(`gym ready → ${resourcesServer} (${resources.url})`);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+}
+
 export function autostartGym(): void {
   void lifecycle
     .start({ resourcesServer: RESOURCES_SERVER, modelType: MODEL_TYPE })
-    .then(({ pid }) => console.log(`gym env start → pid ${pid} (head will be up once prepared)`))
+    .then(({ pid }) => {
+      console.log(`gym env start → pid ${pid} (head will be up once prepared)`);
+      return reportGymReady(RESOURCES_SERVER);
+    })
     .catch((error: unknown) =>
       console.log(`gym env start skipped: ${error instanceof Error ? error.message : String(error)}`),
     );
@@ -29,21 +89,16 @@ export function autostartGym(): void {
  * button uses, so child servers and Ray shut down gracefully rather than
  * orphaning when the dev server dies.
  *
- * Synchronous on purpose: it *fires* the ladder (signals out, kill after
- * grace) and lets the process exit immediately; it never blocks shutdown on
- * gym answering. A lingering gym is recoverable, a frontend that ignores
- * Ctrl+C is not.
+ * The caller waits for this promise on the first Ctrl+C, so Gym has time to
+ * receive its shutdown signals. The app still caps that wait at eight seconds
+ * and a second Ctrl+C exits immediately.
  */
-export function autostopGym(): void {
+export async function autostopGym(): Promise<void> {
   try {
-    void lifecycle
-      .stop(8_000)
-      .then(({ stopped, killed }) => {
-        if (stopped.length || killed.length) {
-          console.log(`gym stopped with the app (${stopped.length} exited, ${killed.length} killed).`);
-        }
-      })
-      .catch(() => undefined);
+    const { stopped, killed } = await lifecycle.stop(8_000);
+    if (stopped.length || killed.length) {
+      console.log(`gym stopped with the app (${stopped.length} exited, ${killed.length} killed).`);
+    }
   } catch {
     // Shutdown must never throw.
   }
