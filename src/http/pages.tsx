@@ -16,6 +16,9 @@ import * as environments from '../domain/environments/service.ts';
 import * as benchmarks from '../domain/benchmarks/service.ts';
 import * as jobs from '../domain/jobs/service.ts';
 import * as settings from '../gym/settings.ts';
+import { panelData } from './ui/settings.tsx';
+import { GymPanel } from '../views/tabs/settings/GymPanel.tsx';
+import { Glossary } from '../views/tabs/settings/Glossary.tsx';
 import { Benchmarks } from '../views/tabs/Benchmarks.tsx';
 import { EnvLab } from '../views/tabs/EnvLab.tsx';
 import { Failures } from '../views/tabs/Failures.tsx';
@@ -93,9 +96,20 @@ export const pages = new Elysia({ name: 'pages' })
           />
         );
         break;
-      case 'settings':
-        body = <Settings settings={await settings.read()} />;
+      case 'settings': {
+        // One gather for both panels: the dictionary quotes the same values the
+        // gym region renders, and measuring them twice would only risk them
+        // disagreeing on the same page.
+        const gym = await panelData();
+        const saved = await settings.read();
+        body = (
+          <Settings settings={saved}>
+            <Glossary settings={saved} health={gym.health} alignment={gym.alignment} catalogs={gym.catalogs} />
+            <GymPanel {...gym} />
+          </Settings>
+        );
         break;
+      }
     }
 
     return page(request, params.tab, current.rail, body);

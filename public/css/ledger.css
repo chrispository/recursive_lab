@@ -163,8 +163,12 @@
 /* Benchmark configuration -------------------------------------------------- */
 
 .m-config-layout {
+  /* Declared here rather than on the panel so it inherits down to the panel,
+     where app.js reads it. A custom property on the panel would be invisible
+     to this element, which is its own ancestor. */
+  --collapse-ms: 600ms;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--s4);
   margin-top: var(--s3);
@@ -176,17 +180,25 @@
   gap: var(--s4);
   min-width: 0;
 }
-.m-config-layout:has(.m-config-panel:not([open])) {
-  grid-template-columns: minmax(0, 1fr);
-}
-.m-config-layout:has(.m-config-panel:not([open])) > .m-config-aside {
-  display: none;
-}
+/* Folding the config after a run starts -----------------------------------
+   `<details>` has no closing state to style: `open` flips and the whole body
+   leaves layout in one frame, which reads as the ledger teleporting rather
+   than the config getting out of its way.
+
+   `.is-collapsing` is that missing state. app.js holds the panel open, animates
+   its height down, and only then flips `open`, so the ledger rises with the
+   shrinking panel instead of jumping once it has gone. --collapse-ms is read by
+   app.js: the duration lives here, once. */
 .m-config-panel {
   min-width: 0;
   border: 1px solid var(--line);
   background: var(--panel);
   box-shadow: inset 0 0 0 1px var(--inset);
+}
+/* The height is animated in script; this only has to stop the body it is
+   clipping from spilling out of the shrinking box. */
+.m-config-panel.is-collapsing {
+  overflow: hidden;
 }
 .m-config-head {
   display: flex;
@@ -524,12 +536,6 @@
   color: var(--text-3);
   font-size: var(--t-label);
 }
-.m-config-aside {
-  grid-column: 2;
-  position: sticky;
-  top: var(--s4);
-}
-
 /* Tablebox ----------------------------------------------------------------
    A bordered box whose caption carries the counts for the rows inside it. The
    count lives with the rows it counts, so the two can never disagree. */
@@ -731,8 +737,7 @@
   cursor: pointer;
   list-style: none;
 }
-.m-criterion summary::-webkit-details-marker,
-.m-criterion-source summary::-webkit-details-marker {
+.m-criterion summary::-webkit-details-marker {
   display: none;
 }
 .m-criterion-result {
@@ -771,32 +776,88 @@
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.m-criterion-source {
-  margin-top: 14px;
-  border-top: 1px solid var(--line-soft);
+.m-criterion-body > button {
+  margin-top: 12px;
 }
-.m-criterion-source summary {
+
+/* Criterion dialog --------------------------------------------------------
+   Native <dialog>, so focus trapping, Esc and the backdrop come from the
+   platform. The definition is the reason this opens, so it gets the room. */
+.m-dialog {
+  /* A modal <dialog> is centred by the UA stylesheet's `margin: auto`, which
+     the `* { margin: 0 }` reset in base.css wipes out — leaving it pinned to
+     the top-left corner with the backdrop only on two sides. Restore it here. */
+  margin: auto;
+  width: min(760px, calc(100vw - 2 * var(--s4)));
+  max-height: min(80vh, 900px);
+  padding: 0;
+  color: var(--text-1);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 32%);
+}
+.m-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+.m-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--deep);
+}
+.m-dialog-head strong {
   display: block;
-  padding: 11px 0 0;
+  margin-top: 4px;
+  font-size: var(--t-data);
+  overflow-wrap: anywhere;
+}
+.m-dialog-sub {
+  display: block;
+  margin-top: 4px;
   color: var(--text-3);
-  font: 500 var(--t-label) / 1 var(--mono);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font: 400 var(--t-micro) / 1.4 var(--mono);
+  overflow-wrap: anywhere;
 }
-.m-criterion-source summary::after {
-  content: none;
-}
-.m-criterion-source-body {
+.m-dialog-body {
   display: grid;
-  gap: 12px;
-  padding-top: 12px;
+  gap: 6px;
+  padding: var(--s4);
+  overflow-y: auto;
+  max-height: calc(min(80vh, 900px) - 64px);
 }
-.m-criterion-source-body p {
-  margin-top: 5px;
+.m-dialog-body > .m-code:not(:first-child) {
+  margin-top: 10px;
+}
+/* The raw definition. Wraps rather than scrolls sideways — a criterion you
+   have to drag horizontally to finish reading is one you will not read. */
+.m-dialog-json {
+  margin: 0;
+  padding: 12px;
+  color: var(--text-1);
+  border: 1px solid var(--line-soft);
+  background: var(--deeper);
+  font: 400 var(--t-body) / 1.55 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.m-dialog-text {
+  margin: 0;
   color: var(--text-3);
   font-size: var(--t-label);
-  line-height: 1.5;
+  line-height: 1.55;
   overflow-wrap: anywhere;
+}
+.m-dialog-warn {
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  color: var(--text-2);
+  border-left: 2px solid var(--warn);
+  background: var(--wash);
+  font-size: var(--t-label);
+  line-height: 1.5;
 }
 
 /* Panels ------------------------------------------------------------------- */
@@ -843,10 +904,13 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+/* Helper text under a control, and the lead paragraph of a panel. It is meant
+   to be read, so it sits at the label size rather than the 10px micro size —
+   which is reserved for things you scan, like ids and tallies. */
 .m-note {
   color: var(--text-3);
-  font-size: var(--t-micro);
-  line-height: 1.5;
+  font-size: var(--t-label);
+  line-height: 1.55;
 }
 
 .m-field {
@@ -927,6 +991,42 @@
 .m-status-list {
   display: grid;
   gap: var(--s3);
+}
+/* Storage locations. The path is the point of the row, so it gets the width
+   and wraps rather than truncating — a path you cannot read in full is no
+   more useful than no path at all. */
+.m-storage-list {
+  display: grid;
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+.m-storage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--line-soft);
+}
+.m-storage-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.m-storage-label {
+  color: var(--text-2);
+  font-size: var(--t-label);
+}
+.m-storage-path {
+  overflow-wrap: anywhere;
+  color: var(--text-1);
+  font: 400 var(--t-body) / 1.5 var(--mono);
+}
+.m-storage-path.is-unset {
+  color: var(--text-3);
+  font-style: italic;
+}
+.m-storage-note {
+  color: var(--text-3);
+  font-size: var(--t-label);
 }
 .m-api-results {
   display: grid;
@@ -1113,6 +1213,155 @@
   text-transform: uppercase;
 }
 
+/* Prose panels -------------------------------------------------------------
+   The dictionary and the inventory are the only places in the app where the
+   content is sentences rather than measurements, and prose punishes a busy
+   type scale far harder than a table does. Two rules hold here:
+
+   **Three sizes.** --t-data (13px) for a chapter heading, --t-body (12.5px)
+   for everything you read, --t-label (11px) for the meta voice — "also
+   called", the HERE/CONTAINS tags, jump links, section blurbs. Rank inside the
+   reading size is carried by weight and colour, never by a fourth size.
+
+   **One family.** Sans for every word of it. Mono appears only on a string the
+   machine owns — a path, a code — so that switching family always means
+   "this is literal text", never "this is emphasised". A mono uppercase tag
+   opening a sans sentence, forty-six times down the page, is what made this
+   read as ransom-noted. */
+
+.m-prose .m-body {
+  gap: var(--s4);
+}
+.m-prose h4 {
+  font-size: var(--t-data);
+  line-height: 1.35;
+}
+
+.m-dict-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+/* In the page header the nav follows a paragraph, which carries no bottom margin. */
+.m-title .m-dict-jump {
+  margin-top: var(--s3);
+}
+.m-dict-jump a {
+  padding: 3px 9px;
+  color: var(--text-3);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  font-size: var(--t-label);
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+.m-dict-jump a:hover {
+  color: var(--text-1);
+  background: var(--raised-2);
+}
+
+.m-dict-section,
+.m-hold-group {
+  display: grid;
+  gap: var(--s3);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line-soft);
+}
+
+.m-dict {
+  display: grid;
+  gap: var(--s4);
+}
+.m-dict-entry {
+  display: grid;
+  gap: 3px;
+  max-width: 78ch;
+  padding-left: var(--s3);
+  border-left: 2px solid var(--line);
+}
+/* A term is the reading size in the strongest weight — promoting it to a
+   fourth size would make every entry compete with its own chapter heading. */
+.m-dict-entry dt {
+  display: block;
+  color: var(--text-1);
+  font: 650 var(--t-body) / 1.6 var(--sans);
+}
+.m-dict-entry dt .m-dict-term {
+  display: inline;
+}
+.m-dict-entry dd p {
+  color: var(--text-2);
+  font-size: var(--t-body);
+  line-height: 1.6;
+}
+.m-dict-yours {
+  color: var(--text-1);
+}
+
+.m-hold {
+  display: grid;
+  gap: 3px;
+  max-width: 80ch;
+  padding: var(--s3);
+  background: var(--raised);
+  border-left: 2px solid var(--line);
+}
+.m-hold-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.m-hold-label {
+  color: var(--text-1);
+  font: 650 var(--t-body) / 1.6 var(--sans);
+}
+/* A count is a sentence with numbers in it, not a machine string — so it stays
+   in the reading family and earns its rank from weight and colour. The path
+   below it is literal, keeps mono, and steps back in colour. */
+.m-hold-amount {
+  color: var(--text-1);
+  font: 600 var(--t-body) / 1.6 var(--sans);
+}
+.m-hold .m-storage-path {
+  color: var(--text-3);
+}
+.m-hold-line {
+  color: var(--text-2);
+  font-size: var(--t-body);
+  line-height: 1.6;
+}
+.m-hold-line.is-missing {
+  color: var(--text-3);
+}
+
+/* The meta voice. One family, one size, one colour — whether it sits on its
+   own line or opens a sentence. */
+.m-dict-also,
+.m-hold-also,
+.m-dict-yours > span,
+.m-hold-line > span {
+  color: var(--text-4);
+  font: 500 var(--t-label) / 1.6 var(--sans);
+  letter-spacing: 0.02em;
+}
+.m-dict-also,
+.m-hold-also {
+  font-style: italic;
+}
+.m-dict-also {
+  display: inline-block;
+  padding-inline-start: var(--s2);
+}
+.m-dict-yours > span,
+.m-hold-line > span {
+  margin-right: 7px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
 /* Responsive ---------------------------------------------------------------
    Below 900px the rail lies down across the top and drops its context lines. */
 
@@ -1168,10 +1417,6 @@
   }
   .m-task-toolbar > span:last-child {
     justify-content: flex-end;
-  }
-  .m-config-aside {
-    position: static;
-    grid-row: auto;
   }
   .m-run-card {
     align-items: stretch;

@@ -16,14 +16,49 @@
 > `error` verdicts are no longer tallied as failures; judge model is recorded.
 > Full detail in the review notes — `git log` for this commit.
 >
-> **Current state (2026-08-14):** Harvey Labs is `BMS-00001` (a Harbor
-> catalog, not a special case). Gym is up. **Manually Benchmark** starts
-> `gym eval run --no-serve` as `BR-`. Adapter is the healthy resources server
-> from `/server_instances`. Recurse is still a stub. Pick **one** task for a
-> first walkthrough — Harbor trials are slow.
+> **Settings became the explanation surface (2026-08-15, later):** The tab now
+> opens with two new panels ahead of the credential form. **"What all these
+> words mean"** (`views/tabs/settings/Glossary.tsx` + `glossary.ts`, static, not
+> inside the gym fragment) defines ~35 terms — rollout, checkpoint, head server,
+> resources server, pin, the two copies — in plain language, each quoting this
+> installation's own values. **"What you have right now"**
+> (`domain/inventory/{model,repo,service}.ts` → `views/tabs/settings/Inventory.tsx`,
+> rendered inside `#settings-gym`) counts every holding from the real tables and
+> the real folders, and states for each one where it lives, what it contains and
+> **what it does not** — the last being the field that stops someone assuming a
+> transcript is in the database. `inventory.report()` is handed the storage
+> buckets `panelData()` already measured rather than re-walking the checkout.
+> Truths it currently surfaces: 1,749 of 2,010 runnable; BR-00001's rollouts
+> file is still in the old `~/Documents/recursive` checkout; zero criterion
+> results because that run errored; no checkpoints, ever, because nothing here
+> trains. `Panel` gained an optional `id` for in-page anchors only.
 >
-> `BR-00001` is the first real run end to end: one Harbor task, one rollout,
-> 50 criteria graded, 48 passed, rolled up and ingested. The run ledger polls
+> **Current state (2026-08-15):** The gym checkout now lives **inside this
+> repo** at `gym/` (fresh upstream clone of NVIDIA-NeMo/Gym, `GYM_ROOT` in
+> `.env` points there; the old `~/Documents/recursive` checkout is no longer
+> referenced and can be deleted). The Settings tab gained a **NeMo Gym
+> environment** panel (start/stop through `gym/lifecycle.ts` — stop is the
+> SIGINT ladder `gym env start` itself uses, since gym has no `env stop`) and
+> a **storage** panel (`gym/storage.ts`: usage per bucket, delete per entry or
+> whole bucket, allowlist-guarded; gym-cache, prepared assets, harbor trials,
+> run artifacts, staging, snapshots). It also gained a **"How your benchmark
+> reaches the gym"** panel (`gym/pins.ts` + `benchmarks.alignment()`): reads
+> the gym's own pin from `.nemo_gym_asset.json` and the runnable set from
+> `all.jsonl`, and states catalog-vs-gym commit drift in plain words — today
+> BMS-00001 @ `7be41d57fd` vs gym @ `f46ef86e`: 1749 of 2010 runnable,
+> `firm-knowledge` + `diligence` unrunnable. Pick tasks from the other
+> families. **Manually Benchmark** starts `gym eval run --no-serve` as `BR-`.
+> Adapter is the healthy resources server from `/server_instances`. Recurse is
+> still a stub.
+
+The Settings page typography was consolidated on 2026-08-15: its explanations,
+controls, statuses, and storage panels now use one readable sans system with
+mono reserved for literal paths and codes, a three-size type scale, sentence
+case labels, and consistent panel spacing in `public/css/settings.css`.
+>
+> **Earlier state (2026-08-14):** Gym up from `~/Documents/recursive`;
+> `BR-00001` ran end to end (one Harbor task, one rollout, 50 criteria graded,
+> 48 passed, rolled up and ingested). The run ledger polls
 > `/ui/benchmarks/ledger` every 1s while its job is live. Each poll (and the
 > background follow loop) reads the pinned Harbor jobs dir plus gym's JSONL
 > and publishes a user-facing step: Starting → Preparing the environment →
@@ -270,10 +305,11 @@ Schema is ready (`jobs` + `job_log_lines`); no runner yet.
       `benchmark_results` → `task_results` → `criterion_results`)
 - [ ] `docs/GYM.md`
 
-Launch the gym before using any of this:
+Launch the gym before using any of this (or use the Settings → NeMo Gym
+environment panel, which does the same thing):
 
 ```bash
-cd ~/Documents/recursive
+cd ~/Documents/recursive_lab/gym
 .venv/bin/gym env start --resources-server legal_agent_bench --model-type inference_provider
 ```
 

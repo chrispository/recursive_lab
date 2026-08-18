@@ -14,6 +14,7 @@ import { settingsApi } from './http/api/settings.ts';
 import { pages } from './http/pages.tsx';
 import { benchmarksUi } from './http/ui/benchmarks.tsx';
 import { jobsUi } from './http/ui/jobs.tsx';
+import { settingsUi } from './http/ui/settings.tsx';
 import { schemaDocument } from './http/schema.ts';
 
 const staticFiles = await staticPlugin({
@@ -30,6 +31,7 @@ const app = new Elysia()
   .use(benchmarksApi)
   .use(benchmarksUi)
   .use(jobsUi)
+  .use(settingsUi)
   .use(pages)
   .get('/schema.html', schemaDocument)
   .listen({ hostname: config.host, port: config.port });

@@ -10,7 +10,16 @@ import * as jobs from '../../domain/jobs/service.ts';
 import * as progress from '../../domain/progress/service.ts';
 import * as runs from '../../domain/runs/service.ts';
 import { Rail } from '../../views/layout/Rail.tsx';
-import { ImportForm, ImportOob, RunnableStatus } from '../../views/tabs/benchmarks/ImportForm.tsx';
+import {
+  CatalogNote,
+  CatalogSelect,
+  CatalogStatus,
+  ImportForm,
+  ImportOob,
+  RunnableStatus,
+  TaskCount,
+  TaskPicker,
+} from '../../views/tabs/benchmarks/ImportForm.tsx';
 import { RunLedger } from '../../views/tabs/benchmarks/RunLedger.tsx';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : 'Unexpected error.');
@@ -74,6 +83,21 @@ async function ledger() {
 
 export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })
   .get('/ui/benchmarks/import', () => <ImportForm />)
+  .get('/ui/benchmarks/tasks', async ({ query }) => {
+    const id = Number(query.benchmark_id);
+    const catalogs = await benchmarks.list();
+    const catalog = await benchmarks.withTasks(Number.isInteger(id) && id > 0 ? id : catalogs[0]?.benchmarkId);
+    return (
+      <>
+        <TaskPicker catalog={catalog} />
+        <CatalogSelect catalogs={catalogs} selectedId={catalog?.benchmarkId ?? null} oob />
+        <CatalogNote catalog={catalog} oob />
+        <TaskCount catalog={catalog} oob />
+        <CatalogStatus catalog={catalog} oob />
+        <RunnableStatus catalog={catalog} oob />
+      </>
+    );
+  })
   /**
    * Polled by the region itself while its job is running, at the interval set
    * in RunLedger. The response carries the poll attributes only while the run

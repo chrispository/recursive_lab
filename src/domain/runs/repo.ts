@@ -32,6 +32,8 @@ type CriterionDbRow = Row & {
   judge_model: string;
   judge_error: number;
   error_type: string | null;
+  source_json: string | null;
+  catalog_match_criteria: string | null;
 };
 
 /** br = benchmark runs */
@@ -85,19 +87,27 @@ export async function listAll(): Promise<BenchmarkRunSummary[]> {
 /**
  * Every criterion verdict in one run, in task order.
  *
- * Reads only `criterion_results` for display text. There is deliberately no
- * join to `benchmark_task_criteria` — that table holds the criterion as it
- * stands today, and pairing it with reasoning written against an earlier
- * wording produces a row that reads fine and states something untrue.
- * Dropping that join is also why this query is three tables, not four.
+ * Every *displayed* value comes from `criterion_results`, which is the criterion
+ * as the judge saw it. The join to `benchmark_task_criteria` is only for
+ * `source_json`, the raw definition, and it stays strictly in that lane: pairing
+ * today's catalog wording with reasoning written against an earlier one produces
+ * a row that reads fine and states something untrue. The raw JSON is shown on
+ * demand and labelled as the catalog's current definition, and `sourceDrifted`
+ * says outright when the catalog no longer matches what was graded.
+ *
+ * LEFT JOIN because a re-imported catalog can drop the row this verdict was
+ * graded against; losing the raw JSON must not lose the verdict.
  */
 export async function listCriteriaByBenchmarkRun(benchmarkRunId: number): Promise<BenchmarkCriterionResult[]> {
   const rows = await all<CriterionDbRow>(
     `SELECT c.task_id, c.criterion_id, c.criterion_title, c.result, c.reasoning,
-            c.match_criteria, c.judge_model, c.judge_error, c.error_type
+            c.match_criteria, c.judge_model, c.judge_error, c.error_type,
+            k.source_json, k.match_criteria AS catalog_match_criteria
        FROM criterion_results c
        JOIN task_results tr ON tr.id = c.task_result_id
        JOIN benchmark_results r ON r.id = tr.benchmark_result_id
+       LEFT JOIN benchmark_task_criteria k
+              ON k.id = c.benchmark_task_criterion_id AND k.task_id = c.task_id
       WHERE r.benchmark_run_id = ?
       ORDER BY c.task_result_id ASC, c.id ASC`,
     [benchmarkRunId],
@@ -112,6 +122,10 @@ export async function listCriteriaByBenchmarkRun(benchmarkRunId: number): Promis
     judgeModel: row.judge_model,
     judgeError: row.judge_error === 1,
     errorType: row.error_type,
+    sourceJson: row.source_json ?? '',
+    // Compared against the run's own copy, not against the title: the wording
+    // is what the judge was asked to apply.
+    sourceDrifted: Boolean(row.catalog_match_criteria) && row.catalog_match_criteria !== row.match_criteria,
   }));
 }
 

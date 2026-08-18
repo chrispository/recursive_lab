@@ -33,13 +33,23 @@ function Provider({ title, baseName, baseUrl, keyName, modelName, model, hasKey,
   );
 }
 
-export function Settings({ settings }: { settings: PublicSettings }) {
+export function Settings({ settings, children }: { settings: PublicSettings; children?: Children }) {
   return (
-    <>
+    <div class="m-settings-page">
       <div class="m-title">
-        <h2>Provider and platform settings</h2>
-        <p>Secrets remain in the repository’s gitignored <code>env.yaml</code> and are never returned to the browser.</p>
+        <h2>Settings, and what everything here means</h2>
+        <p>
+          The explanations come first on purpose. Secrets remain in the repository’s gitignored{' '}
+          <code>env.yaml</code> and are never returned to the browser.
+        </p>
+        <nav class="m-dict-jump" aria-label="Sections of this page">
+          <a href="#settings-dictionary">What the words mean</a>
+          <a href="#settings-inventory">What you have</a>
+          <a href="#settings-keys">Keys and models</a>
+        </nav>
       </div>
+
+      {children}
 
       <Panel title="Appearance" code="this browser">
         <div class="m-appearance-grid">
@@ -60,7 +70,7 @@ export function Settings({ settings }: { settings: PublicSettings }) {
       </Panel>
 
       <form id="settings-form" data-settings-form>
-        <Panel title="Endpoints and credentials (OpenAI format)" code="local secret store">
+        <Panel id="settings-keys" title="Endpoints and credentials (OpenAI format)" code="local secret store">
           <div class="m-settings-grid">
             <Provider title="Model under test router" baseName="policy_base_url" baseUrl={settings.policy_base_url} keyName="policy_api_key" modelName="policy_model_name" model={settings.policy_model_name} hasKey={settings.has_policy_key} />
             <Provider title="Benchmark judge" baseName="judge_base_url" baseUrl={settings.judge_base_url} keyName="judge_api_key" modelName="judge_model_name" model={settings.judge_model_name} hasKey={settings.has_judge_key} />
@@ -93,6 +103,6 @@ export function Settings({ settings }: { settings: PublicSettings }) {
           <div><span>Prime CLI</span><Badge state={settings.status.prime_cli === 'ready' ? 'ready' : 'pending'}>{settings.status.prime_cli}</Badge></div>
         </div>
       </Panel>
-    </>
+    </div>
   );
 }

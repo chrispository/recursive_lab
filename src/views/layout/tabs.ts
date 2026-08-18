@@ -28,7 +28,7 @@ export const stageNumber = (index: number) => String(index + 1).padStart(2, '0')
 /** Page <title> and the h2 at the top of each tab. */
 export const titleOf = (tab: Tab) =>
   tab === 'settings'
-    ? 'Provider and platform settings'
+    ? 'Settings, and what everything here means'
     : (STAGES.find((s) => s.tab === tab)?.title ?? '');
 
 export const labelOf = (tab: Tab) =>

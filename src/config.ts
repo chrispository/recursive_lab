@@ -49,5 +49,9 @@ export const gymBin = () => resolve(config.gym.root, '.venv/bin/gym');
 /** Where a benchmark run's inputs and rollouts live, e.g. results/lab/BR-00012. */
 export const benchmarkRunDir = (benchmarkRunCode: string) => resolve(config.gym.root, 'results/lab', benchmarkRunCode);
 
-/** Harbor trial folders for this run, pinned so we never watch another eval's jobs. */
-export const harborJobsDir = (benchmarkRunCode: string) => resolve(benchmarkRunDir(benchmarkRunCode), 'harbor_jobs');
+/*
+ * There is deliberately no `harborJobsDir` here. Harbor's trial folder is not
+ * the lab's to place: the agent server reads that path from its own startup
+ * config, so a per-run directory invented here is one the lab watches and
+ * Harbor never writes to. Ask the running gym instead — `gym/config.ts`.
+ */

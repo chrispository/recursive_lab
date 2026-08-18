@@ -1,4 +1,5 @@
 import type { Detection } from '../../lib/formats.ts';
+import type { GymPin } from '../../gym/pins.ts';
 
 /** The editable half of an import — what the user confirms before committing. */
 export type ImportPlan = {
@@ -96,3 +97,25 @@ export type BenchmarkCatalog = {
   criterionCount: number;
   tasks: BenchmarkTask[];
 };
+
+/**
+ * One catalog against the gym's own benchmark pin: which commit each copy is
+ * frozen at, and how many of the catalog's tasks the gym can actually run.
+ */
+export type CatalogAlignment = {
+  benchmarkCode: string;
+  name: string;
+  sourceIdentifier: string;
+  catalogRevision: string;
+  gymRevision: string;
+  sameSource: boolean;
+  aligned: boolean;
+  taskCount: number;
+  runnableCount: number;
+  missingCount: number;
+  /** Task families (the id before the first `__`) with no runnable tasks. */
+  missingFamilies: string[];
+};
+
+/** The full report the Settings page renders: gym pin plus per-catalog rows. */
+export type AlignmentReport = { gym: GymPin; catalogs: CatalogAlignment[] };

@@ -27,7 +27,16 @@ export function CatalogSelect({
   oob?: boolean;
 }) {
   return (
-    <select id="benchmark-select" name="benchmark_id" aria-label="Benchmark" hx-swap-oob={oob ? 'true' : undefined}>
+    <select
+      id="benchmark-select"
+      name="benchmark_id"
+      aria-label="Benchmark"
+      hx-get="/ui/benchmarks/tasks"
+      hx-trigger="change"
+      hx-target="#benchmarks-tasks"
+      hx-swap="outerHTML"
+      hx-swap-oob={oob ? 'true' : undefined}
+    >
       {catalogs.map((item) => (
         <option value={String(item.benchmarkId)} selected={item.benchmarkId === selectedId}>
           {item.name} · {item.taskCount.toLocaleString()} tasks
@@ -64,7 +73,7 @@ export function TaskPicker({ catalog, oob }: { catalog: BenchmarkCatalog | null;
   const tasks = catalog?.tasks ?? [];
   return (
     <div
-      id="task-picker"
+      id="benchmarks-tasks"
       class="m-task-picker"
       aria-label="Benchmark task selection"
       hx-swap-oob={oob ? 'true' : undefined}

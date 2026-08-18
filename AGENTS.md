@@ -225,6 +225,27 @@ bearing; a convenience change that breaks one silently invalidates results.
   Adapter and `--model-type` are those process/component names too — never a
   specific bench such as `legal_agent_bench`. A different gym checkout is
   `GYM_ROOT` + `GYM_HEAD_URL`.
+- **Server config is fixed at `gym env start`; eval-time overlays cannot change
+  it.** `gym eval run --no-serve` talks to servers that are already up, and each
+  one built its config when it started. A `+a.b.c=v` overlay reaches the eval
+  client's own config and stops there, silently — Hydra reports no error because
+  the key really was set, just not anywhere the server will read. This cost a
+  full run: the lab overrode `harbor_jobs_dir` per run, watched the directory it
+  had named, and sat at 0% while Harbor wrote somewhere else. Anything a run
+  needs to vary per run must travel **on the request**, not in config. What does
+  reach gym per run: `--concurrency`, `--num-repeats`, `--max-output-tokens`, and
+  everything inside `responses_create_params`. What does not: agent kwargs
+  (`max_turns`, timeouts) and every `judge_*` setting.
+- **`lab_run_code` is a side channel on the rollout row, not a gym field.** It
+  carries the run's identity to the Harbor agent, which names its jobs directory
+  after it. It works because gym posts each row to the agent's `/run` verbatim
+  (`nemo_gym/rollout_collection.py`, `json=row`) and `HarborRunRequest` sets
+  `extra="allow"` (`responses_api_agents/harbor_agent/app.py`). Both halves are
+  upstream code we do not own: if `extra` ever becomes `forbid` every request is
+  rejected, and if the row is ever rebuilt field-by-field the code vanishes with
+  no error at all. So **nothing may depend on it arriving** — progress scopes
+  trials by mtime under the jobs root, which works whether or not the run code
+  landed. See `src/gym/eval.ts`.
 - Every invocation runs with `cwd: config.gym.root` — gym config paths are
   repo-relative and break otherwise.
 - Spawn **detached** and cancel by **process group** (`-pgid`), not pid. Gym

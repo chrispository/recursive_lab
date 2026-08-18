@@ -8,10 +8,13 @@
  * This is the front half — decide what to run, start it, and follow it. Once
  * the process exits, `ingest.ts` takes over and turns its rollouts into rows.
  */
-import { benchmarkRunDir, harborJobsDir } from '../../config.ts';
+import { benchmarkRunDir } from '../../config.ts';
 import { code } from '../../db/ids.ts';
+import * as gymConfig from '../../gym/config.ts';
 import * as evalRun from '../../gym/eval.ts';
+import * as gymHead from '../../gym/head.ts';
 import * as gymProgress from '../../gym/progress.ts';
+import * as servers from '../../gym/servers.ts';
 import { audit } from '../audit/service.ts';
 import * as benchmarks from '../benchmarks/service.ts';
 import { isLive } from '../jobs/model.ts';
@@ -68,6 +71,29 @@ export async function current() {
 }
 
 /**
+ * Where the running gym's Harbor agent writes trials.
+ *
+ * Resolving this costs a head probe and a config read, and the ledger asks on
+ * every poll, so the answer is held briefly. It only changes when gym restarts.
+ */
+let jobsDirCache: { at: number; adapter: string; value: string } | null = null;
+const JOBS_DIR_CACHE_MS = 30_000;
+
+async function harborJobsDirFor(adapter: string): Promise<string> {
+  const now = Date.now();
+  if (jobsDirCache && jobsDirCache.adapter === adapter && now - jobsDirCache.at < JOBS_DIR_CACHE_MS) {
+    return jobsDirCache.value;
+  }
+  const health = await gymHead.health();
+  const resources = servers.pickResources(health, adapter);
+  const agent = servers.pickAgent(health, resources);
+  const live = await gymConfig.loadCached();
+  const value = gymConfig.harborJobsDir(live, agent.processName, agent.name);
+  jobsDirCache = { at: now, adapter, value };
+  return value;
+}
+
+/**
  * Re-read Harbor's trial folder and gym's output file, then publish a
  * user-facing step onto the live job.
  *
@@ -84,12 +110,14 @@ export async function syncProgress(run: BenchmarkRunSummary): Promise<void> {
   const maxTurns = typeof run.settings.maxTurns === 'number' ? run.settings.maxTurns : 60;
   try {
     const hint = await criteriaHintOf(run.benchmarkRunId, run.taskCount);
+    const startedAt = Date.parse(job.startedAt);
     const live = await gymProgress.snapshot({
       outputPath: `${benchmarkRunDir(run.benchmarkRunCode)}/rollouts.jsonl`,
-      harborJobsDir: harborJobsDir(run.benchmarkRunCode),
+      harborJobsDir: await harborJobsDirFor(run.adapter),
       total,
       maxTurns,
       criteriaHint: hint,
+      since: Number.isFinite(startedAt) ? startedAt : undefined,
     });
     await jobs.setStep(job.jobId, stepOf(live.phase), live.fraction * ROLLOUT_SHARE);
   } catch {
@@ -239,6 +267,9 @@ async function execute(work: {
   trace: jobs.Trace;
 }): Promise<void> {
   const { trace, settings } = work;
+  // Read before gym starts: a trial folder older than this belongs to an
+  // earlier run sharing the same Harbor jobs directory.
+  const startedAt = Date.now();
   await trace.log(`adapter               ${work.adapter}`);
   await trace.log(`model                 ${work.model}`);
   await trace.log(`tasks                 ${work.taskIds.length} × ${settings.repeats} repeat(s)`);
@@ -269,6 +300,13 @@ async function execute(work: {
   );
   await trace.setPgid(handle.spawned.pgid);
   await trace.log(`$ ${handle.command.join(' ')}`);
+  await trace.log(`harbor jobs dir       ${handle.harborJobsDir}`);
+  // These reach the agent and resources servers only when `gym env start`
+  // builds them, so a running gym ignores what this run asked for. Saying so
+  // is the difference between a setting that did nothing and one that lied.
+  await trace.log(
+    `fixed at gym start    ${evalRun.settingsFixedAtStart.join(', ')} — restart gym to change`,
+  );
 
   const total = work.taskIds.length * settings.repeats;
   const criteriaHint = await criteriaHintOf(work.benchmarkRunId, work.taskIds.length);
@@ -278,6 +316,7 @@ async function execute(work: {
     total,
     maxTurns: settings.maxTurns,
     criteriaHint,
+    since: startedAt,
   };
   const opening = await gymProgress.snapshot(liveOpts);
   await trace.step(stepOf(opening.phase), opening.fraction * ROLLOUT_SHARE);

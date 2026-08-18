@@ -220,14 +220,106 @@
   document.addEventListener('htmx:afterSwap', refreshTaskPicker);
   refreshTaskPicker();
 
+  /* Criterion dialogs -----------------------------------------------------
+     Native <dialog>: `showModal` brings focus trapping, Esc, and the backdrop
+     without a library. Delegated like everything else here so the buttons keep
+     working after HTMX replaces the results region. */
+
+  document.addEventListener('click', function (event) {
+    var opener = event.target.closest('[data-open-dialog]');
+    if (opener) {
+      var dialog = document.getElementById(opener.dataset.openDialog);
+      if (dialog && typeof dialog.showModal === 'function') {
+        event.preventDefault();
+        dialog.showModal();
+      }
+      return;
+    }
+
+    var closer = event.target.closest('[data-close-dialog]');
+    if (closer) {
+      var owned = closer.closest('dialog');
+      if (owned) owned.close();
+      return;
+    }
+
+    // Clicking the backdrop targets the dialog element itself, since its own
+    // children cover everything inside it. Closing on that is the behaviour a
+    // modal is expected to have and the one <dialog> does not give for free.
+    if (event.target.tagName === 'DIALOG') event.target.close();
+  });
+
   /* After a run starts, fold the configuration so the ledger is on screen.
      Gear clicks must not toggle the <details> they live in. */
 
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  /** The fold duration, defined once in ledger.css as --collapse-ms. */
+  function collapseDuration(panel) {
+    var raw = getComputedStyle(panel).getPropertyValue('--collapse-ms');
+    var ms = parseFloat(raw);
+    if (!isFinite(ms) || ms <= 0) return 600;
+    // A bare number in the custom property would be seconds under CSS rules;
+    // only trust the unit that is actually written there.
+    return raw.indexOf('ms') >= 0 ? ms : ms * 1000;
+  }
+
+  /**
+   * Fold the panel by animating its height, then closing it.
+   *
+   * `<details>` cannot be transitioned: setting `open = false` removes the body
+   * from layout in one frame, so the ledger below jumps up instead of following
+   * the panel. Keeping the element open for the length of the animation and
+   * shrinking its measured height means the ledger is moved by ordinary flow —
+   * it rises because the box above it is shrinking, which is exactly the effect
+   * a transition on `open` cannot produce.
+   *
+   * The closed height is measured by closing the panel and reading it back
+   * before anything paints, so the animation lands on the real resting height
+   * rather than an estimate assembled from the summary's box.
+   */
   function collapseRunConfig() {
     var panel = document.getElementById('benchmarks-config');
-    if (panel) panel.open = false;
     var ledger = document.getElementById('benchmarks-ledger');
-    if (ledger) ledger.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    var settle = function () {
+      if (ledger) ledger.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+    if (!panel || !panel.open || panel.classList.contains('is-collapsing')) return;
+
+    if (reducedMotion() || typeof panel.animate !== 'function') {
+      panel.open = false;
+      settle();
+      return;
+    }
+
+    var start = panel.getBoundingClientRect().height;
+    panel.open = false;
+    var end = panel.getBoundingClientRect().height;
+    panel.open = true;
+
+    if (!(start > end)) {
+      panel.open = false;
+      settle();
+      return;
+    }
+
+    panel.classList.add('is-collapsing');
+    var animation = panel.animate(
+      [{ height: start + 'px' }, { height: end + 'px' }],
+      { duration: collapseDuration(panel), easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)' },
+    );
+
+    // `finish` has to run on cancel too, or an interrupted fold would strand
+    // the panel open with a stale class and no way back.
+    var finish = function () {
+      panel.classList.remove('is-collapsing');
+      panel.open = false;
+      settle();
+    };
+    animation.addEventListener('finish', finish);
+    animation.addEventListener('cancel', finish);
   }
 
   document.addEventListener('click', function (event) {

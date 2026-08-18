@@ -9,7 +9,7 @@
  * It returns a phase kind, not a sentence. The words live in
  * `domain/runs/steps.ts`, so a copy change does not touch this walker.
  */
-import { readdir } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { completeLines } from './results.ts';
 
 export type LiveOpts = {
@@ -19,7 +19,29 @@ export type LiveOpts = {
   maxTurns: number;
   /** Catalog criteria for the in-flight task, when we know which one it is. */
   criteriaHint?: number;
+  /**
+   * Epoch ms this run started. Harbor's jobs directory is shared by every run
+   * on the machine, so without this a new run inherits every finished trial
+   * still sitting there and reports itself complete before it has begun.
+   */
+  since?: number;
 };
+
+/**
+ * Trials are dated by their own contents. A directory last written before this
+ * run started belongs to an earlier one. The grace window absorbs the second or
+ * two between recording the start and Harbor creating the folder.
+ */
+const GRACE_MS = 60_000;
+
+async function startedAfter(dir: string, since: number): Promise<boolean> {
+  try {
+    const info = await stat(dir);
+    return info.mtimeMs >= since - GRACE_MS;
+  } catch {
+    return false;
+  }
+}
 
 export type RunPhase =
   | { kind: 'starting' }
@@ -88,7 +110,7 @@ function trialDirOf(path: string): string | null {
   return null;
 }
 
-async function trialsOf(root: string): Promise<Trial[]> {
+async function trialsOf(root: string, since?: number): Promise<Trial[]> {
   const byDir = new Map<string, Trial>();
   const take = (dir: string) => {
     let trial = byDir.get(dir);
@@ -110,16 +132,10 @@ async function trialsOf(root: string): Promise<Trial[]> {
       else if (path.endsWith('/config.json')) trial.config = true;
     }
   }
-  return [...byDir.values()];
-}
-
-async function nonempty(dir: string): Promise<boolean> {
-  try {
-    const entries = await readdir(dir);
-    return entries.length > 0;
-  } catch {
-    return false;
-  }
+  const found = [...byDir.values()];
+  if (since === undefined) return found;
+  const mine = await Promise.all(found.map((trial) => startedAfter(trial.dir, since)));
+  return found.filter((_trial, index) => mine[index]);
 }
 
 /**
@@ -191,15 +207,16 @@ export async function snapshot(opts: LiveOpts): Promise<LiveProgress> {
   const done = await completeLines(opts.outputPath);
   if (done >= total) return { done, fraction: 1, phase: { kind: 'tasks', done, total } };
 
-  const started = await nonempty(opts.harborJobsDir);
-  const trials = started ? await trialsOf(opts.harborJobsDir) : [];
+  // Every trial under here that belongs to this run. The directory itself says
+  // nothing — it is shared, so it is non-empty long before this run starts and
+  // stays non-empty long after. Only the trials inside it carry a run's identity.
+  const trials = await trialsOf(opts.harborJobsDir, opts.since);
   const incomplete = trials.filter((trial) => !trial.result);
   const recorded = trials.filter((trial) => trial.result).length;
   const lag = Math.max(0, recorded - done);
 
   const measured = await Promise.all(incomplete.map((trial) => measure(trial, opts.maxTurns, opts.criteriaHint)));
-  let inFlight = lag + measured.reduce((sum, item) => sum + item.frac, 0);
-  if (trials.length === 0 && started) inFlight += PREPARE;
+  const inFlight = lag + measured.reduce((sum, item) => sum + item.frac, 0);
 
   const fraction = Math.min(1, (done + inFlight) / total);
   const lead = measured.reduce<Measured | null>((best, item) => {
@@ -207,11 +224,13 @@ export async function snapshot(opts: LiveOpts): Promise<LiveProgress> {
     return best;
   }, null);
 
+  // Until Harbor writes the first trial folder there is nothing to report but
+  // the fact that we are waiting for it, which is what `starting` means.
   let phase: RunPhase = { kind: 'starting' };
   if (lead && lead.phase.kind !== 'preparing') phase = lead.phase;
+  else if (lead) phase = { kind: 'preparing' };
   else if (lag > 0) phase = { kind: 'finishing' };
   else if (done > 0) phase = { kind: 'tasks', done, total };
-  else if (started) phase = { kind: 'preparing' };
 
   return { done, fraction, phase };
 }

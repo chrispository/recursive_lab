@@ -22,8 +22,10 @@ import * as archive from '../../lib/archive.ts';
 import * as formats from '../../lib/formats.ts';
 import * as source from '../../lib/source.ts';
 import * as head from '../../gym/head.ts';
+import * as pins from '../../gym/pins.ts';
 import * as servers from '../../gym/servers.ts';
 import { audit } from '../audit/service.ts';
+import type { AlignmentReport, CatalogAlignment } from './model.ts';
 import * as jobs from '../jobs/trace.ts';
 import type { BenchmarkCatalog as BenchmarkCatalogRow, ImportPlan, ImportPreview, ImportTally } from './model.ts';
 import * as repo from './repo.ts';
@@ -303,4 +305,39 @@ export async function bindAdapter(benchmarkId: number): Promise<string> {
   } catch (cause) {
     throw new ImportError(cause instanceof Error ? cause.message : String(cause));
   }
+}
+
+/**
+ * Catalog revisions against the gym's own benchmark pin.
+ *
+ * The lab's catalog and the gym's prepared assets are two independent copies
+ * of the same repository, each frozen at one commit. This states which copy is
+ * at which commit and how many catalog tasks the gym can actually run, so the
+ * gap shows on the Settings page instead of surfacing as a failed run.
+ */
+export async function alignment(): Promise<AlignmentReport> {
+  const [pin, catalogs] = await Promise.all([pins.resolvePin(), repo.listCatalogs()]);
+  const runnable = new Set(pin.runnableTaskIds);
+
+  const rows = await Promise.all(
+    catalogs.map(async (catalog): Promise<CatalogAlignment> => {
+      const ids = await repo.listTaskIds(catalog.benchmarkId);
+      const missing = ids.filter((id) => !runnable.has(id));
+      const sameSource = Boolean(pin.repository) && pin.repository.endsWith(catalog.sourceIdentifier);
+      return {
+        benchmarkCode: catalog.benchmarkCode,
+        name: catalog.name,
+        sourceIdentifier: catalog.sourceIdentifier,
+        catalogRevision: catalog.revision,
+        gymRevision: pin.revision,
+        sameSource,
+        aligned: sameSource && pin.revision === catalog.revision,
+        taskCount: ids.length,
+        runnableCount: ids.length - missing.length,
+        missingCount: missing.length,
+        missingFamilies: [...new Set(missing.map((id) => id.split('__')[0]!))].sort(),
+      };
+    }),
+  );
+  return { gym: pin, catalogs: rows };
 }

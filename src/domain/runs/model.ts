@@ -41,6 +41,18 @@ export type BenchmarkCriterionResult = {
   judgeModel: string;
   judgeError: boolean;
   errorType: string | null;
+  /**
+   * The criterion exactly as the benchmark defines it, verbatim from the
+   * source `task.json`. Shown on demand so a verdict can be checked against the
+   * definition rather than against a paraphrase of it. Empty when the catalog
+   * row is gone — a re-import can drop it while the verdict survives.
+   */
+  sourceJson: string;
+  /**
+   * The catalog's wording has changed since this verdict was graded, so the raw
+   * JSON above describes a criterion the judge never saw.
+   */
+  sourceDrifted: boolean;
 };
 
 /** Criterion verdicts for one task, as the Results page groups them. */

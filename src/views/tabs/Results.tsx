@@ -1,4 +1,4 @@
-import type { BenchmarkTaskCriteria, BenchmarkRunSummary } from '../../domain/runs/model.ts';
+import type { BenchmarkCriterionResult, BenchmarkTaskCriteria, BenchmarkRunSummary } from '../../domain/runs/model.ts';
 import type { JobRow } from '../../domain/jobs/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Cap } from '../ui/Cap.tsx';
@@ -9,6 +9,71 @@ import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
 
 const numberOf = (value: unknown) => (typeof value === 'number' ? value : Number(value ?? 0));
+
+/** Stable per-criterion dialog id. Criterion ids repeat across tasks, so both. */
+const dialogId = (taskId: string, criterionId: string) =>
+  `cd-${`${taskId}-${criterionId}`.replace(/[^A-Za-z0-9_-]/g, '_')}`;
+
+/**
+ * The criterion as the benchmark wrote it.
+ *
+ * Re-indented for reading and nothing else — no key is renamed, dropped, or
+ * reordered, because the point of showing the raw definition is to read what
+ * the benchmark actually says rather than this app's account of it. Text that
+ * will not parse is shown exactly as stored.
+ */
+function prettyJson(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
+function CriterionDialog({ taskId, criterion }: { taskId: string; criterion: BenchmarkCriterionResult }) {
+  return (
+    <dialog id={dialogId(taskId, criterion.criterionId)} class="m-dialog">
+      <div class="m-dialog-head">
+        <div>
+          <span class="m-id">{criterion.criterionId}</span>
+          <strong>{criterion.title}</strong>
+          <span class="m-dialog-sub">{taskId}</span>
+        </div>
+        <button type="button" class="ghost compact" data-close-dialog aria-label="Close">✕</button>
+      </div>
+      <div class="m-dialog-body">
+        {criterion.sourceDrifted ? (
+          <p class="m-dialog-warn">
+            The catalog has been re-imported since this run. The definition below is the current one —
+            it is <b>not</b> what the judge applied. The graded wording is shown underneath.
+          </p>
+        ) : null}
+        <span class="m-code">Criterion definition</span>
+        {criterion.sourceJson
+          ? <pre class="m-dialog-json">{prettyJson(criterion.sourceJson)}</pre>
+          : <p class="m-note">No stored definition — the catalog row for this criterion is gone.</p>}
+
+        {/* The wording the judge was given, kept next to the verdict rather
+            than inferred from the catalog. When the two agree this is simply
+            the same sentence twice, which is the reassuring case. */}
+        <span class="m-code">Wording applied by the judge</span>
+        <p class="m-dialog-text">{criterion.matchCriteria || 'No criterion text was recorded for this run.'}</p>
+
+        <span class="m-code">Judge</span>
+        <p class="m-dialog-text">
+          {criterion.judgeModel || 'Model not recorded'}
+          {criterion.judgeError ? ` · ${criterion.errorType ?? 'judge error'}` : ''}
+        </p>
+
+        <span class="m-code">Verdict</span>
+        <p class="m-dialog-text">
+          <b class={`m-criterion-result ${criterion.result}`}>{criterion.result.toUpperCase()}</b>
+          {' — '}{criterion.reasoning || 'No reasoning recorded.'}
+        </p>
+      </div>
+    </dialog>
+  );
+}
 
 export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
   benchmarkRun: BenchmarkRunSummary | null;
@@ -111,18 +176,24 @@ export function Results({ benchmarkRun, jobs, tasks, availableRuns }: {
                     </summary>
                     <div class="m-criterion-body">
                       <p class="m-criterion-reasoning">{criterion.reasoning}</p>
-                      <details class="m-criterion-source">
-                        <summary>View task / judge score</summary>
-                        <div class="m-criterion-source-body">
-                          <div><span class="m-code">Task criterion</span><p>{criterion.matchCriteria || 'No task criterion text was recorded.'}</p></div>
-                          <div><span class="m-code">Judge</span><p>{criterion.judgeModel || 'Model not recorded'}{criterion.judgeError ? ` · ${criterion.errorType ?? 'judge error'}` : ''}</p></div>
-                        </div>
-                      </details>
+                      <button
+                        type="button"
+                        class="ghost compact"
+                        data-open-dialog={dialogId(task.taskId, criterion.criterionId)}
+                      >View task / judge score</button>
                     </div>
                   </details>
                 ))}
               </section>
             ))}
+            {/* Dialogs live outside the disclosures above on purpose: a
+                <dialog> inside a closed <details> has a hidden ancestor and
+                cannot open at all. */}
+            {tasks.flatMap((task) =>
+              task.criteria.map((criterion) => (
+                <CriterionDialog taskId={task.taskId} criterion={criterion} />
+              )),
+            )}
           </div>
         ) : (
           // "Nothing imported" is only one reason this list is empty, and it was

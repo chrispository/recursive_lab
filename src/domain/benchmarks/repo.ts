@@ -107,6 +107,13 @@ export const countTasks = async (benchmarkId: number) =>
 export const countCriteria = async (benchmarkId: number) =>
   (await value<number>(`SELECT COUNT(*) FROM benchmark_task_criteria WHERE benchmark_id = ?`, [benchmarkId])) ?? 0;
 
+/** Task ids only — alignment counts against the gym without task payloads. */
+export const listTaskIds = async (benchmarkId: number): Promise<string[]> =>
+  (await all<Row & { task_id: string }>(
+    `SELECT task_id FROM benchmark_tasks WHERE benchmark_id = ? ORDER BY position`,
+    [benchmarkId],
+  )).map((row) => row.task_id);
+
 type CatalogDbRow = Row & {
   benchmark_id: number;
   benchmark_name: string;

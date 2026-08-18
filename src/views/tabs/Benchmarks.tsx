@@ -2,14 +2,10 @@ import type { PublicSettings } from '../../gym/settings.ts';
 import type { BenchmarkCatalog } from '../../domain/benchmarks/model.ts';
 import { isLive, type JobRow } from '../../domain/jobs/model.ts';
 import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
-import { Badge } from '../ui/Badge.tsx';
-import { Panel } from '../ui/Panel.tsx';
 import {
   CatalogNote,
   CatalogSelect,
-  CatalogStatus,
   ImportForm,
-  RunnableStatus,
   TaskCount,
   TaskPicker,
 } from './benchmarks/ImportForm.tsx';
@@ -169,17 +165,6 @@ export function Benchmarks({
 
         <RunLedger benchmarkRun={benchmarkRun} jobs={jobs} />
         </div>
-
-        <aside class="m-config-aside">
-          <Panel title="System preflight" code="STATUS">
-            <div class="m-status-list">
-              <CatalogStatus catalog={catalog} />
-              <div><span>Model configured</span><Badge state={model ? 'ready' : 'pending'}>{model ? 'yes' : 'no'}</Badge></div>
-              <div><span>API key saved</span><Badge state={settings.has_policy_key ? 'ready' : 'pending'}>{settings.has_policy_key ? 'yes' : 'no'}</Badge></div>
-              <RunnableStatus catalog={catalog} />
-            </div>
-          </Panel>
-        </aside>
       </div>
     </>
   );

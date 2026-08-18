@@ -6,7 +6,7 @@
  * verifier events, then result.json.
  */
 import { afterEach, expect, test } from 'bun:test';
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, rm, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stepOf } from '../src/domain/runs/steps.ts';
@@ -44,13 +44,44 @@ test('says Starting when Harbor has not created a trial yet', async () => {
   expect(live.done).toBe(0);
 });
 
-test('says Preparing once Harbor has created a folder', async () => {
-  const { outputPath, harborJobsDir } = await workspace();
-  await mkdir(join(harborJobsDir, '20260814'), { recursive: true });
+test('says Preparing once this run has a trial folder', async () => {
+  const { outputPath, harborJobsDir, trial } = await workspace();
+  // The environment exists but the agent has not written a turn yet.
+  await write(join(trial, 'agent/artifacts/lab-run/config.json'), '{}');
   const live = await snapshot({ outputPath, harborJobsDir, total: 1, maxTurns: 60 });
   expect(stepOf(live.phase)).toBe('Preparing the environment');
   expect(live.fraction).toBeGreaterThan(0);
   expect(live.fraction).toBeLessThan(0.2);
+});
+
+test('an empty directory tree is not this run preparing', async () => {
+  // Harbor's jobs directory is shared by every run on the machine, so the date
+  // folders in it say nothing about whether *this* run has started.
+  const { outputPath, harborJobsDir } = await workspace();
+  await mkdir(join(harborJobsDir, '20260814'), { recursive: true });
+  const live = await snapshot({ outputPath, harborJobsDir, total: 1, maxTurns: 60 });
+  expect(stepOf(live.phase)).toBe('Starting');
+  expect(live.fraction).toBe(0);
+});
+
+test('ignores a finished trial left behind by an earlier run', async () => {
+  // The bug this guards: an earlier run's `result.json` counted as this run's
+  // work, so a run reported itself complete before it had begun.
+  const { outputPath, harborJobsDir, trial } = await workspace();
+  await write(join(trial, 'result.json'), '{}');
+  const past = Date.now() - 24 * 60 * 60 * 1000;
+  await utimes(trial, past / 1000, past / 1000);
+
+  const live = await snapshot({ outputPath, harborJobsDir, total: 1, maxTurns: 60, since: Date.now() });
+  expect(stepOf(live.phase)).toBe('Starting');
+  expect(live.fraction).toBe(0);
+});
+
+test('claims a trial created after the run started', async () => {
+  const { outputPath, harborJobsDir, trial } = await workspace();
+  await write(join(trial, 'agent/artifacts/lab-run/transcript.jsonl'), '{"turn": 12, "role": "model_input"}\n');
+  const live = await snapshot({ outputPath, harborJobsDir, total: 1, maxTurns: 60, since: Date.now() - 60_000 });
+  expect(stepOf(live.phase)).toBe('The agent is working — turn 12 of 60');
 });
 
 test('names the agent turn from the flushed transcript', async () => {

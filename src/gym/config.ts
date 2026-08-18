@@ -11,6 +11,7 @@
  * We resolve both here so callers see plain strings. This is the app's single
  * source of truth for gym paths — never hardcode one; ask the running server.
  */
+import { resolve } from 'node:path';
 import { config } from '../config.ts';
 
 export type GymConfig = Record<string, unknown>;
@@ -73,6 +74,41 @@ export function obj(root: GymConfig, path: string): Record<string, unknown> {
   return found && typeof found === 'object' && !Array.isArray(found)
     ? (found as Record<string, unknown>)
     : {};
+}
+
+/**
+ * Where the running Harbor agent writes its trial folders.
+ *
+ * This is read, never set. `gym eval run --no-serve` talks to servers that
+ * `gym env start` already launched, and the agent builds its jobs path from its
+ * own startup config (`harbor_jobs_dir`), so an eval-time Hydra overlay for that
+ * key is silently inert — the lab spent a whole run watching a directory it had
+ * created itself while Harbor wrote somewhere else entirely.
+ *
+ * Harbor then nests `<date>/<dataset>/<model>/<time>_<id>/<trial>` under this,
+ * so the directory is shared by every run and callers must scope what they find
+ * to their own run.
+ */
+export function harborJobsDir(live: GymConfig, agentProcess: string, agentName: string): string {
+  const path = `${agentProcess}.responses_api_agents.${agentName}.harbor_jobs_dir`;
+  return resolve(config.gym.root, str(live, path, 'jobs'));
+}
+
+/**
+ * The live config, cached briefly.
+ *
+ * The ledger polls while a run is in flight and every poll needs this document;
+ * without the cache each one is another round trip to the head server for bytes
+ * that only change when gym restarts.
+ */
+let cached: { at: number; value: GymConfig } | null = null;
+const CACHE_MS = 10_000;
+
+export async function loadCached(): Promise<GymConfig> {
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached.value;
+  const value = await load();
+  cached = { at: Date.now(), value };
+  return value;
 }
 
 /** The live config, or a thrown error naming the head server that refused us. */

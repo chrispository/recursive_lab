@@ -24,13 +24,20 @@ export class GymPairError extends Error {}
 export function pickResources(health: GymHealth, preferred = ''): GymServer {
   const running = healthy(health, 'resources_servers');
   if (preferred) {
-    const match = running.find((server) => server.processName === preferred);
-    if (!match) {
+    const exact = running.find((server) => server.processName === preferred);
+    if (exact) return exact;
+    const candidates = running.filter(
+      (server) => server.name === preferred || server.processName.startsWith(`${preferred}_`),
+    );
+    if (candidates.length === 1) return candidates[0]!;
+    if (candidates.length === 0) {
       throw new GymPairError(
         `Gym resources server ${preferred} is not healthy (running: ${names(running)}).`,
       );
     }
-    return match;
+    throw new GymPairError(
+      `Multiple gym resources servers match ${preferred} (${names(candidates)}). Bind the catalog to one of them.`,
+    );
   }
   if (running.length === 1) return running[0]!;
   if (running.length === 0) {
@@ -53,8 +60,18 @@ export function pickAgent(health: GymHealth, resources: GymServer): GymServer {
   const convention = `${resources.processName}_harbor_agent`;
   const named = running.find((server) => server.processName === convention);
   if (named) return named;
-  const prefixed = running.filter((server) => server.processName.startsWith(`${resources.processName}_`));
+  const stem = resources.processName.replace(/_resources_server$/, '');
+  const stemNamed = running.find((server) => server.processName === `${stem}_harbor_agent`);
+  if (stemNamed) return stemNamed;
+  const prefixed = running.filter(
+    (server) => server.processName.startsWith(`${resources.processName}_`) || server.processName.startsWith(`${stem}_`),
+  );
   if (prefixed.length === 1) return prefixed[0]!;
+  if (prefixed.length > 1) {
+    throw new GymPairError(
+      `Multiple gym agents match ${resources.processName} (${names(prefixed)}).`,
+    );
+  }
   if (running.length === 1) return running[0]!;
   throw new GymPairError(
     `No healthy agent for ${resources.processName} (looked for ${convention}; running: ${names(running)}).`,
