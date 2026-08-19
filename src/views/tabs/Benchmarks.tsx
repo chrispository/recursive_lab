@@ -2,6 +2,7 @@ import type { PublicSettings } from '../../gym/settings.ts';
 import type { BenchmarkCatalog } from '../../domain/benchmarks/model.ts';
 import { isLive, type JobRow } from '../../domain/jobs/model.ts';
 import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
+import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import {
   CatalogNote,
   CatalogSelect,
@@ -10,9 +11,12 @@ import {
   TaskPicker,
 } from './benchmarks/ImportForm.tsx';
 import { RunLedger } from './benchmarks/RunLedger.tsx';
+import { Handoff } from '../layout/Handoff.tsx';
+import { RunContext } from '../layout/RunContext.tsx';
+import { Icon } from '../ui/Icon.tsx';
 
 function Help({ text }: { text: string }) {
-  return <span class="m-help" title={text} aria-label={text}>?</span>;
+  return <span class="m-help" title={text}><Icon name="help" label={text} /></span>;
 }
 
 function NumberField({ id, label, value, min, max, step, help }: {
@@ -34,6 +38,7 @@ function NumberField({ id, label, value, min, max, step, help }: {
 
 export function Benchmarks({
   benchmarkRun,
+  progress,
   runs,
   jobs,
   catalogs,
@@ -41,6 +46,7 @@ export function Benchmarks({
   settings,
 }: {
   benchmarkRun: BenchmarkRunSummary | null;
+  progress: BenchmarkRunProgress | null;
   /** Every run — the ledger is a per-run history. */
   runs: BenchmarkRunSummary[];
   jobs: JobRow[];
@@ -63,15 +69,17 @@ export function Benchmarks({
           scores every criterion. Failed criteria become the input to the failure map.
         </p>
       </div>
+      <RunContext benchmarkRun={benchmarkRun} progress={progress} availableRuns={runs} />
 
       <div class="m-config-layout">
         <div class="m-config-stack">
         <details id="benchmarks-config" class="m-config-panel" open={live ? undefined : true}>
           <summary class="m-config-head">
+            <span class="m-config-toggle" aria-hidden="true"><Icon name="chevron" /></span>
             <h3>Run configuration</h3>
             <div class="m-config-head-right">
               <span class="m-code">NEMO GYM × HARBOR</span>
-              <a class="m-settings-link" href="/settings" hx-boost="true" hx-target="#workspace" hx-swap="innerHTML" aria-label="Open settings" title="Open settings">⚙</a>
+              <a class="m-settings-link" href="/settings" hx-boost="true" hx-target="#workspace" hx-swap="innerHTML" aria-label="Open settings" title="Open settings"><Icon name="settings" /></a>
             </div>
           </summary>
 
@@ -110,7 +118,7 @@ export function Benchmarks({
             <NumberField id="concurrency" label="Rollout concurrency" value={1} min={1} max={32} help="Maximum number of Harbor rollouts running at once." />
 
             <details class="m-advanced full">
-              <summary><span class="m-advanced-mark" aria-hidden="true">+</span> Advanced run settings</summary>
+              <summary><span class="m-advanced-mark" aria-hidden="true"><Icon name="chevron" /></span> Advanced run settings</summary>
               <div class="m-advanced-body">
                 <p class="m-config-note">These settings are saved with the run and affect output variability, agent budget, judge cost, and timeout behavior.</p>
                 <div class="m-advanced-group">
@@ -160,7 +168,7 @@ export function Benchmarks({
             </div>
             <div class="m-run-card m-run-card-full">
               <div><span class="m-run-kicker">FULL PROCESS</span><label for="recurse-count">RUN <input id="recurse-count" type="number" min="1" max="99" value="1" /> ×</label><span>Benchmark → Tune → Benchmark</span></div>
-              <button class="m-recurse-button" type="button" data-benchmark-action="recurse">✦ Recurse</button>
+              <button class="m-recurse-button" type="button" data-benchmark-action="recurse"><Icon name="spark" /> Recurse</button>
             </div>
           </div>
           <div id="benchmark-config-status" class="m-config-status" role="status" aria-live="polite"></div>
@@ -169,6 +177,7 @@ export function Benchmarks({
         <RunLedger benchmarkRun={benchmarkRun} runs={runs} jobs={jobs} />
         </div>
       </div>
+      <Handoff stage="benchmarks" benchmarkRun={benchmarkRun} progress={progress} />
     </>
   );
 }

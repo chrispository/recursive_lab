@@ -1,4 +1,6 @@
 import type { EnvironmentRow, EvaluationSummary } from '../../domain/environments/model.ts';
+import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
+import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Bar } from '../ui/Bar.tsx';
 import { Cap } from '../ui/Cap.tsx';
@@ -8,10 +10,24 @@ import { Panel } from '../ui/Panel.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
+import { Handoff } from '../layout/Handoff.tsx';
+import { RunContext } from '../layout/RunContext.tsx';
 
 const pct = (value: number | null) => (value === null ? '—' : `${(value * 100).toFixed(1)}%`);
 
-export function EnvLab({ environments, evaluation }: { environments: EnvironmentRow[]; evaluation: EvaluationSummary | null }) {
+export function EnvLab({
+  benchmarkRun,
+  progress,
+  availableRuns,
+  environments,
+  evaluation,
+}: {
+  benchmarkRun: BenchmarkRunSummary | null;
+  progress: BenchmarkRunProgress | null;
+  availableRuns: BenchmarkRunSummary[];
+  environments: EnvironmentRow[];
+  evaluation: EvaluationSummary | null;
+}) {
   const built = environments.filter((environment) => environment.status === 'built' || environment.status === 'ready').length;
   const scaleReady = environments.filter((environment) => environment.scaleReady).length;
   const learnable = evaluation !== null && (evaluation.withinTaskStd ?? 0) >= 0.05 && (evaluation.saturatedFraction ?? 1) <= 0.8;
@@ -22,6 +38,7 @@ export function EnvLab({ environments, evaluation }: { environments: Environment
         <h2>Prove environments locally, then hand them to the cluster</h2>
         <p>Prime runs the local package and model evaluation here. A passing local validation unlocks the immutable training handoff; publishing to Prime is optional.</p>
       </div>
+      <RunContext benchmarkRun={benchmarkRun} progress={progress} availableRuns={availableRuns} />
 
       <TableBox>
         <Cap title="Environment readiness">
@@ -66,6 +83,7 @@ export function EnvLab({ environments, evaluation }: { environments: Environment
           {evaluation ? <Bar value={evaluation.meanReward} below={!learnable} /> : null}
         </Panel>
       </div>
+      <Handoff stage="env-lab" benchmarkRun={benchmarkRun} progress={progress} />
     </>
   );
 }

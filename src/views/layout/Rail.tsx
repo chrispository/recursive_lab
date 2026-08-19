@@ -9,6 +9,8 @@ import { STAGES, stageNumber, type Tab } from './tabs.ts';
 
 /** How far the current progress reaches, for the stage ticks and the foot. */
 export type RailState = {
+  /** Numeric id used to keep the selected run in stage links. */
+  benchmarkRunId: number | null;
   /** Display code of the benchmark run in context, e.g. "BR-00012". Null when there is none. */
   benchmarkRunCode: string | null;
   /** Model under test, shown in the rail foot. */
@@ -19,7 +21,7 @@ export type RailState = {
   gates: number;
 };
 
-export const EMPTY_RAIL: RailState = { benchmarkRunCode: null, model: null, passRate: null, gates: 0 };
+export const EMPTY_RAIL: RailState = { benchmarkRunId: null, benchmarkRunCode: null, model: null, passRate: null, gates: 0 };
 
 /**
  * A stage is `done` once progress reaches past it, `active` for the one
@@ -38,11 +40,12 @@ function statusOf(index: number, gates: number) {
  */
 export function Rail({ tab, state, oob }: { tab: Tab; state: RailState; oob?: boolean }) {
   const pct = state.passRate === null ? null : `${(state.passRate * 100).toFixed(1)}%`;
+  const stageHref = (stage: string) => state.benchmarkRunId ? `/${stage}?run=${state.benchmarkRunId}` : `/${stage}`;
 
   return (
     <aside id="rail" class="m-rail" hx-swap-oob={oob ? 'true' : undefined}>
       <div class="m-railhead">
-        <a class="m-wordmark" href="/" hx-boost="true">
+        <a class="m-wordmark" href={stageHref('benchmarks')} hx-boost="true">
           recursive<span class="m-wordmark-mark">(</span> <span class="m-wordmark-mark">)</span>
         </a>
         <small>{state.benchmarkRunCode ?? 'no run'}</small>
@@ -51,7 +54,7 @@ export function Rail({ tab, state, oob }: { tab: Tab; state: RailState; oob?: bo
       {STAGES.map((stage, i) => (
         <a
           class={stage.tab === tab ? 'on' : undefined}
-          href={`/${stage.tab}`}
+          href={stageHref(stage.tab)}
           data-status={statusOf(i, state.gates)}
           hx-boost="true"
           hx-target="#workspace"

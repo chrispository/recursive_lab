@@ -36,7 +36,7 @@
 .m-railhead > a.m-wordmark {
   display: block;
   color: var(--text-1);
-  font-family: 'DM Mono', var(--mono);
+  font-family: var(--sans);
   font-size: 19px;
   font-weight: 500;
   line-height: 1;
@@ -45,7 +45,7 @@
 }
 .m-railhead > a.m-wordmark .m-wordmark-mark {
   color: var(--brand);
-  font-family: 'DM Mono', var(--mono);
+  font-family: var(--sans);
   font-size: 1.12em;
   font-weight: 500;
   letter-spacing: -0.05em;
@@ -117,7 +117,7 @@
 }
 .m-gates {
   color: var(--text-4);
-  font: 500 9px/1.7 var(--mono);
+  font: 500 9px/1.7 var(--sans);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -131,6 +131,18 @@
 .m-main {
   min-width: 0;
   padding: var(--s5);
+  padding-bottom: calc(var(--s5) + 58px);
+}
+
+.m-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  vertical-align: -3px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
 }
 
 .m-title {
@@ -141,6 +153,81 @@
   max-width: 64ch;
   margin-top: 8px;
 }
+
+.m-run-context {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  min-height: 42px;
+  margin-top: var(--s3);
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand);
+  background: var(--deep);
+}
+.m-run-context-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 12px;
+}
+.m-run-context-id {
+  flex: 0 0 auto;
+  color: var(--brand-ink);
+  font: 500 11px / 1 var(--mono);
+  letter-spacing: 0.07em;
+}
+.m-run-context-prose {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--t-label);
+  overflow-wrap: anywhere;
+}
+.m-run-context-prose b {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.m-run-switch {
+  position: relative;
+  flex: 0 0 auto;
+}
+.m-run-switch > summary,
+.m-run-switch-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: var(--t-label);
+  list-style: none;
+}
+.m-run-switch > summary::-webkit-details-marker {
+  display: none;
+}
+.m-run-switch > summary:hover {
+  color: var(--text-1);
+}
+.m-run-switch form {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 300px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.m-run-switch select {
+  min-width: 0;
+  padding: 5px 8px;
+  font-size: var(--t-label);
+}
 /* A heading that carries a control on its right edge. */
 .m-title-row {
   display: flex;
@@ -149,26 +236,6 @@
   justify-content: space-between;
   gap: var(--s3) var(--s5);
 }
-.m-run-picker {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-}
-.m-run-picker label {
-  color: var(--text-3);
-  font: 500 var(--t-label) / 1 var(--mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-/* Sized to the run codes it holds, not to the column it sits in. */
-.m-run-picker select {
-  width: auto;
-  min-width: 260px;
-  max-width: 46ch;
-  padding: 5px 8px;
-  font-size: var(--t-body);
-}
-
 /* Benchmark configuration -------------------------------------------------- */
 
 .m-config-layout {
@@ -222,14 +289,14 @@
 .m-config-head::-webkit-details-marker {
   display: none;
 }
-.m-config-head::before {
-  content: '▾';
-  color: var(--text-2);
-  font: 700 22px / 1 var(--mono);
+.m-config-toggle {
+  display: inline-flex;
   width: 18px;
+  color: var(--text-2);
+  transition: transform 0.16s var(--ease);
 }
-.m-config-panel:not([open]) > .m-config-head::before {
-  content: '▸';
+.m-config-panel:not([open]) > .m-config-head .m-config-toggle {
+  transform: rotate(-90deg);
 }
 .m-config-panel:not([open]) > .m-config-head {
   border-bottom: 0;
@@ -284,16 +351,10 @@
 }
 .m-help {
   display: inline-grid;
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   place-items: center;
   color: var(--text-3);
-  border: 1px solid var(--text-4);
-  border-radius: 50%;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
   vertical-align: 1px;
 }
 .m-config-note {
@@ -319,12 +380,14 @@
 .m-advanced > summary::-webkit-details-marker {
   display: none;
 }
-.m-import > summary::before {
-  content: '▸ ';
+.m-import-toggle {
+  display: inline-flex;
+  width: 16px;
   color: var(--text-4);
+  transition: transform 0.16s var(--ease);
 }
-.m-import[open] > summary::before {
-  content: '▾ ';
+.m-import[open] > summary .m-import-toggle {
+  transform: rotate(90deg);
 }
 .m-import-body {
   display: grid;
@@ -351,7 +414,7 @@
   display: none;
   gap: 6px;
   color: var(--brand-ink);
-  font: 500 var(--t-label) / 1.3 var(--mono);
+  font: 500 var(--t-label) / 1.3 var(--sans);
 }
 .htmx-request .m-import-progress.htmx-indicator {
   display: grid;
@@ -447,10 +510,13 @@
   padding: 10px 0 0;
 }
 .m-advanced-mark {
-  display: inline-block;
+  display: inline-flex;
   width: 18px;
   color: var(--brand);
-  font-size: 16px;
+  transition: transform 0.16s var(--ease);
+}
+.m-advanced[open] .m-advanced-mark {
+  transform: rotate(90deg);
 }
 .m-advanced-body {
   display: grid;
@@ -478,8 +544,8 @@
 .m-advanced-group-head span,
 .m-run-kicker {
   color: var(--text-4);
-  font: 500 9px / 1.2 var(--mono);
-  letter-spacing: 0.12em;
+  font: 500 10.5px / 1.2 var(--sans);
+  letter-spacing: 0.012em;
   text-transform: uppercase;
 }
 .m-config-grid {
@@ -545,6 +611,69 @@
   color: var(--text-3);
   font-size: var(--t-label);
 }
+
+/* The run moves from one stage to the next without being selected again. */
+.m-handoff {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin: var(--s5) calc(var(--s5) * -1) calc(var(--s5) * -1);
+  padding: 10px var(--s5);
+  border-top: 1px solid var(--line);
+  background: var(--deeper);
+}
+.m-handoff-what {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--t-label);
+  overflow-wrap: anywhere;
+}
+.m-handoff-what b {
+  color: var(--text-1);
+  font: 500 11px / 1 var(--mono);
+  letter-spacing: 0.07em;
+}
+.m-handoff-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--s3);
+}
+.m-handoff-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-3);
+  font-size: var(--t-label);
+}
+.m-handoff-back:hover {
+  color: var(--text-1);
+}
+.m-handoff-back .m-icon,
+.m-handoff-go .m-icon {
+  vertical-align: -4px;
+}
+.m-handoff-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 12px;
+  color: var(--btn-ink);
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  border-radius: 0;
+  font: 600 12px / 1 var(--sans);
+}
+.m-handoff-go:hover {
+  color: var(--btn-ink);
+  background: var(--brand-press);
+  border-color: var(--brand-press);
+}
 /* Tablebox ----------------------------------------------------------------
    A bordered box whose caption carries the counts for the rows inside it. The
    count lives with the rows it counts, so the two can never disagree. */
@@ -570,6 +699,15 @@
 }
 .m-cap h3 {
   color: var(--text-1);
+  font: 500 10.5px / 1.3 var(--sans);
+  letter-spacing: 0.012em;
+  text-transform: none;
+}
+.m-panel-head h3,
+.m-config-head h3 {
+  font: 500 10.5px / 1.3 var(--sans);
+  letter-spacing: 0.012em;
+  text-transform: none;
 }
 
 /* Tally line — replaces the old five-box metric strip everywhere. */
@@ -595,7 +733,7 @@
 }
 .m-tally b {
   color: var(--text-1);
-  font: 500 var(--t-data) / 1 var(--mono);
+  font: 500 var(--t-data) / 1 var(--sans);
 }
 .m-tally i {
   color: var(--text-3);
@@ -625,9 +763,9 @@
   color: var(--text-3);
   border-bottom: 1px solid var(--line);
   text-align: left;
-  font: 500 9px/1.4 var(--mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font: 500 10.5px/1.4 var(--sans);
+  letter-spacing: 0.012em;
+  text-transform: none;
   white-space: nowrap;
 }
 .m-table td {
@@ -645,7 +783,11 @@
 .m-table tr.selected td {
   background: var(--wash-2);
 }
-.m-table th.n,
+.m-table th.n {
+  text-align: right;
+  font-family: var(--sans);
+  font-weight: 500;
+}
 .m-table td.n {
   text-align: right;
   font-family: var(--mono);
@@ -669,7 +811,7 @@
   color: var(--text-4);
   border-bottom: 0;
   text-align: center;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.012em;
 }
 .m-table th.g,
 .m-table td.g {
@@ -705,7 +847,8 @@
   border-left-color: var(--pass);
 }
 .m-table tr[data-state='failed'] td:first-child,
-.m-table tr[data-state='rejected'] td:first-child {
+.m-table tr[data-state='rejected'] td:first-child,
+.m-table tr[data-state='error'] td:first-child {
   border-left-color: var(--fail);
 }
 .m-table tr[data-state='queued'] td:first-child,
@@ -713,7 +856,9 @@
   border-left-color: var(--run);
 }
 .m-table tr[data-state='cancelled'] td:first-child,
-.m-table tr[data-state='pending'] td:first-child {
+.m-table tr[data-state='pending'] td:first-child,
+.m-table tr[data-state='draft'] td:first-child,
+.m-table tr[data-state='review'] td:first-child {
   border-left-color: var(--warn);
 }
 
@@ -748,7 +893,7 @@
 }
 .m-criteria-task-tally {
   color: var(--text-3);
-  font: var(--t-micro) / 1 var(--mono);
+  font: var(--t-micro) / 1 var(--sans);
 }
 .m-criteria-task-tally b {
   font-weight: 600;
@@ -805,7 +950,7 @@
 /* Why the judge could not grade it, on the summary line. */
 .m-criterion-error {
   color: var(--warn);
-  font: 500 var(--t-micro) / 1 var(--mono);
+  font: 500 var(--t-micro) / 1 var(--sans);
   letter-spacing: 0.06em;
   white-space: nowrap;
 }
@@ -813,19 +958,16 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-/* The open/closed glyph the default marker cannot provide in a fixed column. */
+/* The inline disclosure icon sits in a fixed column. */
 .m-criterion-chev {
+  display: inline-flex;
+  justify-content: flex-end;
   color: var(--text-4);
-  font: var(--t-micro) / 1 var(--mono);
-}
-.m-criterion-chev::before {
-  content: '+';
+  transition: transform 0.16s var(--ease), color 0.16s var(--ease);
 }
 .m-criterion[open] .m-criterion-chev {
   color: var(--text-2);
-}
-.m-criterion[open] .m-criterion-chev::before {
-  content: '\2212';
+  transform: rotate(90deg);
 }
 /* Indent to the title column, not to an arbitrary number: the reasoning is
    about the criterion it hangs under, so it starts where that title starts.
@@ -847,7 +989,7 @@
   max-width: 96ch;
   margin-top: 10px;
   color: var(--text-3);
-  font: 500 var(--t-micro) / 1.5 var(--mono);
+  font: 500 var(--t-micro) / 1.5 var(--sans);
   overflow-wrap: anywhere;
 }
 .m-criterion-body > button {
@@ -991,9 +1133,10 @@
   font: 500 var(--t-micro) / 1 var(--mono);
   letter-spacing: 0.08em;
 }
-/* The uppercase caption on the right of a panel head. */
+/* Codes and machine-facing labels stay mono; surrounding copy stays sans. */
 .m-code {
   color: var(--text-3);
+  font-family: var(--mono);
   font-size: var(--t-label);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1032,7 +1175,7 @@
   align-items: center;
   gap: 8px;
   color: var(--text-3);
-  font: 500 var(--t-micro) / 1.5 var(--mono);
+  font: 500 11px / 1.5 var(--sans);
   overflow-wrap: anywhere;
 }
 
@@ -1158,8 +1301,8 @@
 .m-api-result[data-status='error'] .m-api-status { color: var(--fail); }
 .m-api-status {
   color: var(--text-3);
-  font: 500 9px / 1.4 var(--mono);
-  letter-spacing: 0.1em;
+  font: 500 11px / 1.4 var(--sans);
+  letter-spacing: 0.012em;
   text-transform: uppercase;
 }
 
@@ -1169,7 +1312,7 @@
   color: var(--text-1);
   background: var(--raised);
   border: 1px solid var(--line);
-  font: 500 var(--t-data) / 1.4 var(--mono);
+  font: 500 var(--t-data) / 1.4 var(--sans);
 }
 .m-ta {
   color: var(--text-2);
@@ -1179,23 +1322,11 @@
   white-space: pre-wrap;
 }
 
-/* Status badge. Boxed with a square dot — colour comes from the state. */
+/* A state is a word. The table row carries the stripe; this never becomes a chip. */
 .m-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
+  display: inline;
   color: var(--text-3);
-  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
-  font: 500 9px/1.7 var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.m-badge::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  background: currentColor;
+  font: 500 11px / 1.4 var(--sans);
 }
 .m-badge[data-state='succeeded'],
 .m-badge[data-state='ready'],
@@ -1205,20 +1336,22 @@
   color: var(--pass);
 }
 .m-badge[data-state='failed'],
-.m-badge[data-state='rejected'] {
+.m-badge[data-state='rejected'],
+.m-badge[data-state='error'] {
   color: var(--fail);
 }
 .m-badge[data-state='queued'],
 .m-badge[data-state='running'] {
   color: var(--run);
 }
-.m-badge[data-state='running']::before {
+.m-badge[data-state='running'] {
   animation: m-pulse 1.6s ease-in-out infinite;
 }
 .m-badge[data-state='pending'],
 .m-badge[data-state='review'],
 .m-badge[data-state='draft'],
-.m-badge[data-state='cancelled'] {
+.m-badge[data-state='cancelled'],
+.m-badge[data-state='ungraded'] {
   color: var(--warn);
 }
 @keyframes m-pulse {
@@ -1271,7 +1404,7 @@
 .m-ledger-row { position: relative; display: grid; align-items: center; gap: 20px; padding: 18px 20px; border-bottom: 1px solid var(--line-soft); }
 .m-ledger-row:last-child { border-bottom: 0; }
 .m-ledger-live { grid-template-columns: 78px 210px minmax(0, 1fr); min-height: 168px; border-left: 3px solid var(--run); padding: 24px 36px 18px; background: linear-gradient(90deg, color-mix(in srgb, var(--run) 8%, transparent), transparent 62%); }
-.m-ledger-complete { grid-template-columns: 78px 210px minmax(0, 1fr); min-height: 168px; padding: 24px 36px 18px; border-left: 3px solid var(--pass); }
+.m-ledger-complete { grid-template-columns: 210px minmax(0, 1fr); min-height: 168px; padding: 24px 36px 18px; border-left: 3px solid var(--pass); }
 .m-ledger-complete[data-state='error'] { border-left-color: var(--fail); }
 .m-ledger-identity, .m-ledger-progress, .m-ledger-outcome, .m-ledger-scores { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
 .m-ledger-identity > strong, .m-ledger-progress > strong, .m-ledger-scores > strong { font-size: 14px; letter-spacing: -.012em; }
@@ -1283,9 +1416,9 @@
 .m-ledger-run-code .m-id { color: var(--run); font-size: 11px; letter-spacing: .07em; }
 .m-ledger-complete .m-ledger-run-code .m-id { color: var(--pass); }
 .m-ledger-complete[data-state='error'] .m-ledger-run-code .m-id { color: var(--fail); }
-.m-ledger-result-mark { display: grid; width: 74px; height: 74px; place-items: center; border: 1px solid color-mix(in srgb, var(--pass) 50%, transparent); border-radius: 50%; color: var(--pass); font-size: 29px; font-weight: 400; }
-.m-ledger-complete[data-state='error'] .m-ledger-result-mark { border-color: color-mix(in srgb, var(--fail) 50%, transparent); color: var(--fail); }
-.m-ledger-kicker { color: var(--run); font-size: 10px; font-weight: 700; letter-spacing: .095em; text-transform: uppercase; }
+.m-ledger-result-mark { display: inline-flex; width: 17px; height: 17px; align-items: center; justify-content: center; margin-right: 6px; color: currentColor; vertical-align: -4px; }
+.m-ledger-complete[data-state='error'] .m-ledger-result-mark { color: var(--fail); }
+.m-ledger-kicker { display: block; color: var(--run); font-size: 10px; font-weight: 700; letter-spacing: .095em; text-transform: uppercase; }
 .m-ledger-track { display: block; width: min(100%, 430px); height: 4px; margin-top: 7px; overflow: hidden; background: var(--line-soft); }
 .m-ledger-track > i { display: block; height: 100%; background: var(--run); }
 .m-ledger-complete .m-ledger-kicker { color: var(--pass); }
@@ -1300,11 +1433,12 @@
   height: 52px;
 }
 @media (max-width: 760px) {
-  .m-ledger-live, .m-ledger-complete { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .m-ledger-live { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .m-ledger-complete { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px; }
   .m-ledger-live { min-height: 0; padding-left: 13px; }
   .m-thinking-orb.m-ledger-orb { width: 58px; height: 58px; }
-  .m-ledger-result-mark { width: 58px; height: 58px; }
-  .m-ledger-orb-wrap { grid-row: span 2; }
+  .m-ledger-result-mark { width: 17px; height: 17px; }
+  .m-ledger-live .m-ledger-orb-wrap { grid-row: span 2; }
   .m-ledger-progress { grid-column: 2; }
   .m-ledger-run-code { top: 10px; left: 16px; }
 }
@@ -1529,13 +1663,22 @@
   .m-run-actions {
     grid-template-columns: 1fr;
   }
-  .m-run-picker {
-    width: 100%;
+  .m-run-context {
+    align-items: flex-start;
+    flex-direction: column;
   }
-  .m-run-picker select {
-    width: 100%;
-    min-width: 0;
-    flex: 1;
+  .m-run-context-copy {
+    flex-wrap: wrap;
+  }
+  .m-run-switch {
+    align-self: flex-end;
+  }
+  .m-handoff {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .m-handoff-actions {
+    justify-content: flex-end;
   }
   .m-api-result {
     grid-template-columns: 1fr auto;

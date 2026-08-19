@@ -14,8 +14,7 @@ import { HOLDING_GROUPS } from '../../../domain/inventory/model.ts';
 import { Badge } from '../../ui/Badge.tsx';
 import { Panel } from '../../ui/Panel.tsx';
 
-/** Badges are one word everywhere else in the app; a phrase in the 9px chip
- *  voice is unreadable next to a sentence, so the sentence carries the detail. */
+/** Inventory states stay short words so the measured rows remain easy to scan. */
 const STATE_WORD = { have: 'have', partial: 'partly', none: 'none' } as const;
 const STATE_BADGE = { have: 'ready', partial: 'pending', none: 'idle' } as const;
 

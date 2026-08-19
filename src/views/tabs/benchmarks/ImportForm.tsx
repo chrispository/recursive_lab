@@ -1,5 +1,6 @@
 import type { BenchmarkCatalog, BenchmarkTask, ImportTally } from '../../../domain/benchmarks/model.ts';
 import { Badge } from '../../ui/Badge.tsx';
+import { Icon } from '../../ui/Icon.tsx';
 
 export function TaskRow({ task }: { task: BenchmarkTask }) {
   return (
@@ -131,7 +132,7 @@ export function ImportForm({
       hx-trigger="none"
       hx-swap="outerHTML"
     >
-      <summary>Import from GitHub or Hugging Face</summary>
+      <summary><span class="m-import-toggle" aria-hidden="true"><Icon name="chevron" /></span> Import from GitHub or Hugging Face</summary>
       <form
         class="m-import-body"
         hx-post="/ui/benchmarks/import"

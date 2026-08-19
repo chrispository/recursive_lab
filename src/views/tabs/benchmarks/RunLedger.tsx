@@ -4,6 +4,7 @@ import type { LiveProgress } from '../../../gym/progress.ts';
 import { Cap } from '../../ui/Cap.tsx';
 import { Id } from '../../ui/Id.tsx';
 import { Tally } from '../../ui/Tally.tsx';
+import { Icon } from '../../ui/Icon.tsx';
 
 const numberOf = (value: unknown) => (typeof value === 'number' ? value : Number(value ?? 0));
 const pct = (value: number | null) => (value === null ? '—' : `${(value * 100).toFixed(1)}%`);
@@ -82,20 +83,17 @@ function CompletedRun({ run }: { run: BenchmarkRunSummary }) {
   const detail = checksTotal
     ? `${checksPassed} of ${checksTotal} checks passed · ${pct(allPass)} tasks all-pass`
     : 'No checks were recorded.';
-  const mark = run.result === 'passed' ? '✓' : run.result === 'failed' ? '×' : run.result === 'error' ? '!' : '—';
+  const mark = run.result === 'passed' ? 'check' : run.result === 'failed' ? 'close' : run.result === 'error' ? 'alert' : 'dash';
   const bar = allPass === null ? 0 : Math.max(0, Math.min(1, allPass)) * 100;
   return (
     <article class="m-ledger-row m-ledger-complete" data-state={state}>
       <span class="m-ledger-run-code"><Id value={run.benchmarkRunCode} /></span>
-      <div class="m-ledger-orb-wrap">
-        <span class="m-ledger-result-mark" aria-label={kicker}>{mark}</span>
-      </div>
       <div class="m-ledger-identity">
         <strong>{run.benchmarkName}</strong>
         <span class="sub"><span class="m-id">{run.model}</span> · {run.taskCount} selected {run.taskCount === 1 ? 'task' : 'tasks'}</span>
       </div>
       <div class="m-ledger-progress">
-        <span class="m-ledger-kicker">{kicker}</span>
+        <span class="m-ledger-kicker"><span class="m-ledger-result-mark" aria-label={kicker}><Icon name={mark} /></span>{kicker}</span>
         <strong>{headline}</strong>
         <span class="sub">{detail}</span>
         {completed ? (

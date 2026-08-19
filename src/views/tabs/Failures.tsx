@@ -16,6 +16,9 @@ import { Panel } from '../ui/Panel.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
+import { Handoff } from '../layout/Handoff.tsx';
+import { RunContext } from '../layout/RunContext.tsx';
+import { Icon } from '../ui/Icon.tsx';
 
 type FailuresProps = {
   progress: BenchmarkRunProgress | null;
@@ -57,16 +60,13 @@ export function Failures({
 
   return (
     <>
-      <div class="m-title m-title-row">
-        <div>
-          <h2>Turn misses into capability topics</h2>
-          <p>
-            Select one benchmark run, inspect its failed criteria, and carry only the failure
-            signal into topic generation.
-          </p>
-        </div>
-        <RunPicker runs={availableRuns} selected={benchmarkRun} />
+      <div class="m-title">
+        <h2>Turn misses into capability topics</h2>
+        <p>
+          Inspect one benchmark run and carry only its failure signal into topic generation.
+        </p>
       </div>
+      <RunContext benchmarkRun={benchmarkRun} progress={progress} availableRuns={availableRuns} />
 
       <SelectedRunSummary
         benchmarkRun={benchmarkRun}
@@ -134,6 +134,7 @@ export function Failures({
       <TopicTable summary={summary} topics={topics} hasMap={Boolean(progress?.failureMap.entity)} />
 
       <FailureInventory tasks={tasks} failed={counts.failed} errored={counts.errored} />
+      <Handoff stage="failures" benchmarkRun={benchmarkRun} progress={progress} />
     </>
   );
 }
@@ -178,23 +179,6 @@ export function FailureAnalysisStatus({
     return <div id={id} class="m-analysis-status"><Badge state="ready">failure map ready</Badge><span>{progress.failureMap.entity}</span></div>;
   }
   return <div id={id} class="m-analysis-status"><Badge state="pending">not started</Badge><span>Use the selected run's failed criteria to create a map.</span></div>;
-}
-
-function RunPicker({ runs, selected }: { runs: BenchmarkRunSummary[]; selected: BenchmarkRunSummary | null }) {
-  if (!runs.length) return null;
-  return (
-    <form class="m-run-picker" method="get">
-      <label for="failures-run">Run</label>
-      <select id="failures-run" name="run">
-        {runs.map((run) => (
-          <option value={String(run.benchmarkRunId)} selected={run.benchmarkRunId === selected?.benchmarkRunId}>
-            {run.benchmarkRunCode} · {run.label} · {run.model}
-          </option>
-        ))}
-      </select>
-      <button class="secondary compact" type="submit">Show</button>
-    </form>
-  );
 }
 
 function SelectedRunSummary({
@@ -409,7 +393,7 @@ function FailureCriterion({ criterion }: { criterion: BenchmarkCriterionResult }
         <span class="m-id">{criterion.criterionId}</span>
         <span class="m-criterion-title">{criterion.title}</span>
         {criterion.judgeError ? <span class="m-criterion-error">{criterion.errorType ?? 'judge error'}</span> : null}
-        <span class="m-criterion-chev" aria-hidden="true" />
+        <span class="m-criterion-chev" aria-hidden="true"><Icon name="chevron" /></span>
       </summary>
       <div class="m-criterion-body">
         <p class="m-criterion-reasoning">{criterion.reasoning || 'No judge reasoning was recorded.'}</p>

@@ -1,4 +1,6 @@
 import type { DataForgeSummary, DocumentRow } from '../../domain/data_forge/model.ts';
+import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
+import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Bar } from '../ui/Bar.tsx';
 import { Cap } from '../ui/Cap.tsx';
@@ -8,14 +10,29 @@ import { Panel } from '../ui/Panel.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
+import { Handoff } from '../layout/Handoff.tsx';
+import { RunContext } from '../layout/RunContext.tsx';
 
-export function DataForge({ dataForge, documents }: { dataForge: DataForgeSummary | null; documents: DocumentRow[] }) {
+export function DataForge({
+  benchmarkRun,
+  progress,
+  availableRuns,
+  dataForge,
+  documents,
+}: {
+  benchmarkRun: BenchmarkRunSummary | null;
+  progress: BenchmarkRunProgress | null;
+  availableRuns: BenchmarkRunSummary[];
+  dataForge: DataForgeSummary | null;
+  documents: DocumentRow[];
+}) {
   return (
     <>
       <div class="m-title">
         <h2>Data forge novel training documents</h2>
         <p>Generation receives abstract capability specs only. Every artifact is fingerprinted against its benchmark lineage.</p>
       </div>
+      <RunContext benchmarkRun={benchmarkRun} progress={progress} availableRuns={availableRuns} />
 
       <TableBox>
         <Cap title="Data forge run">
@@ -72,6 +89,7 @@ export function DataForge({ dataForge, documents }: { dataForge: DataForgeSummar
           <Field label="Token usage"><div class="m-input">{dataForge ? `${(dataForge.inputTokens + dataForge.outputTokens).toLocaleString()} total` : '—'}</div></Field>
         </Panel>
       </div>
+      <Handoff stage="forge" benchmarkRun={benchmarkRun} progress={progress} />
     </>
   );
 }

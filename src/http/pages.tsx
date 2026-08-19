@@ -31,9 +31,15 @@ export const pages = new Elysia({ name: 'pages' })
   .get('/:tab', async ({ params, request, status }) => {
     if (!isTab(params.tab)) return status(404, 'Not found');
 
-    const current = await progress.currentWithRail();
-    const benchmarkRun = current.progress ? await runs.byBenchmarkRunId(current.progress.benchmarkRunId) : null;
-    const benchmarkRunJobs = current.progress ? await jobs.listByBenchmarkRun(current.progress.benchmarkRunId) : [];
+    const currentProgress = await progress.current();
+    const requestedRunId = Number(new URL(request.url).searchParams.get('run'));
+    const requestedProgress = Number.isInteger(requestedRunId) && requestedRunId > 0
+      ? await progress.byBenchmarkRun(requestedRunId)
+      : null;
+    const selectedProgress = requestedProgress ?? currentProgress;
+    const rail = progress.railState(selectedProgress);
+    const benchmarkRun = selectedProgress ? await runs.byBenchmarkRunId(selectedProgress.benchmarkRunId) : null;
+    const benchmarkRunJobs = selectedProgress ? await jobs.listByBenchmarkRun(selectedProgress.benchmarkRunId) : [];
     let body: JSX.Element;
 
     switch (params.tab) {
@@ -44,6 +50,7 @@ export const pages = new Elysia({ name: 'pages' })
         body = (
           <Benchmarks
             benchmarkRun={benchmarkRun}
+            progress={selectedProgress}
             runs={await runs.list()}
             jobs={benchmarkRunJobs}
             catalogs={catalogs}
@@ -56,15 +63,12 @@ export const pages = new Elysia({ name: 'pages' })
       case 'results':
         {
           const availableRuns = await runs.list();
-          const requestedRunId = Number(new URL(request.url).searchParams.get('run'));
-          const selectedRun = Number.isInteger(requestedRunId) && requestedRunId > 0
-            ? availableRuns.find((run) => run.benchmarkRunId === requestedRunId) ?? null
-            : null;
-          const resultRun = selectedRun ?? benchmarkRun ?? availableRuns[0] ?? null;
+          const resultRun = benchmarkRun ?? availableRuns[0] ?? null;
           const resultTasks = resultRun ? await runs.criteriaByTask(resultRun.benchmarkRunId) : [];
           body = (
             <Results
               benchmarkRun={resultRun}
+              progress={selectedProgress}
               tasks={resultTasks}
               availableRuns={availableRuns}
             />
@@ -73,11 +77,7 @@ export const pages = new Elysia({ name: 'pages' })
         break;
       case 'failures': {
         const availableRuns = await runs.list();
-        const requestedRunId = Number(new URL(request.url).searchParams.get('run'));
-        const selectedRun = Number.isInteger(requestedRunId) && requestedRunId > 0
-          ? availableRuns.find((run) => run.benchmarkRunId === requestedRunId) ?? null
-          : null;
-        const failureRun = selectedRun ?? benchmarkRun ?? availableRuns[0] ?? null;
+        const failureRun = benchmarkRun ?? availableRuns[0] ?? null;
         const failureProgress = failureRun
           ? await progress.byBenchmarkRun(failureRun.benchmarkRunId)
           : null;
@@ -99,18 +99,32 @@ export const pages = new Elysia({ name: 'pages' })
         break;
       }
       case 'forge': {
-        const dataForgeRun = current.progress ? await dataForge.byBenchmarkRun(current.progress.benchmarkRunId) : null;
-        body = <DataForge dataForge={dataForgeRun} documents={dataForgeRun ? await dataForge.documents(dataForgeRun.dataForgeCode) : []} />;
-        break;
-      }
-      case 'env-lab':
+        const availableRuns = await runs.list();
+        const dataForgeRun = selectedProgress ? await dataForge.byBenchmarkRun(selectedProgress.benchmarkRunId) : null;
         body = (
-          <EnvLab
-            environments={current.progress ? await environments.listByBenchmarkRun(current.progress.benchmarkRunId) : []}
-            evaluation={current.progress ? await environments.latestEvaluation(current.progress.benchmarkRunId) : null}
+          <DataForge
+            benchmarkRun={benchmarkRun}
+            progress={selectedProgress}
+            availableRuns={availableRuns}
+            dataForge={dataForgeRun}
+            documents={dataForgeRun ? await dataForge.documents(dataForgeRun.dataForgeCode) : []}
           />
         );
         break;
+      }
+      case 'env-lab': {
+        const availableRuns = await runs.list();
+        body = (
+          <EnvLab
+            benchmarkRun={benchmarkRun}
+            progress={selectedProgress}
+            availableRuns={availableRuns}
+            environments={selectedProgress ? await environments.listByBenchmarkRun(selectedProgress.benchmarkRunId) : []}
+            evaluation={selectedProgress ? await environments.latestEvaluation(selectedProgress.benchmarkRunId) : null}
+          />
+        );
+        break;
+      }
       case 'settings': {
         // One gather for both panels: the dictionary quotes the same values the
         // gym region renders, and measuring them twice would only risk them
@@ -127,7 +141,7 @@ export const pages = new Elysia({ name: 'pages' })
       }
     }
 
-    return page(request, params.tab, current.rail, body);
+    return page(request, params.tab, rail, body);
   });
 
 export { TABS };

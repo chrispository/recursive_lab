@@ -1,7 +1,12 @@
 import type { BenchmarkCriterionResult, BenchmarkTaskCriteria, BenchmarkRunSummary } from '../../domain/runs/model.ts';
+import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { Cap } from '../ui/Cap.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
+import { Handoff } from '../layout/Handoff.tsx';
+import { RunContext } from '../layout/RunContext.tsx';
+import { Badge } from '../ui/Badge.tsx';
+import { Icon } from '../ui/Icon.tsx';
 
 const numberOf = (value: unknown) => (typeof value === 'number' ? value : Number(value ?? 0));
 
@@ -59,7 +64,7 @@ function CriterionDialog({ taskId, criterion }: { taskId: string; criterion: Ben
           <strong>{criterion.title}</strong>
           <span class="m-dialog-sub">{taskId}</span>
         </div>
-        <button type="button" class="ghost compact" data-close-dialog aria-label="Close">✕</button>
+        <button type="button" class="ghost compact" data-close-dialog aria-label="Close"><Icon name="close" /></button>
       </div>
       <div class="m-dialog-body">
         {criterion.sourceDrifted ? (
@@ -118,6 +123,7 @@ function RunRow({ run, selected }: { run: BenchmarkRunSummary; selected: boolean
     : run.result === 'error' ? 'error'
     : run.result === 'passed' ? 'succeeded'
     : 'pending';
+  const stateWord = run.result === 'passed' ? 'passed' : run.result === 'failed' ? 'failed' : run.result === 'error' ? 'error' : 'pending';
   return (
     <tr data-state={state} class={selected ? 'selected' : undefined}>
       <td>
@@ -143,12 +149,14 @@ function RunRow({ run, selected }: { run: BenchmarkRunSummary; selected: boolean
           for. */}
       <td class="n">{graded ? <b class={ungraded > 0 ? 'warn' : undefined}>{ungraded}</b> : dash}</td>
       <td class="n rate">{rate(criteriaPassed, run.resultCriteriaTotal)}</td>
+      <td><Badge state={state}>{stateWord}</Badge></td>
     </tr>
   );
 }
 
-export function Results({ benchmarkRun, tasks, availableRuns }: {
+export function Results({ benchmarkRun, progress, tasks, availableRuns }: {
   benchmarkRun: BenchmarkRunSummary | null;
+  progress: BenchmarkRunProgress | null;
   /** Criterion verdicts grouped by task — `C-001` repeats across tasks. */
   tasks: BenchmarkTaskCriteria[];
   availableRuns: BenchmarkRunSummary[];
@@ -161,30 +169,11 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
 
   return (
     <>
-      {/* The picker sits beside the heading rather than under it: it selects
-          what this whole screen is about, and a full-width control under the
-          strapline read as a form the page was asking you to fill in. */}
-      <div class="m-title m-title-row">
-        <div>
-          <h2>Benchmark results</h2>
-          <p>Criterion-level failures become the only inputs to capability analysis.</p>
-        </div>
-        {availableRuns.length ? (
-          <form class="m-run-picker" method="get">
-            <label for="results-run">Run</label>
-            <select id="results-run" name="run">
-              {availableRuns.map((run) => (
-                <option value={String(run.benchmarkRunId)} selected={run.benchmarkRunId === benchmarkRun?.benchmarkRunId}>
-                  {run.benchmarkRunCode} · {run.label} · {run.model}
-                </option>
-              ))}
-            </select>
-            {/* Secondary: switching which run you are reading is navigation,
-                and the brand fill is spent on actions that change state. */}
-            <button class="secondary compact" type="submit">Show</button>
-          </form>
-        ) : null}
+      <div class="m-title">
+        <h2>Benchmark results</h2>
+        <p>Criterion-level failures become the only inputs to capability analysis.</p>
       </div>
+      <RunContext benchmarkRun={benchmarkRun} progress={progress} availableRuns={availableRuns} />
 
       <TableBox>
         <Cap title="Results by run" code={benchmarkRun ? 'criteria below are the selected run' : undefined} />
@@ -202,7 +191,7 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
               <tr>
                 <th>Run</th>
                 <th class="n g">Total</th><th class="n">Passed</th><th class="n">Failed</th><th class="n">Errored</th><th class="n">Pass rate</th>
-                <th class="n g">Total</th><th class="n">Passed</th><th class="n">Failed</th><th class="n">Ungraded</th><th class="n">Pass rate</th>
+                <th class="n g">Total</th><th class="n">Passed</th><th class="n">Failed</th><th class="n">Ungraded</th><th class="n">Pass rate</th><th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -262,7 +251,7 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
                       ) : null}
                       {/* Disclosure state is carried by a glyph, not a marker:
                           the default triangle cannot sit in a fixed column. */}
-                      <span class="m-criterion-chev" aria-hidden="true"></span>
+                      <span class="m-criterion-chev" aria-hidden="true"><Icon name="chevron" /></span>
                     </summary>
                     <div class="m-criterion-body">
                       <p class="m-criterion-reasoning">{criterion.reasoning}</p>
@@ -298,6 +287,8 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
           </div>
         )}
       </TableBox>
+
+      <Handoff stage="results" benchmarkRun={benchmarkRun} progress={progress} />
 
     </>
   );

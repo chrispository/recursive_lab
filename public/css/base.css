@@ -199,7 +199,7 @@ textarea {
   color: var(--text-1);
   background: var(--raised);
   border: 1px solid var(--line);
-  font: 500 var(--t-data) / 1.4 var(--mono);
+  font: 500 var(--t-data) / 1.4 var(--sans);
 }
 input:focus,
 select:focus,
