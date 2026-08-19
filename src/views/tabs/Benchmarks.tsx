@@ -69,7 +69,7 @@ export function Benchmarks({
           scores every criterion. Failed criteria become the input to the failure map.
         </p>
       </div>
-      <RunContext benchmarkRun={benchmarkRun} progress={progress} availableRuns={runs} />
+      <RunContext benchmarkRun={benchmarkRun} availableRuns={runs} />
 
       <div class="m-config-layout">
         <div class="m-config-stack">
@@ -167,8 +167,8 @@ export function Benchmarks({
               >Manually Benchmark</button>
             </div>
             <div class="m-run-card m-run-card-full">
-              <div><span class="m-run-kicker">FULL PROCESS</span><label for="recurse-count">RUN <input id="recurse-count" type="number" min="1" max="99" value="1" /> ×</label><span>Benchmark → Tune → Benchmark</span></div>
-              <button class="m-recurse-button" type="button" data-benchmark-action="recurse"><Icon name="spark" /> Recurse</button>
+              <div><span class="m-run-kicker">FULL PROCESS</span><label for="recurse-count">RUN <input id="recurse-count" type="number" min="1" max="99" value="1" disabled /> ×</label><span>Benchmark → Tune → Benchmark</span></div>
+              <button class="m-recurse-button" type="button" disabled title="The full-process workflow is not wired yet."><Icon name="spark" /> Recurse</button>
             </div>
           </div>
           <div id="benchmark-config-status" class="m-config-status" role="status" aria-live="polite"></div>

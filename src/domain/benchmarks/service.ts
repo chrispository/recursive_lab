@@ -22,15 +22,13 @@ import * as archive from '../../lib/archive.ts';
 import * as formats from '../../lib/formats.ts';
 import * as source from '../../lib/source.ts';
 import * as head from '../../gym/head.ts';
-import * as pins from '../../gym/pins.ts';
 import * as servers from '../../gym/servers.ts';
+import { syncPin } from '../../gym/sync.ts';
 import { audit } from '../audit/service.ts';
-import type { AlignmentReport, CatalogAlignment, GymSyncSummary } from './model.ts';
+import type { GymSyncSummary } from './model.ts';
 import * as jobs from '../jobs/trace.ts';
 import type { BenchmarkCatalog as BenchmarkCatalogRow, ImportPlan, ImportPreview, ImportTally } from './model.ts';
 import * as repo from './repo.ts';
-import * as lifecycle from '../../gym/lifecycle.ts';
-import * as repin from '../../gym/repin.ts';
 
 export type { BenchmarkCatalog, BenchmarkTask, ImportPlan, ImportPreview, ImportTally } from './model.ts';
 export { SourceError } from '../../lib/source.ts';
@@ -101,21 +99,21 @@ const titleCase = (slug: string) =>
  * documents. Format identification happens after staging, against what landed.
  */
 export async function preview(url: string, ref = ''): Promise<ImportPreview> {
-  const pinned = await source.resolve(url, ref);
+  const pinned = await source.resolveSource(url, ref);
   const token = tokenFor(pinned.identifier, pinned.revision);
   const stagingDir = archive.stagingPath(config.paths.staging, token);
 
   await mkdir(config.paths.staging, { recursive: true });
   // A pinned revision is immutable, so a snapshot already on disk is still
   // correct and re-previewing skips the download entirely.
-  const cachedHit = await formats.detect(stagingDir).catch(() => null);
+  const cachedHit = await formats.detectFormat(stagingDir).catch(() => null);
   const cached = Boolean(cachedHit?.detection.detected);
 
   const snapshot = cached
     ? { scanned: cachedHit!.detection.taskCount, files: cachedHit!.detection.taskCount, bytes: 0 }
     : await archive.stage(pinned.archiveUrl, stagingDir, { keep: formats.KEEP_ANY });
 
-  const { detection, format } = cached ? cachedHit! : await formats.detect(stagingDir);
+  const { detection, format } = cached ? cachedHit! : await formats.detectFormat(stagingDir);
   if (!detection.detected || !format) {
     await archive.discard(stagingDir);
     throw new ImportError(
@@ -183,7 +181,7 @@ export async function commit(
   }
 
   const stagingDir = archive.stagingPath(config.paths.staging, preview.token);
-  const format = formats.byId(preview.detection.format);
+  const format = formats.formatById(preview.detection.format);
   // A committed import moves its snapshot out of staging, so a stale preview
   // points at a directory that no longer exists. One task's worth of read is
   // enough to prove it is still there and still readable — re-detecting would
@@ -263,7 +261,7 @@ export async function commit(
     if (preview.detection.format === 'harbor') {
       try {
         await trace.step('syncing the gym pin to this revision', 0.95);
-        tally.gymSync = await syncSteps(trace, {
+        tally.gymSync = await syncPin(trace, {
           sourceUrl: preview.source.url,
           sourceIdentifier: preview.source.identifier,
           revision: preview.source.revision,
@@ -297,89 +295,8 @@ export async function importFromUrl(
 /**
  * Point the gym's prepared copy of this benchmark at the catalog's revision.
  *
- * The gym downloads the benchmark at a pin hard-coded in its own prepare.py,
- * so an import at a newer commit leaves the gym unable to run the new tasks.
- * This rewrites the pin to the imported revision, drops the prepared caches,
- * and — if the gym was up — restarts it so the rebuild begins immediately. The
- * rebuild itself is gym work: its first start after a re-pin re-downloads the
- * source and re-hydrates every task, which takes minutes and is visible in the
- * environment panel and the gym log, not in this job.
- */
-async function syncSteps(
-  trace: jobs.Trace,
-  input: { sourceUrl: string; sourceIdentifier: string; revision: string; snapshotPath: string | null; taskCount: number },
-): Promise<GymSyncSummary> {
-  const pin = await pins.resolvePin();
-  const repository =
-    pin.repository && pin.repository.endsWith(input.sourceIdentifier)
-      ? pin.repository
-      : `https://github.com/${input.sourceIdentifier}`;
-
-  await trace.step('locating the gym resources server', 0.05);
-  await trace.log(`gym pin               ${pin.resolved ? `${pin.repository} @ ${pin.revision.slice(0, 10)} (${pin.taskCount} tasks)` : 'nothing prepared yet'}`);
-
-  // The archive checksum the gym verifies against. It was captured while the
-  // import streamed the archive; a snapshot from before that sidecar existed
-  // costs one deliberate pass to hash.
-  let archiveSha256 = '';
-  const sidecar = input.snapshotPath ? resolvePath(input.snapshotPath, archive.SHA_SIDECAR) : null;
-  if (sidecar) archiveSha256 = (await Bun.file(sidecar).text().catch(() => '')).trim();
-  if (!/^[0-9a-f]{64}$/.test(archiveSha256)) {
-    await trace.step('hashing the source archive', 0.15);
-    const pinned = await source.resolve(input.sourceUrl, input.revision);
-    let last = 0;
-    archiveSha256 = await archive.hashOf(pinned.archiveUrl, (bytes) => {
-      if (bytes - last >= 256 * 1024 * 1024) {
-        last = bytes;
-        void trace.log(`hashing               ${(bytes / 1024 / 1024).toFixed(0)} MiB`);
-      }
-    });
-    await trace.log(`archive sha256        ${archiveSha256} (hashed from ${pinned.archiveUrl})`);
-  } else {
-    await trace.log(`archive sha256        ${archiveSha256} (captured at import)`);
-  }
-  // Remember a hash computed the slow way, so the next sync of this catalog
-  // starts at the patch instead of another full download pass.
-  if (sidecar && input.snapshotPath) {
-    await Bun.write(sidecar, `${archiveSha256}\n`).catch(() => undefined);
-  }
-
-  await trace.step('re-pinning prepare.py', 0.45);
-  const report = await repin.apply({ repository, revision: input.revision, archiveSha256, taskCount: input.taskCount });
-  await trace.log(
-    `gym pin               ${report.fromRevision.slice(0, 10)} (${report.fromTaskCount} tasks) → ${report.toRevision.slice(0, 10)} (${report.toTaskCount} tasks) in ${report.server}`,
-  );
-
-  await trace.step('clearing prepared caches', 0.55);
-  const cleared = await repin.clearPrepared(report.server);
-  for (const dir of cleared) await trace.log(`cleared               ${dir}`);
-
-  let restarted = false;
-  const health = await head.health();
-  if (health.reachable) {
-    await trace.step('restarting the gym at the new pin', 0.65);
-    const modelType = servers.pickModelType(health);
-    await lifecycle.stop();
-    await lifecycle.start({ resourcesServer: report.server, modelType });
-    restarted = true;
-    await trace.log(`gym restarted         resources ${report.server}, model ${modelType} — re-preparing now`);
-  } else {
-    await trace.log('gym is down           it will download and prepare at the new pin on its next start');
-  }
-  return {
-    server: report.server,
-    revision: report.toRevision,
-    taskCount: report.toTaskCount,
-    restarted,
-    note: restarted
-      ? 'Gym restarting at the imported revision — first start re-downloads and re-prepares.'
-      : 'Gym will prepare the imported revision on its next start.',
-  };
-}
-
-/**
- * Re-pin an already-imported catalog. Runs as its own `benchmark_import` job
- * so the log and step readouts carry the whole operation.
+ * The heavy lifting lives in `gym/sync.ts`; this wrapper runs it as its own
+ * `benchmark_import` job so the log and step readouts carry the whole operation.
  */
 export async function syncGym(
   benchmarkId: number,
@@ -400,7 +317,7 @@ export async function syncGym(
     echo: options.echo,
   });
   try {
-    const summary = await syncSteps(trace, {
+    const summary = await syncPin(trace, {
       sourceUrl: catalog.sourceUrl,
       sourceIdentifier: catalog.sourceIdentifier,
       revision: catalog.revision,
@@ -447,39 +364,4 @@ export async function bindAdapter(benchmarkId: number): Promise<string> {
   } catch (cause) {
     throw new ImportError(cause instanceof Error ? cause.message : String(cause));
   }
-}
-
-/**
- * Catalog revisions against the gym's own benchmark pin.
- *
- * The lab's catalog and the gym's prepared assets are two independent copies
- * of the same repository, each frozen at one commit. This states which copy is
- * at which commit and how many catalog tasks the gym can actually run, so the
- * gap shows on the Settings page instead of surfacing as a failed run.
- */
-export async function alignment(): Promise<AlignmentReport> {
-  const [pin, catalogs] = await Promise.all([pins.resolvePin(), repo.listCatalogs()]);
-  const runnable = new Set(pin.runnableTaskIds);
-
-  const rows = await Promise.all(
-    catalogs.map(async (catalog): Promise<CatalogAlignment> => {
-      const ids = await repo.listTaskIds(catalog.benchmarkId);
-      const missing = ids.filter((id) => !runnable.has(id));
-      const sameSource = Boolean(pin.repository) && pin.repository.endsWith(catalog.sourceIdentifier);
-      return {
-        benchmarkCode: catalog.benchmarkCode,
-        name: catalog.name,
-        sourceIdentifier: catalog.sourceIdentifier,
-        catalogRevision: catalog.revision,
-        gymRevision: pin.revision,
-        sameSource,
-        aligned: sameSource && pin.revision === catalog.revision,
-        taskCount: ids.length,
-        runnableCount: ids.length - missing.length,
-        missingCount: missing.length,
-        missingFamilies: [...new Set(missing.map((id) => id.split('__')[0]!))].sort(),
-      };
-    }),
-  );
-  return { gym: pin, catalogs: rows };
 }

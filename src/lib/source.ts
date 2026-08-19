@@ -43,7 +43,7 @@ const clean = (value: string) => value.trim().replace(/\.git$/, '').replace(/\/+
  * Accepts the forms people actually paste: a repo root, a `/tree/<ref>` link
  * copied from the branch dropdown, or a bare `owner/repo`.
  */
-export function parse(input: string): SourceSpec {
+export function parseSource(input: string): SourceSpec {
   const raw = clean(input);
   if (!raw) throw new SourceError('Enter a benchmark source URL.');
 
@@ -106,7 +106,7 @@ type GithubRef = { sha?: string; commit?: { sha?: string } };
 const encodeRef = (ref: string) => ref.split('/').map(encodeURIComponent).join('/');
 
 /** Resolve a spec's ref to an immutable revision by asking the host. */
-export async function pin(spec: SourceSpec, timeoutMs = 20_000): Promise<PinnedSource> {
+export async function pinSource(spec: SourceSpec, timeoutMs = 20_000): Promise<PinnedSource> {
   const signal = AbortSignal.timeout(timeoutMs);
 
   if (spec.kind === 'github') {
@@ -149,7 +149,7 @@ export async function pin(spec: SourceSpec, timeoutMs = 20_000): Promise<PinnedS
 }
 
 /** Parse and pin in one step — what the import service actually calls. */
-export const resolve = async (input: string, ref = ''): Promise<PinnedSource> => {
-  const spec = parse(input);
-  return pin(ref.trim() ? { ...spec, requestedRef: ref.trim() } : spec);
+export const resolveSource = async (input: string, ref = ''): Promise<PinnedSource> => {
+  const spec = parseSource(input);
+  return pinSource(ref.trim() ? { ...spec, requestedRef: ref.trim() } : spec);
 };

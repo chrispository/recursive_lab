@@ -10,10 +10,10 @@
  */
 import type { RunPhase } from '../../gym/progress.ts';
 
-export const starting = () => 'Starting';
-export const preparing = () => 'Preparing the environment';
-export const finishing = () => 'Finishing this task';
-export const saving = () => 'Saving results';
+export const starting = 'Starting';
+export const preparing = 'Preparing the environment';
+export const finishing = 'Finishing this task';
+export const saving = 'Saving results';
 
 export const agent = (turn: number, maxTurns: number) =>
   `The agent is working — turn ${turn} of ${maxTurns}`;
@@ -29,15 +29,15 @@ export const tasks = (done: number, total: number) => `${done} of ${total} tasks
 export function stepOf(phase: RunPhase): string {
   switch (phase.kind) {
     case 'starting':
-      return starting();
+      return starting;
     case 'preparing':
-      return preparing();
+      return preparing;
     case 'agent':
       return agent(phase.turn, phase.maxTurns);
     case 'scoring':
       return scoring(phase.counted, phase.total);
     case 'finishing':
-      return finishing();
+      return finishing;
     case 'tasks':
       return tasks(phase.done, phase.total);
   }

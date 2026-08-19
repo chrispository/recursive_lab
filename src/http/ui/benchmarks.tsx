@@ -21,12 +21,10 @@ import {
   TaskPicker,
 } from '../../views/tabs/benchmarks/ImportForm.tsx';
 import { RunLedger } from '../../views/tabs/benchmarks/RunLedger.tsx';
-
-const message = (error: unknown) => (error instanceof Error ? error.message : 'Unexpected error.');
+import { errorMessage, recordBody } from '../request.ts';
 
 function urlOf(body: unknown): string {
-  if (!body || typeof body !== 'object') return '';
-  const url = (body as Record<string, unknown>).url;
+  const url = recordBody(body).url;
   return typeof url === 'string' ? url.trim() : '';
 }
 
@@ -50,7 +48,7 @@ function taskIdsOf(body: Record<string, unknown>): string[] {
 }
 
 function runRequestOf(body: unknown): runs.RunRequest {
-  const source = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+  const source = recordBody(body);
   return {
     benchmarkId: Number(field(source, 'benchmark_id')),
     model: field(source, 'model'),
@@ -124,7 +122,7 @@ export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })
         </>
       );
     } catch (error) {
-      return <ImportForm url={url} error={message(error)} />;
+      return <ImportForm url={url} error={errorMessage(error)} />;
     }
   })
   .post('/ui/benchmarks/run', async ({ body }) => {
@@ -145,6 +143,6 @@ export const benchmarksUi = new Elysia({ name: 'benchmarks-ui' })
         </>
       );
     } catch (error) {
-      return message(error);
+      return errorMessage(error);
     }
   });

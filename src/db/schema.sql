@@ -158,16 +158,17 @@ CREATE UNIQUE INDEX idx_task_criteria_id_task ON benchmark_task_criteria(id, tas
 -- forge can prove a generated document is not a paraphrase of one.
 CREATE TABLE benchmark_sources (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  benchmark_id      INTEGER NOT NULL REFERENCES benchmarks(id) ON DELETE CASCADE,
   task_id           TEXT    NOT NULL,
   relative_path     TEXT    NOT NULL,
-  content_sha256    TEXT    NOT NULL UNIQUE,
+  content_sha256    TEXT    NOT NULL,
   normalized_sha256 TEXT    NOT NULL,
   word_count        INTEGER NOT NULL CHECK (word_count >= 0),
   shingles_json     TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(shingles_json)),
   created_at        TEXT    NOT NULL,
-  UNIQUE (task_id, relative_path)
+  UNIQUE (benchmark_id, task_id, relative_path)
 );
-CREATE INDEX idx_sources_task ON benchmark_sources(task_id);
+CREATE INDEX idx_sources_benchmark_task ON benchmark_sources(benchmark_id, task_id);
 
 -- BR — benchmark run ---------------------------------------------------------
 -- Exactly one model per run. See AGENTS.md § Domain rules.

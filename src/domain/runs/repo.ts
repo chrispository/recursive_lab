@@ -42,20 +42,18 @@ type CriterionDbRow = Row & {
   catalog_match_criteria: string | null;
 };
 
-/** br = benchmark runs */
-
 const SELECT = `
-  SELECT br.id AS benchmark_run_id, b.id AS benchmark_id, b.name AS benchmark_name,
-         b.lab, b.adapter, b.status AS benchmark_status, b.runnable,
-         br.label, br.model, br.task_count,
+  SELECT run.id AS benchmark_run_id, benchmark.id AS benchmark_id, benchmark.name AS benchmark_name,
+         benchmark.lab, benchmark.adapter, benchmark.status AS benchmark_status, benchmark.runnable,
+         run.label, run.model, run.task_count,
          (SELECT COUNT(*)
             FROM benchmark_run_tasks chosen
             JOIN benchmark_task_criteria expected
               ON expected.benchmark_id = chosen.benchmark_id
              AND expected.dataset = chosen.dataset
              AND expected.task_id = chosen.task_id
-           WHERE chosen.benchmark_run_id = br.id) AS expected_criteria,
-         br.settings_json,
+           WHERE chosen.benchmark_run_id = run.id) AS expected_criteria,
+         run.settings_json,
          result.metrics_json, result.result_path AS output_path,
          result.result,
          result.tasks_total AS result_tasks_total,
@@ -73,9 +71,9 @@ const SELECT = `
             JOIN task_results ungraded_task ON ungraded_task.id = ungraded.task_result_id
            WHERE ungraded_task.benchmark_result_id = result.id
              AND ungraded.result = 'error') AS result_criteria_ungraded
-    FROM benchmark_runs br
-    JOIN benchmarks b ON b.id = br.benchmark_id
-    LEFT JOIN benchmark_results result ON result.benchmark_run_id = br.id`;
+    FROM benchmark_runs run
+    JOIN benchmarks benchmark ON benchmark.id = run.benchmark_id
+    LEFT JOIN benchmark_results result ON result.benchmark_run_id = run.id`;
 
 function toBenchmarkRun(row: BenchmarkRunDbRow): BenchmarkRunSummary {
   return {
@@ -107,12 +105,12 @@ function toBenchmarkRun(row: BenchmarkRunDbRow): BenchmarkRunSummary {
 }
 
 export async function findByBenchmarkRunId(benchmarkRunId: number): Promise<BenchmarkRunSummary | null> {
-  const row = await one<BenchmarkRunDbRow>(`${SELECT} WHERE br.id = ?`, [benchmarkRunId]);
+  const row = await one<BenchmarkRunDbRow>(`${SELECT} WHERE run.id = ?`, [benchmarkRunId]);
   return row ? toBenchmarkRun(row) : null;
 }
 
 export async function listAll(): Promise<BenchmarkRunSummary[]> {
-  const rows = await all<BenchmarkRunDbRow>(`${SELECT} ORDER BY br.created_at DESC, br.id DESC`);
+  const rows = await all<BenchmarkRunDbRow>(`${SELECT} ORDER BY run.created_at DESC, run.id DESC`);
   return rows.map(toBenchmarkRun);
 }
 

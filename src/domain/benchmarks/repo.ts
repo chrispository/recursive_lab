@@ -1,6 +1,7 @@
 import { all, db, insert, now, one, run, value, type Row } from '../../db/client.ts';
 import { code } from '../../db/ids.ts';
-import type { BenchmarkCatalog, BenchmarkHeader, TaskWrite } from './model.ts';
+import { fingerprintOf } from '../../lib/fingerprint.ts';
+import type { BenchmarkCatalog, BenchmarkHeader, BenchmarkTask, TaskWrite } from './model.ts';
 
 /** libSQL is happiest with a few hundred statements per batch, not 100k. */
 const BATCH = 500;
@@ -87,6 +88,22 @@ export async function insertTasks(benchmarkId: number, tasks: TaskWrite[]): Prom
   for (let start = 0; start < criterionRows.length; start += BATCH) {
     await db.batch(criterionRows.slice(start, start + BATCH), 'write');
   }
+
+  const sourceRows = tasks.map((task) => {
+    const fingerprint = fingerprintOf(task.sourceContent);
+    return {
+      sql: `INSERT INTO benchmark_sources (benchmark_id, task_id, relative_path, content_sha256,
+                                           normalized_sha256, word_count, shingles_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        benchmarkId, task.taskId, task.sourcePath, fingerprint.contentSha256,
+        fingerprint.normalizedSha256, fingerprint.wordCount, JSON.stringify(fingerprint.shingles), at,
+      ],
+    };
+  });
+  for (let start = 0; start < sourceRows.length; start += BATCH) {
+    await db.batch(sourceRows.slice(start, start + BATCH), 'write');
+  }
   return criterionRows.length;
 }
 
@@ -106,13 +123,6 @@ export const countTasks = async (benchmarkId: number) =>
 
 export const countCriteria = async (benchmarkId: number) =>
   (await value<number>(`SELECT COUNT(*) FROM benchmark_task_criteria WHERE benchmark_id = ?`, [benchmarkId])) ?? 0;
-
-/** Task ids only — alignment counts against the gym without task payloads. */
-export const listTaskIds = async (benchmarkId: number): Promise<string[]> =>
-  (await all<Row & { task_id: string }>(
-    `SELECT task_id FROM benchmark_tasks WHERE benchmark_id = ? ORDER BY position`,
-    [benchmarkId],
-  )).map((row) => row.task_id);
 
 type CatalogDbRow = Row & {
   benchmark_id: number;
@@ -179,7 +189,7 @@ function toCatalog(row: CatalogDbRow): BenchmarkCatalog {
 }
 
 /** A bounded page of tasks. A list view never receives a whole benchmark. */
-export async function listTasks(benchmarkId: number, limit = 50, offset = 0) {
+export async function listTasks(benchmarkId: number, limit = 50, offset = 0): Promise<BenchmarkTask[]> {
   const rows = await all<Row & { dataset: string; task_id: string; name: string; source_path: string; position: number }>(
     `SELECT dataset, task_id, name, source_path, position
        FROM benchmark_tasks WHERE benchmark_id = ?

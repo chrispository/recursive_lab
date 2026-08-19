@@ -1,0 +1,457 @@
+/* Benchmark configuration -------------------------------------------------- */
+
+.m-config-layout {
+  /* Declared here rather than on the panel so it inherits down to the panel,
+     where app.js reads it. A custom property on the panel would be invisible
+     to this element, which is its own ancestor. */
+  --collapse-ms: 600ms;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s4);
+  margin-top: var(--s3);
+}
+/* Config and ledger share this column, so they cannot disagree on width —
+   including after HTMX replaces the ledger in place. */
+.m-config-stack {
+  display: grid;
+  gap: var(--s4);
+  min-width: 0;
+}
+/* Folding the config after a run starts -----------------------------------
+   `<details>` has no closing state to style: `open` flips and the whole body
+   leaves layout in one frame, which reads as the ledger teleporting rather
+   than the config getting out of its way.
+
+   `.is-collapsing` is that missing state. app.js holds the panel open, animates
+   its height down, and only then flips `open`, so the ledger rises with the
+   shrinking panel instead of jumping once it has gone. --collapse-ms is read by
+   app.js: the duration lives here, once. */
+.m-config-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--inset);
+}
+/* The height is animated in script; this only has to stop the body it is
+   clipping from spilling out of the shrinking box. */
+.m-config-panel.is-collapsing {
+  overflow: hidden;
+}
+.m-config-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--deep);
+  cursor: pointer;
+  list-style: none;
+}
+.m-config-head::-webkit-details-marker {
+  display: none;
+}
+.m-config-toggle {
+  display: inline-flex;
+  width: 18px;
+  color: var(--text-2);
+  transition: transform 0.16s var(--ease);
+}
+.m-config-panel:not([open]) > .m-config-head .m-config-toggle {
+  transform: rotate(-90deg);
+}
+.m-config-panel:not([open]) > .m-config-head {
+  border-bottom: 0;
+}
+.m-config-head-right {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-left: auto;
+}
+.m-settings-link {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--text-3);
+  border: 1px solid var(--line);
+  font-size: 16px;
+}
+.m-settings-link:hover {
+  color: var(--text-1);
+  background: var(--raised-2);
+}
+.m-config-body,
+.m-config-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+}
+.m-config-body {
+  padding: var(--s4);
+}
+.m-config-body > .full,
+.m-config-body > .m-advanced.full,
+.m-config-fields {
+  grid-column: 1 / -1;
+}
+.m-config-fields > .full,
+.m-config-fields > .m-advanced.full {
+  grid-column: 1 / -1;
+}
+.m-config-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.m-config-field label {
+  color: var(--text-2);
+  font: 650 var(--t-label) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-help {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  color: var(--text-3);
+  vertical-align: 1px;
+}
+.m-config-note {
+  color: var(--text-3);
+  font-size: var(--t-label);
+  line-height: 1.45;
+}
+.m-import {
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+.m-import > summary,
+.m-advanced > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: 10px 12px;
+  color: var(--text-3);
+  cursor: pointer;
+  font: 650 var(--t-label) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  list-style: none;
+  text-transform: uppercase;
+}
+.m-import > summary::-webkit-details-marker,
+.m-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+.m-import-toggle,
+.m-advanced-mark {
+  display: inline-flex;
+  align-items: center;
+  width: 18px;
+  height: 16px;
+  flex: 0 0 18px;
+}
+.m-import-toggle {
+  color: var(--text-4);
+  transition: transform 0.16s var(--ease);
+}
+.m-import[open] > summary .m-import-toggle {
+  transform: rotate(90deg);
+}
+.m-import-body {
+  display: grid;
+  gap: var(--s3);
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--line);
+}
+.m-import-body p {
+  padding-top: 10px;
+  font-size: var(--t-label);
+}
+.m-import-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s2);
+}
+.m-import-body [data-status='error'] {
+  color: var(--fail);
+}
+.m-import-body [data-status='ok'] {
+  color: var(--pass);
+}
+.m-import-progress.htmx-indicator {
+  display: none;
+  gap: 6px;
+  color: var(--brand-ink);
+  font: 500 var(--t-label) / 1.3 var(--sans);
+}
+.htmx-request .m-import-progress.htmx-indicator {
+  display: grid;
+}
+.m-import-progress-label {
+  letter-spacing: 0.02em;
+}
+.m-import-progress-track {
+  position: relative;
+  height: 5px;
+  overflow: hidden;
+  background: var(--raised-2);
+  border: 1px solid var(--line);
+}
+.m-import-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 -38%;
+  width: 38%;
+  background: var(--brand);
+  box-shadow: 0 0 9px var(--brand);
+  animation: m-import-sweep 1.25s linear infinite;
+}
+@keyframes m-import-sweep {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(365%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-import-progress-fill {
+    animation: none;
+    inset: 0;
+    width: 100%;
+    opacity: 0.55;
+  }
+}
+.m-task-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.m-task-toolbar > span:last-child {
+  display: flex;
+  gap: var(--s2);
+}
+.m-task-picker {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+.m-task-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 10px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  font-size: var(--t-label);
+  line-height: 1.35;
+}
+/* `.m-task-row { display: grid }` beats the UA `[hidden] { display: none }`,
+   so a filtered row stayed in the list while the count dropped. */
+.m-task-row[hidden] {
+  display: none;
+}
+.m-task-row:last-child {
+  border-bottom: 0;
+}
+.m-task-row:hover,
+.m-task-row:has(input:checked) {
+  color: var(--text-1);
+  background: var(--wash-2);
+}
+.m-task-row input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+.m-task-row span {
+  overflow-wrap: anywhere;
+}
+.m-advanced {
+  border-top: 1px solid var(--line);
+}
+.m-advanced > summary {
+  padding: 10px 0 0;
+}
+.m-advanced-mark {
+  color: var(--brand);
+  transition: transform 0.16s var(--ease);
+}
+.m-advanced[open] .m-advanced-mark {
+  transform: rotate(90deg);
+}
+.m-advanced-body {
+  display: grid;
+  gap: var(--s4);
+  padding-top: var(--s4);
+}
+.m-advanced-group {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--line-soft);
+  background: var(--raised);
+}
+.m-advanced-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.m-advanced-group-head h4 {
+  color: var(--text-1);
+}
+.m-advanced-group-head span,
+.m-run-kicker {
+  color: var(--text-4);
+  font: 500 10.5px / 1.2 var(--sans);
+  letter-spacing: 0.012em;
+  text-transform: uppercase;
+}
+.m-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+}
+.m-config-grid > .full {
+  grid-column: 1 / -1;
+}
+.m-run-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+  padding: 0 var(--s4) var(--s4);
+}
+.m-run-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  min-width: 0;
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--text-1);
+  background: var(--raised);
+}
+.m-run-card-full {
+  border-left-color: var(--brand);
+}
+.m-run-card > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.m-run-card strong {
+  color: var(--text-1);
+  font-size: var(--t-label);
+}
+.m-run-card > div > span:last-child {
+  color: var(--text-3);
+  font-size: var(--t-micro);
+  text-transform: uppercase;
+}
+.m-run-card label {
+  color: var(--text-1);
+  font-size: var(--t-label);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.m-run-card label input {
+  display: inline-block;
+  width: 48px;
+  padding: 5px 7px;
+  margin: 0 4px;
+}
+.m-recurse-button {
+  background: color-mix(in srgb, var(--brand) 65%, var(--raised));
+}
+.m-recurse-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.m-config-status {
+  min-height: 0;
+  padding: 0 var(--s4) var(--s4);
+  color: var(--text-3);
+  font-size: var(--t-label);
+}
+
+/* The run moves from one stage to the next without being selected again. */
+.m-handoff {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin: auto calc(var(--s5) * -1) calc(-1 * (var(--s5) + 58px));
+  padding: 10px var(--s5);
+  border-top: 1px solid var(--line);
+  background: var(--deeper);
+}
+.m-handoff-what {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--t-label);
+  overflow-wrap: anywhere;
+}
+.m-handoff-what b {
+  color: var(--text-1);
+  font: 500 11px / 1 var(--mono);
+  letter-spacing: 0.07em;
+}
+.m-handoff-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--s3);
+}
+.m-handoff-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-3);
+  font-size: var(--t-label);
+}
+.m-handoff-back:hover {
+  color: var(--text-1);
+}
+.m-handoff-back .m-icon,
+.m-handoff-go .m-icon {
+  vertical-align: -4px;
+}
+.m-handoff-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 12px;
+  color: var(--btn-ink);
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  border-radius: 0;
+  font: 600 12px / 1 var(--sans);
+}
+.m-handoff-go:hover {
+  color: var(--btn-ink);
+  background: var(--brand-press);
+  border-color: var(--brand-press);
+}
+/* Blocked handoffs are spans without href, so they need their own muted state. */
+.m-handoff-go.is-disabled {
+  color: var(--text-3);
+  background: var(--raised);
+  border-color: var(--line);
+  cursor: not-allowed;
+  opacity: 0.55;
+}

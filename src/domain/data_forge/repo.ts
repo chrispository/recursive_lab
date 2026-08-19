@@ -69,6 +69,20 @@ type SourceDb = Row & {
   shingles_json: string;
 };
 
+type ContextDb = Row & {
+  failure_map_id: number;
+  benchmark_result_id: number;
+  benchmark_id: number;
+  data_forge_run_id: number | null;
+  prompt_revision_id: number | null;
+  backend: 'data_designer' | 'frontier' | null;
+  provider_model: string | null;
+  docs_per_topic: number | null;
+  novelty_threshold: number | null;
+  auto_approve: number | null;
+  requested_documents: number | null;
+};
+
 const DATA_FORGE_SELECT = `
   SELECT df.id AS data_forge_run_id, df.failure_map_id, df.prompt_revision_id,
          df.backend, df.provider_model, df.docs_per_topic, df.novelty_threshold,
@@ -125,21 +139,7 @@ const CONTEXT_SELECT = `
     LEFT JOIN data_forge_runs df ON df.failure_map_id = fm.id
 `;
 
-export async function forgeContext(benchmarkRunId: number): Promise<ForgeContext | null> {
-  const row = await one<Row & {
-    failure_map_id: number;
-    benchmark_result_id: number;
-    benchmark_id: number;
-    data_forge_run_id: number | null;
-    prompt_revision_id: number | null;
-    backend: 'data_designer' | 'frontier' | null;
-    provider_model: string | null;
-    docs_per_topic: number | null;
-    novelty_threshold: number | null;
-    auto_approve: number | null;
-    requested_documents: number | null;
-  }>(`${CONTEXT_SELECT} WHERE br.benchmark_run_id = ?`, [benchmarkRunId]);
-  if (!row) return null;
+function toContext(row: ContextDb): ForgeContext {
   return {
     dataForgeRunId: row.data_forge_run_id,
     promptRevisionId: row.prompt_revision_id,
@@ -153,6 +153,11 @@ export async function forgeContext(benchmarkRunId: number): Promise<ForgeContext
     autoApprove: row.auto_approve === 1,
     requestedDocuments: row.requested_documents ?? 0,
   };
+}
+
+export async function forgeContext(benchmarkRunId: number): Promise<ForgeContext | null> {
+  const row = await one<ContextDb>(`${CONTEXT_SELECT} WHERE br.benchmark_run_id = ?`, [benchmarkRunId]);
+  return row ? toContext(row) : null;
 }
 
 export async function topicsForRun(
@@ -180,14 +185,18 @@ export async function topicsForRun(
     ? await one<Row & { docs_per_topic: number }>('SELECT docs_per_topic FROM data_forge_runs WHERE id = ?', [dataForgeRunId])
     : null;
   const docsPerTopic = docsPerTopicOverride ?? context?.docs_per_topic ?? 3;
-  return rows.map((row) => ({
+  return rows.map((row) => toTopic(row, docsPerTopic));
+}
+
+function toTopic(row: TopicDb, docsPerTopic: number): ForgeTopicInput {
+  return {
     topicId: row.id,
     topicCode: code('topics', row.id),
     name: row.name,
     description: row.description,
     verifierStrategy: row.verifier_strategy,
     remaining: Math.max(0, docsPerTopic - row.filled_count),
-  }));
+  };
 }
 
 export async function failureItemsByTopic(failureMapId: number): Promise<Map<number, number>> {
@@ -266,7 +275,9 @@ export async function sourceFingerprints(benchmarkRunId: number): Promise<Array<
   const rows = await all<SourceDb>(
     `SELECT DISTINCT bs.content_sha256, bs.normalized_sha256, bs.shingles_json
        FROM benchmark_sources bs
-       JOIN benchmark_run_tasks brt ON brt.task_id = bs.task_id
+       JOIN benchmark_run_tasks brt
+         ON brt.benchmark_id = bs.benchmark_id
+        AND brt.task_id = bs.task_id
        JOIN benchmark_results br ON br.benchmark_id = brt.benchmark_id
                               AND br.benchmark_run_id = brt.benchmark_run_id
       WHERE br.benchmark_run_id = ?`,
@@ -387,7 +398,11 @@ export async function listDocuments(dataForgeCode: string): Promise<DocumentRow[
       ORDER BY tp.name ASC, d.ordinal ASC`,
     [dataForgeId],
   );
-  return rows.map((row) => ({
+  return rows.map(toDocument);
+}
+
+function toDocument(row: DocumentDb): DocumentRow {
+  return {
     documentCode: code('documents', row.id),
     topicCode: code('topics', row.topic_id),
     topicName: row.topic_name,
@@ -402,5 +417,5 @@ export async function listDocuments(dataForgeCode: string): Promise<DocumentRow[
     taskInstruction: row.task_instruction,
     referenceAnswer: row.reference_answer,
     verifierTargets: json<string[]>(row.verifier_targets_json, []),
-  }));
+  };
 }

@@ -47,7 +47,7 @@ async function advance(cursor: Cursor): Promise<void> {
  * is written to neither file, so a finished run can land under its total. Never
  * treat `count() === total` as the end of the run — the process exiting is.
  */
-export function counter(outputPath: string): () => Promise<number> {
+export function createRolloutCounter(outputPath: string): () => Promise<number> {
   const cursors: Cursor[] = [
     { path: outputPath, offset: 0, lines: 0 },
     { path: failuresPathOf(outputPath), offset: 0, lines: 0 },
@@ -59,13 +59,13 @@ export function counter(outputPath: string): () => Promise<number> {
 }
 
 export function completeLines(outputPath: string): Promise<number> {
-  return counter(outputPath)();
+  return createRolloutCounter(outputPath)();
 }
 
 export type CriterionScore = {
   criterionId: string;
   title: string;
-  result: 'pass' | 'fail' | 'error';
+  verdict: 'pass' | 'fail' | 'error';
   reasoning: string;
   /** Which model produced this verdict, when the scores file records one. */
   judgeModel: string;
@@ -87,7 +87,7 @@ export type Rollout = {
   taskId: string;
   trialName: string;
   reward: number | null;
-  result: 'passed' | 'failed' | 'error' | 'skipped';
+  outcome: 'passed' | 'failed' | 'error' | 'skipped';
   error: string;
   trialDir: string | null;
   criteria: CriterionScore[];
@@ -119,6 +119,7 @@ function trialDirOf(metadata: Json): string | null {
     if (uri.startsWith('file:')) return fileURLToPath(uri);
     if (uri.startsWith('/')) return uri;
   } catch {
+    // A malformed file:// URI is not a trial we can read.
     return null;
   }
   return null;
@@ -182,17 +183,17 @@ function rolloutLimit(row: Json): string {
 }
 
 function criterionOf(raw: Json, fallbackJudge: string): CriterionScore {
-  const verdict = asString(raw.verdict, 'fail').toLowerCase();
+  const rawVerdict = asString(raw.verdict, 'fail').toLowerCase();
   const judgeError = raw.judge_error === true;
-  let result: CriterionScore['result'] = 'fail';
-  if (judgeError) result = 'error';
-  else if (verdict === 'pass') result = 'pass';
-  else if (verdict === 'fail') result = 'fail';
-  else result = 'error';
+  let verdict: CriterionScore['verdict'] = 'fail';
+  if (judgeError) verdict = 'error';
+  else if (rawVerdict === 'pass') verdict = 'pass';
+  else if (rawVerdict === 'fail') verdict = 'fail';
+  else verdict = 'error';
   return {
     criterionId: asString(raw.id),
     title: asString(raw.title),
-    result,
+    verdict,
     reasoning: asString(raw.reasoning),
     // Per-criterion first; Harbor usually records the judge once for the file.
     judgeModel: asString(raw.judge_model) || asString(raw.model) || fallbackJudge,
@@ -228,6 +229,7 @@ async function scoresOf(trialDir: string | null): Promise<ScoresResult> {
       judgeWallClockSeconds: asNumber(cost.wall_clock_seconds) ?? 0,
     };
   } catch {
+    // An unreadable scores.json means this trial has no verdicts to show.
     return empty;
   }
 }
@@ -256,6 +258,7 @@ async function agentTokensOf(
       try {
         entry = JSON.parse(line) as Json;
       } catch {
+        // A truncated trailing line while gym writes; skip it, not the rest.
         continue;
       }
       if (entry.role !== 'assistant') continue;
@@ -265,18 +268,19 @@ async function agentTokensOf(
     }
     return { inputTokens, outputTokens, turns };
   } catch {
+    // A missing transcript means no agent tokens to report.
     return zero;
   }
 }
 
-function resultOf(
+function outcomeOf(
   error: string,
   limit: string,
   criteria: CriterionScore[],
   reward: number | null,
-): Rollout['result'] {
+): Rollout['outcome'] {
   if (error) return 'error';
-  if (criteria.some((item) => item.result === 'error')) return 'error';
+  if (criteria.some((item) => item.verdict === 'error')) return 'error';
   if (criteria.length === 0) {
     // No criteria and a wall the agent hit means nothing graded this rollout;
     // `reward: 0` here is gym's default, not a judge's verdict.
@@ -285,12 +289,12 @@ function resultOf(
     if (reward === 0) return 'failed';
     return 'error';
   }
-  if (criteria.every((item) => item.result === 'pass')) return 'passed';
+  if (criteria.every((item) => item.verdict === 'pass')) return 'passed';
   return 'failed';
 }
 
 /** Parse one eval output file into task/trial rollouts, sorted stably. */
-export async function read(outputPath: string): Promise<Rollout[]> {
+export async function readRollouts(outputPath: string): Promise<Rollout[]> {
   const file = Bun.file(outputPath);
   if (!(await file.exists())) return [];
   const text = await file.text();
@@ -302,6 +306,7 @@ export async function read(outputPath: string): Promise<Rollout[]> {
     try {
       row = JSON.parse(line) as Json;
     } catch {
+      // A truncated line is the file being written; skip it, not the run.
       continue;
     }
     pending.push({
@@ -323,7 +328,7 @@ export async function read(outputPath: string): Promise<Rollout[]> {
     const fatal = rolloutError(item.row);
     const limit = rolloutLimit(item.row);
     const reward = asNumber(item.row.reward);
-    const result = resultOf(fatal, limit, criteria, reward);
+    const outcome = outcomeOf(fatal, limit, criteria, reward);
     // A limit only reaches the stored error text when it is what decided the
     // outcome; alongside real criteria it is context, not the reason.
     const error = fatal || (criteria.length === 0 ? limit : '');
@@ -332,7 +337,7 @@ export async function read(outputPath: string): Promise<Rollout[]> {
       taskId: taskIdOf(item.row, metadata),
       trialName,
       reward,
-      result,
+      outcome,
       error,
       trialDir,
       criteria,

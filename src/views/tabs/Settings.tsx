@@ -37,37 +37,13 @@ export function Settings({ settings, children }: { settings: PublicSettings; chi
   return (
     <div class="m-settings-page">
       <div class="m-title">
-        <h2>Settings, and what everything here means</h2>
+        <h2>Settings</h2>
         <p>
-          The explanations come first on purpose. Secrets remain in the repository’s gitignored{' '}
-          <code>env.yaml</code> and are never returned to the browser.
+          Endpoints and credentials for the providers this lab calls, and the
+          gym environment underneath. Secrets remain in the repository’s
+          gitignored <code>env.yaml</code> and are never returned to the browser.
         </p>
-        <nav class="m-dict-jump" aria-label="Sections of this page">
-          <a href="#settings-dictionary">What the words mean</a>
-          <a href="#settings-inventory">What you have</a>
-          <a href="#settings-keys">Keys and models</a>
-        </nav>
       </div>
-
-      {children}
-
-      <Panel title="Appearance" code="this browser">
-        <div class="m-appearance-grid">
-          <Field label="Theme">
-            <div class="m-segmented" role="group" aria-label="Theme">
-              <button type="button" data-set-theme="dark" aria-pressed="false">Dark</button>
-              <button type="button" data-set-theme="light" aria-pressed="false">Light</button>
-            </div>
-          </Field>
-          <Field label="Density">
-            <div class="m-segmented" role="group" aria-label="Density">
-              <button type="button" data-set-density="comfort" aria-pressed="false">Comfort</button>
-              <button type="button" data-set-density="compact" aria-pressed="false">Compact</button>
-            </div>
-          </Field>
-        </div>
-        <p class="m-note">Appearance is saved locally in this browser and survives HTMX navigation.</p>
-      </Panel>
 
       <form id="settings-form" data-settings-form>
         <Panel id="settings-keys" title="Endpoints and credentials (OpenAI format)" code="local secret store">
@@ -94,6 +70,26 @@ export function Settings({ settings, children }: { settings: PublicSettings; chi
           <div id="settings-test-results" class="m-api-results" aria-live="polite" />
         </Panel>
       </form>
+
+      {children}
+
+      <Panel title="Appearance" code="this browser">
+        <div class="m-appearance-grid">
+          <Field label="Theme">
+            <div class="m-segmented" role="group" aria-label="Theme">
+              <button type="button" data-set-theme="dark" aria-pressed="false">Dark</button>
+              <button type="button" data-set-theme="light" aria-pressed="false">Light</button>
+            </div>
+          </Field>
+          <Field label="Density">
+            <div class="m-segmented" role="group" aria-label="Density">
+              <button type="button" data-set-density="comfort" aria-pressed="false">Comfort</button>
+              <button type="button" data-set-density="compact" aria-pressed="false">Compact</button>
+            </div>
+          </Field>
+        </div>
+        <p class="m-note">Appearance is saved locally in this browser and survives HTMX navigation.</p>
+      </Panel>
 
       <Panel title="Platform preflight" code="local">
         <div class="m-status-list">

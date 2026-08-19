@@ -28,27 +28,27 @@ const LOCK_PATH = resolve(ROOT, 'data', 'dev-server.lock');
  */
 export async function acquireServerLock(): Promise<() => void> {
   await mkdir(resolve(LOCK_PATH, '..'), { recursive: true });
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    try { unlinkNow(LOCK_PATH); } catch { /* Already gone. */ }
+  };
   for (;;) {
     try {
       const handle = await open(LOCK_PATH, 'wx', 0o600);
       await handle.writeFile(`${process.pid}\n`);
       await handle.close();
-      let released = false;
-      return () => {
-        if (released) return;
-        released = true;
-        try { unlinkNow(LOCK_PATH); } catch { /* Already gone. */ }
-      };
+      return release;
     } catch (error: unknown) {
       if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error;
       const pid = Number((await readFile(LOCK_PATH, 'utf8').catch(() => '')).trim());
-      try {
-        if (Number.isInteger(pid) && pid > 1) {
-          process.kill(pid, 0);
-          throw new Error(`Another dev server is already running (pid ${pid}). Stop it before starting another.`);
-        }
-      } catch (alive) {
-        if (alive instanceof Error && alive.message.startsWith('Another dev server')) throw alive;
+      // Bun's --watch restart re-enters the app under the watcher PID without
+      // running the old process's exit handler. That lock is ours, not a
+      // second server; keep it and let the new boot own its cleanup.
+      if (pid === process.pid) return release;
+      if (Number.isInteger(pid) && pid > 1 && lifecycle.isProcessAlive(pid)) {
+        throw new Error(`Another dev server is already running (pid ${pid}). Stop it before starting another.`);
       }
       // A previous process died without running its signal handler. Only its
       // stale lock remains, so remove it and retry the exclusive create.

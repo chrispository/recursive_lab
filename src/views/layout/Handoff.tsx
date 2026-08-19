@@ -2,7 +2,7 @@ import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
 import { handoffGate, type BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { Icon } from '../ui/Icon.tsx';
 import { failedCriteriaOf } from './RunContext.tsx';
-import { STAGES, type Stage } from './tabs.ts';
+import { STAGES, stageNumber, type Stage } from './tabs.ts';
 
 export function Handoff({
   stage,
@@ -19,12 +19,16 @@ export function Handoff({
   const runId = benchmarkRun?.benchmarkRunId;
   const query = runId ? `?run=${runId}` : '';
   const gate = handoffGate(next.tab, progress ?? null);
+  const nextText = next.tab === 'results' ? 'View Results' : `Send to ${next.label}`;
+
+
   const handoffLabel = (
     <>
-      <span>{next === STAGES[0] ? '01' : String(index + 2).padStart(2, '0')}</span>
-      Send to {next.label} <Icon name="arrow" />
+      <span>{stageNumber((index + 1) % STAGES.length)}</span>
+      {nextText} <Icon name="arrow" />
     </>
   );
+
 
   return (
     <div class="m-handoff">
@@ -34,7 +38,7 @@ export function Handoff({
           : 'No run selected'}
       </span>
       <div class="m-handoff-actions">
-        {previous ? <a class="m-handoff-back" href={`/${previous.tab}${query}`}><Icon name="back" /> {String(index).padStart(2, '0')} {previous.label}</a> : null}
+        {previous ? <a class="m-handoff-back" href={`/${previous.tab}${query}`}><Icon name="back" /> {stageNumber(index - 1)} {previous.label}</a> : null}
         {gate.open ? (
           <a class="m-handoff-go" href={`/${next.tab}${query}`}>{handoffLabel}</a>
         ) : (

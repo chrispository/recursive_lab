@@ -7,33 +7,9 @@ import { Handoff } from '../layout/Handoff.tsx';
 import { RunContext } from '../layout/RunContext.tsx';
 import { Badge } from '../ui/Badge.tsx';
 import { Icon } from '../ui/Icon.tsx';
+import { count, dash, rate } from '../ui/Metric.tsx';
 
 const numberOf = (value: unknown) => (typeof value === 'number' ? value : Number(value ?? 0));
-
-/** An em dash, not a zero. A run that recorded nothing did not score nothing. */
-const dash = <span class="none">—</span>;
-
-/**
- * A count, tinted only when it is non-zero.
- *
- * A green 0 passed and a red 0 failed both claim something the number does not,
- * so the colour is reserved for counts that actually happened.
- */
-function count(value: number | null, tone: 'pass' | 'fail') {
-  if (value === null) return dash;
-  return <b class={value > 0 ? tone : undefined}>{value}</b>;
-}
-
-/**
- * A share of a total, as the group beside it defines it.
- *
- * Deliberately unlabelled: it sits last in its column group, so the header
- * spanning that group says which denominator it is over.
- */
-function rate(part: number | null, total: number | null) {
-  if (part === null || total === null || total === 0) return dash;
-  return `${((part / total) * 100).toFixed(1)}%`;
-}
 
 /** Stable per-criterion dialog id. Criterion ids repeat across tasks, so both. */
 const dialogId = (taskId: string, criterionId: string) =>
@@ -173,7 +149,7 @@ export function Results({ benchmarkRun, progress, tasks, availableRuns }: {
         <h2>Benchmark results</h2>
         <p>Criterion-level failures become the only inputs to capability analysis.</p>
       </div>
-      <RunContext benchmarkRun={benchmarkRun} progress={progress} availableRuns={availableRuns} />
+      <RunContext benchmarkRun={benchmarkRun} availableRuns={availableRuns} />
 
       <TableBox>
         <Cap title="Results by run" code={benchmarkRun ? 'criteria below are the selected run' : undefined} />

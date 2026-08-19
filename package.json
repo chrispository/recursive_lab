@@ -8,12 +8,13 @@
     "dev:once": "bun src/index.ts",
     "start": "bun src/index.ts",
     "db:setup": "bun scripts/setup-db.ts",
+    "db:migrate": "bun scripts/migrate-db.ts",
     "db:reset": "rm -f data/lab.db data/lab.db-* && bun scripts/setup-db.ts",
     "check": "bun run check:types && bun run check:size && bun run check:chain",
     "check:types": "tsc --noEmit",
     "check:size": "bun scripts/check-size.ts",
     "check:chain": "bun scripts/check-chain.ts",
-    "test": "bun test"
+    "test": "bun test ./tests"
   },
   "dependencies": {
     "@elysiajs/html": "^1.4.2",

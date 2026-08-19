@@ -16,6 +16,10 @@ import { Icon } from '../ui/Icon.tsx';
 import { Handoff } from '../layout/Handoff.tsx';
 import { RunContext } from '../layout/RunContext.tsx';
 
+function Help({ text }: { text: string }) {
+  return <span class="m-help" title={text}><Icon name="help" label={text} /></span>;
+}
+
 export function DataForge({
   benchmarkRun,
   progress,
@@ -53,7 +57,7 @@ export function DataForge({
         <h2>Data forge novel training documents</h2>
         <p>Generation receives abstract capability specs only. Every artifact is fingerprinted against its benchmark lineage.</p>
       </div>
-      <RunContext benchmarkRun={benchmarkRun} progress={progress} availableRuns={availableRuns} />
+      <RunContext benchmarkRun={benchmarkRun} availableRuns={availableRuns} />
 
       <div class="m-forge-layout">
         <ForgeConfig
@@ -81,55 +85,52 @@ export function DataForge({
         progress={progress}
       />
 
-      <TableBox>
-        <Cap title="Data forge ledger">
-          <Tally items={[
-            { value: dataForge?.requestedDocuments ?? 0, label: 'requested' },
-            { value: dataForge?.createdDocuments ?? 0, label: 'created' },
-            { value: dataForge?.novelDocuments ?? 0, label: 'novel', hot: true },
-            { value: dataForge?.rejectedDocuments ?? 0, label: 'rejected' },
-            { value: dataForge?.pendingReview ?? 0, label: 'review' },
-          ]} />
-        </Cap>
-        {dataForge ? (
+      {dataForge ? (
+        <TableBox>
+          <Cap title="Data forge ledger">
+            <Tally items={[
+              { value: dataForge.requestedDocuments, label: 'requested' },
+              { value: dataForge.createdDocuments, label: 'created' },
+              { value: dataForge.novelDocuments, label: 'novel', hot: true },
+              { value: dataForge.rejectedDocuments, label: 'rejected' },
+              { value: dataForge.pendingReview, label: 'review' },
+            ]} />
+          </Cap>
           <Table>
-            <thead><tr><th>Data forge</th><th>Failure map</th><th class="n">Topics</th><th>Backend</th><th>Provider model</th><th class="n">Docs/topic</th><th>Status</th></tr></thead>
-            <tbody><tr data-state={running ? 'running' : dataForge.pendingReview ? 'pending' : complete ? 'succeeded' : 'failed'}>
-              <td><span class="nm">{dataForge.dataForgeCode}</span><span class="sub">from {dataForge.failureMapCode}</span></td>
-              <td>{dataForge.failureMapCode}</td>
-              <td class="n">{dataForge.topicCount}</td>
-              <td>{dataForge.backend.replaceAll('_', ' ')}</td>
-              <td><span class="m-id">{dataForge.providerModel}</span></td>
-              <td class="n">{dataForge.docsPerTopic}</td>
-              <td><Badge state={running ? 'running' : forgeJob?.status === 'failed' ? 'failed' : dataForge.pendingReview ? 'pending' : complete ? 'succeeded' : 'draft'}>
-                {running ? forgeJob?.step || 'generating' : forgeJob?.status === 'failed' ? 'failed' : dataForge.pendingReview ? 'review' : complete ? 'complete' : 'incomplete'}
-              </Badge></td>
-            </tr></tbody>
-          </Table>
-        ) : <div class="m-empty">No data forge run for the current failure map. Configure the generation card above to begin.</div>}
-      </TableBox>
-
-      <TableBox>
-        <Cap title="Document ledger" code={`${documents.length} artifacts`} />
-        {documents.length ? (
-          <Table>
-            <thead><tr><th>Document</th><th>Topic</th><th>Type</th><th class="n">Words</th><th class="n">Similarity</th><th>Novelty</th><th>Review</th></tr></thead>
-            <tbody>{documents.map((document) => (
-              <tr data-state={document.noveltyStatus === 'passed' ? 'succeeded' : document.noveltyStatus === 'rejected' ? 'rejected' : 'pending'}>
-                <td><span class="nm">{document.title}</span><span class="sub"><Id value={document.documentCode} /> · {document.role}</span></td>
-                <td>{document.topicName}<span class="sub"><Id value={document.topicCode} /></span></td>
-                <td>{document.documentType.replaceAll('_', ' ')}</td>
-                <td class="n">{document.wordCount}</td>
-                <td class="n"><Bar value={document.maxSimilarity} below={document.maxSimilarity >= (dataForge?.noveltyThreshold ?? 1)} /></td>
-                <td><Badge state={document.noveltyStatus === 'passed' ? 'passed' : document.noveltyStatus === 'rejected' ? 'rejected' : 'review'}>{document.noveltyStatus}</Badge></td>
-                <td><Badge state={document.reviewStatus}>{document.reviewStatus}</Badge></td>
+            <thead>
+              <tr>
+                <th>Data forge</th>
+                <th>Failure map</th>
+                <th class="n">Topics</th>
+                <th>Backend</th>
+                <th>Provider model</th>
+                <th class="n">Docs/topic</th>
+                <th>Status</th>
               </tr>
-            ))}</tbody>
+            </thead>
+            <tbody>
+              <tr data-state={running ? 'running' : dataForge.pendingReview ? 'pending' : complete ? 'succeeded' : 'failed'}>
+                <td>
+                  <span class="nm">{dataForge.dataForgeCode}</span>
+                  <span class="sub">from {dataForge.failureMapCode}</span>
+                </td>
+                <td>{dataForge.failureMapCode}</td>
+                <td class="n">{dataForge.topicCount}</td>
+                <td>{dataForge.backend.replaceAll('_', ' ')}</td>
+                <td><span class="m-id">{dataForge.providerModel}</span></td>
+                <td class="n">{dataForge.docsPerTopic}</td>
+                <td>
+                  <Badge state={running ? 'running' : forgeJob?.status === 'failed' ? 'failed' : dataForge.pendingReview ? 'pending' : complete ? 'succeeded' : 'draft'}>
+                    {running ? forgeJob?.step || 'generating' : forgeJob?.status === 'failed' ? 'failed' : dataForge.pendingReview ? 'review' : complete ? 'complete' : 'incomplete'}
+                  </Badge>
+                </td>
+              </tr>
+            </tbody>
           </Table>
-        ) : <div class="m-empty">No data-forged documents yet.</div>}
-      </TableBox>
+        </TableBox>
+      ) : null}
 
-      {documents.length ? <DocumentReviewQueue documents={documents} /> : null}
+      <DocumentLedger dataForge={dataForge} documents={documents} />
 
       <div class="m-split">
         <Panel title="Generation boundary" code="anti-benchmax">
@@ -141,6 +142,7 @@ export function DataForge({
           <Field label="Token usage"><div class="m-input">{dataForge ? `${(dataForge.inputTokens + dataForge.outputTokens).toLocaleString()} total` : '—'}</div></Field>
         </Panel>
       </div>
+
       <Handoff stage="forge" benchmarkRun={benchmarkRun} progress={progress} />
     </>
   );
@@ -172,23 +174,56 @@ function ForgeConfig({
   return (
     <section class="m-forge-card">
       <div class="m-forge-card-head">
-        <div><h3>Data forge run</h3><p>Choose the generation path, then let the local novelty gate and human review queue decide what moves onward.</p></div>
+        <div>
+          <h3>Data forge run</h3>
+          <p>Recommended: choose NVIDIA Data Designer; it calls the frontier LLM.</p>
+        </div>
         <span class="m-code">{dataForge ? dataForge.dataForgeCode : 'recommended path'}</span>
       </div>
       <form class="m-forge-form" hx-post="/ui/data-forge/start" hx-target="#data-forge-status" hx-swap="outerHTML" hx-disabled-elt="find button">
         <input type="hidden" name="benchmark_run_id" value={benchmarkRun ? String(benchmarkRun.benchmarkRunId) : ''} />
         <input id="forge-prompt-revision" type="hidden" name="prompt_revision_id" value={promptRevisionId ? String(promptRevisionId) : ''} />
-        <div class="m-forge-field full"><label>Completed failure map + taxonomy</label><div class="m-input">{dataForge?.failureMapCode ?? failureMapCode ?? 'Failure map required before generation'}</div></div>
-        <div class="m-forge-field"><label for="forge-backend">Generation backend</label><select id="forge-backend" name="backend" disabled={Boolean(dataForge)}>
-          <option value="data_designer" selected={backend === 'data_designer'}>NVIDIA Data Designer</option>
-          <option value="frontier" selected={backend === 'frontier'}>Direct frontier model</option>
-        </select></div>
-        <div class="m-forge-field"><label for="forge-model">Frontier API model</label><input id="forge-model" name="provider_model" value={dataForge?.providerModel ?? model} disabled={Boolean(dataForge)} /></div>
-        <div class="m-forge-field"><label for="forge-docs">Documents per failure topic</label><input id="forge-docs" name="docs_per_topic" type="number" min="1" max="100" value={String(dataForge?.docsPerTopic ?? 3)} disabled={Boolean(dataForge)} /><span class="m-field-note">Each topic receives this many novel-document slots.</span></div>
-        <div class="m-forge-field"><label for="forge-threshold">Max source similarity</label><input id="forge-threshold" name="novelty_threshold" type="number" min="0.01" max="0.99" step="0.01" value={String(dataForge?.noveltyThreshold ?? 0.22)} disabled={Boolean(dataForge)} /></div>
-        <label class="m-forge-check full"><input name="auto_approve" type="checkbox" checked={Boolean(dataForge?.autoApprove)} disabled={Boolean(dataForge)} /><span><b>Auto-approve novel documents</b><small>Novel artifacts skip the manual review queue; rejected artifacts can never be approved.</small></span></label>
+        <div class="m-forge-field full">
+          <label>Completed failure map + taxonomy</label>
+          <div class="m-input">{dataForge?.failureMapCode ?? failureMapCode ?? 'Failure map required before generation'}</div>
+        </div>
+        <div class="m-forge-field">
+          <label for="forge-backend">Generation backend</label>
+          <select id="forge-backend" name="backend" disabled={Boolean(dataForge)}>
+            <option value="data_designer" selected={backend === 'data_designer'}>NVIDIA Data Designer</option>
+            <option value="frontier" selected={backend === 'frontier'}>Direct frontier model</option>
+          </select>
+        </div>
+        <div class="m-forge-field">
+          <label for="forge-model">Frontier API model</label>
+          <input id="forge-model" name="provider_model" value={dataForge?.providerModel ?? model} disabled={Boolean(dataForge)} />
+        </div>
+        <div class="m-forge-field">
+          <label for="forge-docs">
+            Documents per failure topic{' '}
+            <Help text="Recommended value: 20. Each failure topic receives this many novel-document slots; higher values increase generation and review work." />
+          </label>
+          <input id="forge-docs" name="docs_per_topic" type="number" min="1" max="100" value={String(dataForge?.docsPerTopic ?? 3)} disabled={Boolean(dataForge)} />
+          <span class="m-field-note">Each topic receives this many novel-document slots.</span>
+        </div>
+        <div class="m-forge-field">
+          <label for="forge-threshold">
+            Max source similarity{' '}
+            <Help text="Recommended value: 0.22. Lower values enforce stricter novelty against the source criteria; higher values allow more similar documents through." />
+          </label>
+          <input id="forge-threshold" name="novelty_threshold" type="number" min="0.01" max="0.99" step="0.01" value={String(dataForge?.noveltyThreshold ?? 0.22)} disabled={Boolean(dataForge)} />
+        </div>
         <div class="m-forge-actions full">
-          <button type="submit" disabled={!canStart}>{running ? 'Generation running…' : complete ? 'All slots filled' : dataForge ? 'Fill remaining slots' : 'Start data forge'}</button>
+          <button type="submit" disabled={!canStart}>
+            {running ? 'Generation running…' : complete ? 'All slots filled' : dataForge ? 'Fill remaining slots' : 'Start data forge'}
+          </button>
+          <label class="m-forge-check">
+            <input name="auto_approve" type="checkbox" checked={Boolean(dataForge?.autoApprove)} disabled={Boolean(dataForge)} />
+            <span>
+              <b>Auto-approve novel documents</b>
+              <small>Novel artifacts skip the manual review queue; rejected artifacts can never be approved.</small>
+            </span>
+          </label>
           {!generationConfigured ? <span class="m-field-note">Configure a generation model and API key in Settings first.</span> : null}
         </div>
       </form>
@@ -214,7 +249,10 @@ export function PromptCard({
   return (
     <section id="forge-prompt-card" class="m-forge-card m-prompt-card">
       <div class="m-forge-card-head">
-        <div><h3>Document generation prompt</h3><p>{promptRevisionLocked ? 'This forge run is pinned to its original revision.' : 'Choose a revision to inspect or use for the next forge run.'}</p></div>
+        <div>
+          <h3>Document generation prompt</h3>
+          <p>{promptRevisionLocked ? 'This forge run is pinned to its original revision.' : 'Choose a revision to inspect or use for the next forge run.'}</p>
+        </div>
         <div class="m-prompt-tools">
           {revisions.length ? (
             <form class="m-prompt-revision-picker">
@@ -275,20 +313,107 @@ export function PromptCard({
   );
 }
 
-function DocumentReviewQueue({ documents }: { documents: DocumentRow[] }) {
+function DocumentLedger({
+  dataForge,
+  documents,
+}: {
+  dataForge: DataForgeSummary | null;
+  documents: DocumentRow[];
+}) {
   return (
-    <section class="m-document-queue">
-      <div class="m-cap"><h3>Document review queue</h3><span class="m-code">{documents.length} documents</span></div>
-      <div class="m-document-grid">
-        {documents.map((document) => (
-          <article class="m-document-card" data-review={document.reviewStatus}>
-            <header><div><h4>{document.title}</h4><span class="sub">{document.topicName} / {document.documentType.replaceAll('_', ' ')}</span></div><Badge state={document.noveltyStatus === 'passed' ? 'passed' : document.noveltyStatus === 'rejected' ? 'rejected' : 'review'}>{document.noveltyStatus}</Badge></header>
-            <details><summary>Inspect generated task</summary><div class="m-document-content"><b>Source document</b><p>{document.content}</p><b>Task</b><p>{document.taskInstruction}</p><b>Hidden reference</b><p>{document.referenceAnswer}</p><b>Verifier targets</b><p>{document.verifierTargets.join(' · ')}</p></div></details>
-            <div class="m-review-controls"><span class="m-field-note"><Id value={document.documentCode} /> · {document.wordCount} words</span><button type="button" data-document-review="approved" data-document-code={document.documentCode} disabled={document.noveltyStatus !== 'passed' || document.reviewStatus === 'approved'}>Approve</button><button type="button" data-document-review="rejected" data-document-code={document.documentCode} disabled={document.noveltyStatus === 'rejected' || document.reviewStatus === 'rejected'}>Reject</button></div>
-          </article>
-        ))}
-      </div>
-    </section>
+    <TableBox>
+      <Cap title="Document ledger & review queue" code={`${documents.length} artifacts`} />
+      {documents.length ? (
+        <div class="m-document-queue" style="margin-top:0; border:0; background:transparent;">
+          <Table>
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Topic</th>
+                <th>Type</th>
+                <th class="n">Words</th>
+                <th class="n">Similarity</th>
+                <th>Novelty</th>
+                <th>Review status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documents.map((document) => (
+                <tr data-state={document.noveltyStatus === 'passed' ? 'succeeded' : document.noveltyStatus === 'rejected' ? 'rejected' : 'pending'}>
+                  <td>
+                    <span class="nm">{document.title}</span>
+                    <span class="sub"><Id value={document.documentCode} /> · {document.role}</span>
+                  </td>
+                  <td>
+                    {document.topicName}
+                    <span class="sub"><Id value={document.topicCode} /></span>
+                  </td>
+                  <td>{document.documentType.replaceAll('_', ' ')}</td>
+                  <td class="n">{document.wordCount}</td>
+                  <td class="n">
+                    <Bar value={document.maxSimilarity} below={document.maxSimilarity >= (dataForge?.noveltyThreshold ?? 1)} />
+                  </td>
+                  <td>
+                    <Badge state={document.noveltyStatus === 'passed' ? 'passed' : document.noveltyStatus === 'rejected' ? 'rejected' : 'review'}>
+                      {document.noveltyStatus}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge state={document.reviewStatus}>{document.reviewStatus}</Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+
+          <div class="m-document-grid" style="margin-top: var(--s4); border-top: 1px solid var(--line);">
+            {documents.map((document) => (
+              <article class="m-document-card" data-review={document.reviewStatus}>
+                <header>
+                  <div>
+                    <h4>{document.title}</h4>
+                    <span class="sub">{document.topicName} / {document.documentType.replaceAll('_', ' ')}</span>
+                  </div>
+                  <Badge state={document.noveltyStatus === 'passed' ? 'passed' : document.noveltyStatus === 'rejected' ? 'rejected' : 'review'}>
+                    {document.noveltyStatus}
+                  </Badge>
+                </header>
+                <details>
+                  <summary>Inspect generated task</summary>
+                  <div class="m-document-content">
+                    <b>Source document</b>
+                    <p>{document.content}</p>
+                    <b>Task</b>
+                    <p>{document.taskInstruction}</p>
+                    <b>Hidden reference</b>
+                    <p>{document.referenceAnswer}</p>
+                    <b>Verifier targets</b>
+                    <p>{document.verifierTargets.join(' · ')}</p>
+                  </div>
+                </details>
+                <div class="m-review-controls">
+                  <span class="m-field-note"><Id value={document.documentCode} /> · {document.wordCount} words</span>
+                  <button
+                    type="button"
+                    data-document-review="approved"
+                    data-document-code={document.documentCode}
+                    disabled={document.noveltyStatus !== 'passed' || document.reviewStatus === 'approved'}
+                  >Approve</button>
+                  <button
+                    type="button"
+                    data-document-review="rejected"
+                    data-document-code={document.documentCode}
+                    disabled={document.noveltyStatus === 'rejected' || document.reviewStatus === 'rejected'}
+                  >Reject</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div class="m-empty">No data-forged documents yet. Configure the generation card above to begin.</div>
+      )}
+    </TableBox>
   );
 }
 
@@ -305,10 +430,44 @@ export function DataForgeStatus({
 }) {
   const id = 'data-forge-status';
   if (runId && job && isLive(job)) {
-    return <div id={id} class="m-analysis-status" hx-get={`/ui/data-forge/status?run=${runId}`} hx-trigger="every 1s" hx-swap="outerHTML"><Badge state="running">generation running</Badge><span>{job.step || 'Working'} · {job.jobCode}</span></div>;
+    return (
+      <div
+        id={id}
+        class="m-analysis-progress"
+        role="status"
+        aria-live="polite"
+        hx-get={`/ui/data-forge/status?run=${runId}`}
+        hx-trigger="every 1s"
+        hx-swap="outerHTML"
+      >
+        <div class="m-analysis-progress-label">
+          <span class="m-analysis-progress-step">{job.step || 'Working'}</span>
+          <span class="m-id">{job.jobCode}</span>
+        </div>
+        <div class="m-analysis-progress-track" role="progressbar" aria-label="Generation in progress">
+          <span class="m-analysis-progress-fill" aria-hidden="true" />
+        </div>
+      </div>
+    );
   }
-  if (runId && job?.status === 'failed') return <div id={id} class="m-analysis-status"><Badge state="failed">generation failed</Badge><span>{job.error || 'The data forge job failed.'}</span></div>;
-  if (runId && progress?.dataForgeRun.entity && refreshWhenReady) return <div id={id} class="m-analysis-status" hx-get={`/forge?run=${runId}`} hx-trigger="load" hx-target="#workspace" hx-swap="innerHTML"><Badge state="ready">data forge ready</Badge><span>Refreshing the selected run…</span></div>;
-  if (progress?.dataForgeRun.entity) return <div id={id} class="m-analysis-status"><Badge state="ready">data forge ready</Badge><span>{progress.dataForgeRun.entity}</span></div>;
+  if (runId && job?.status === 'failed') {
+    return (
+      <div id={id} class="m-analysis-status">
+        <Badge state="failed">generation failed</Badge>
+        <span>{job.error || 'The data forge job failed.'}</span>
+      </div>
+    );
+  }
+  if (runId && progress?.dataForgeRun.entity && refreshWhenReady) {
+    return (
+      <div id={id} class="m-analysis-status" hx-get={`/forge?run=${runId}`} hx-trigger="load" hx-target="#workspace" hx-swap="innerHTML">
+        <Badge state="ready">data forge ready</Badge>
+        <span>Refreshing the selected run…</span>
+      </div>
+    );
+  }
+  if (progress?.dataForgeRun.entity) {
+    return <div id={id} class="m-analysis-status"><Badge state="ready">data forge ready</Badge><span>{progress.dataForgeRun.entity}</span></div>;
+  }
   return <div id={id} class="m-analysis-status"><Badge state="pending">not started</Badge><span>Send a completed failure map here to create novel training documents.</span></div>;
 }

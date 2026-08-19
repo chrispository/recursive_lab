@@ -38,10 +38,31 @@ a new reader should know a file's job from its path.
 - Gym startup can take minutes on a cold cache while resources download/prepare.
   Spawn detached and cancel its process group. Never expose `env.yaml` secrets.
 
+## Shared helpers (don't re-implement)
+
+- `src/http/request.ts`: `errorMessage`, `recordBody`, `benchmarkRunIdOf`,
+  `dataForgeInput` for HTTP request/response normalization.
+- `src/views/ui/Metric.tsx`: `dash`, `count`, `rate`. Missing data is an em
+  dash, never a zero.
+- `src/gym/lifecycle.ts` exports `isProcessAlive`; `src/gym/sync.ts` holds the
+  gym re-pin/restart mechanics (extracted from `benchmarks/service.ts`).
+- `src/gym/storage.ts` buckets use `paths: string[]` and a typed `BucketId`
+  (six IDs from `BUCKET_IDS`), not newline-delimited paths.
+
+## Frontend assets
+
+- CSS is split across `public/css/{tokens,base,layout,benchmarks,results,forge,
+  components,responsive,settings}.css`, loaded in that order in `Document.tsx`
+  — cascade order is load-bearing, keep it stable.
+- Browser script is split across `public/js/{prefs,settings-form,tasks,orb,
+  results,config,review}.js`, each a self-contained IIFE with delegated
+  `document` listeners (so they survive HTMX swaps).
+
 ## Workflow
 
 - Preserve unrelated dirty changes. Ask before killing a running server/process.
-- Verify relevant changes with `bun run check` and `bun test`; use `bun run
+- Verify relevant changes with `bun run check` and `bun run test`; use `bun run
   db:reset` when schema changes. Keep this file and `PLAN.md` current when they
   exist. For frontend changes, manually exercise HTMX swaps and interactions.
+- Bare `bun test` is broken on Bun 1.3.14 — always use `bun run test`.
 - If asked to commit/push: use only `git commit` then `git push` (never `gh stack`).

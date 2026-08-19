@@ -8,74 +8,19 @@
  */
 import type { GymHealth } from '../../../gym/head.ts';
 import type { BucketUsage } from '../../../gym/storage.ts';
-import type { AlignmentReport, CatalogAlignment } from '../../../domain/benchmarks/model.ts';
-import type { Holding } from '../../../domain/inventory/model.ts';
-import type { GymPin } from '../../../gym/pins.ts';
 import { config } from '../../../config.ts';
 import { Badge } from '../../ui/Badge.tsx';
 import { Btn } from '../../ui/Btn.tsx';
 import { Panel } from '../../ui/Panel.tsx';
-import { Inventory } from './Inventory.tsx';
 
 const GYM_ROOT = config.gym.root;
 
-const mb = (bytes: number) => {
+const formatBytes = (bytes: number) => {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
   if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(0)} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${bytes} B`;
 };
-
-/** `harveyai/harvey-labs` from a URL, and `f46ef86e` from a 40-char sha. */
-const shortRepo = (url: string) => url.replace(/^https?:\/\/[^/]+\//, '');
-const shortSha = (sha: string) => (sha.length > 9 ? `${sha.slice(0, 9)}…` : sha);
-
-/**
- * The two-copies story, stated with this installation's own values: what the
- * gym can run, what each import is pinned at, and the size of the gap.
- */
-function AlignmentPanel({ gym, catalogs }: { gym: GymPin; catalogs: CatalogAlignment[] }) {
-  return (
-    <Panel title="How your benchmark reaches the gym" code="two copies, one pin each">
-      <p class="m-note">
-        “Pinned” means frozen at one exact commit — not “latest”. This lab keeps two independent copies of the
-        benchmark repository: the one you imported (frozen the day you clicked import), and the gym’s own
-        prepared copy (frozen at a commit that ships inside NeMo Gym itself). Neither follows the other, and
-        neither follows the repository’s current main.
-      </p>
-      <div class="m-status-list">
-        <div>
-          <span>Gym’s copy</span>
-          {gym.resolved
-            ? <span><code class="m-storage-path">{shortRepo(gym.repository)}</code> at <code class="m-storage-path">{shortSha(gym.revision)}</code> — {gym.taskCount} runnable tasks</span>
-            : <span>{gym.reason || 'Not prepared yet.'}</span>}
-        </div>
-        {catalogs.map((catalog) => (
-          <div>
-            <span>Your import — {catalog.name}</span>
-            <span><code class="m-storage-path">{catalog.sourceIdentifier}</code> at <code class="m-storage-path">{shortSha(catalog.catalogRevision)}</code> — {catalog.taskCount} tasks</span>
-          </div>
-        ))}
-        {catalogs.map((catalog) => (
-          <div>
-            <span>{catalog.benchmarkCode} vs gym</span>
-            <Badge state={catalog.aligned ? 'ready' : 'pending'}>{catalog.aligned ? 'same commit' : 'different commits'}</Badge>
-            <span>{catalog.missingCount === 0 ? `all ${catalog.taskCount} tasks runnable` : `${catalog.runnableCount} of ${catalog.taskCount} runnable`}</span>
-          </div>
-        ))}
-      </div>
-      {catalogs.filter((catalog) => catalog.missingCount > 0).map((catalog) => (
-        <p class="m-note" role="status">
-          <strong>{catalog.missingCount} of your tasks cannot run.</strong> They exist in your import but not
-          in the gym’s copy, so selecting one fails the run with “zero runnable tasks”. Missing families:{' '}
-          {catalog.missingFamilies.map((family) => <code class="m-storage-path">{family}</code>)}
-          {' '}— run tasks from the other families, or import the source again pinned at the gym’s commit{' '}
-          <code class="m-storage-path">{shortSha(catalog.gymRevision)}</code>.
-        </p>
-      ))}
-    </Panel>
-  );
-}
 
 export function GymPanel(
   props: {
@@ -85,20 +30,14 @@ export function GymPanel(
     defaultResourcesServer: string;
     defaultModelType: string;
     notice: string;
-    alignment: AlignmentReport;
-    holdings: Holding[];
   },
 ) {
-  const { health, headPid, buckets, defaultResourcesServer, defaultModelType, notice, alignment, holdings } = props;
+  const { health, headPid, buckets, defaultResourcesServer, defaultModelType, notice } = props;
   const servers = health.servers.filter((server) => server.healthy);
   const resources = health.servers.find((server) => server.serverType === 'resources_servers' && server.healthy);
   const model = health.servers.find((server) => server.serverType === 'responses_api_models' && server.healthy);
   return (
     <section id="settings-gym" hx-get="/ui/settings/gym" hx-swap="outerHTML">
-      <Inventory holdings={holdings} />
-
-      <AlignmentPanel gym={alignment.gym} catalogs={alignment.catalogs} />
-
       <Panel title="NeMo Gym environment" code={health.headUrl}>
         <div class="m-status-list">
           <div><span>Head server</span><Badge state={health.reachable ? 'ready' : 'pending'}>{health.reachable ? 'reachable' : 'stopped'}</Badge></div>
@@ -143,11 +82,9 @@ export function GymPanel(
             <div class="m-storage-row">
               <span class="m-storage-label">{bucket.label} <Badge state={bucket.owner === 'lab' ? 'ready' : 'pending'}>{bucket.owner}</Badge></span>
               {bucket.resolved
-                ? bucket.path.includes('\n')
-                  ? bucket.path.split('\n').map((path) => <code class="m-storage-path">{path}</code>)
-                  : <code class="m-storage-path">{bucket.path}</code>
+                ? bucket.paths.map((path) => <code class="m-storage-path">{path}</code>)
                 : <span class="m-storage-path is-unset">not resolved</span>}
-              <span class="m-storage-note">{bucket.resolved ? `${bucket.note} — ${mb(bucket.bytes)}` : 'Start NeMo Gym to resolve this path.'}</span>
+              <span class="m-storage-note">{bucket.resolved ? `${bucket.note} — ${formatBytes(bucket.bytes)}` : 'Start NeMo Gym to resolve this path.'}</span>
               {bucket.resolved
                 ? (
                   <button
@@ -170,7 +107,7 @@ export function GymPanel(
                     {bucket.entries.map((entry) => (
                       <div class="m-storage-row">
                         <code class="m-storage-path">{entry.name}</code>
-                        <span class="m-storage-note">{mb(entry.bytes)}</span>
+                        <span class="m-storage-note">{formatBytes(entry.bytes)}</span>
                         <button
                           type="button"
                           class="secondary"
@@ -178,7 +115,7 @@ export function GymPanel(
                           hx-vals={JSON.stringify({ bucket: bucket.id, target: entry.name })}
                           hx-target="#settings-gym"
                           hx-swap="outerHTML"
-                          hx-confirm={`Delete ${entry.name} (${mb(entry.bytes)}) permanently?`}
+                          hx-confirm={`Delete ${entry.name} (${formatBytes(entry.bytes)}) permanently?`}
                         >
                           Delete
                         </button>

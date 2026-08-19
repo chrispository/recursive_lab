@@ -11,14 +11,26 @@ const LIMIT = 500;
 /** Warn before it becomes a build failure, so splits happen calmly. */
 const WARN = 400;
 
-const glob = new Glob('{src,scripts,tests}/**/*.{ts,tsx}');
+/** TS is enforced; CSS/JS are reported only until they are split deliberately. */
+const globs: { pattern: string; enforce: boolean }[] = [
+  { pattern: '{src,scripts,tests}/**/*.{ts,tsx}', enforce: true },
+  { pattern: 'public/**/*.{js,css}', enforce: false },
+];
+
 const offenders: { path: string; lines: number }[] = [];
 const warnings: { path: string; lines: number }[] = [];
 
-for await (const path of glob.scan('.')) {
-  const lines = (await Bun.file(path).text()).split('\n').length;
-  if (lines > LIMIT) offenders.push({ path, lines });
-  else if (lines > WARN) warnings.push({ path, lines });
+for (const { pattern, enforce } of globs) {
+  const glob = new Glob(pattern);
+  for await (const path of glob.scan('.')) {
+    const lines = (await Bun.file(path).text()).split('\n').length;
+    if (lines > LIMIT) {
+      if (enforce) offenders.push({ path, lines });
+      else warnings.push({ path, lines });
+    } else if (lines > WARN) {
+      warnings.push({ path, lines });
+    }
+  }
 }
 
 const byLength = (a: { lines: number }, b: { lines: number }) => b.lines - a.lines;

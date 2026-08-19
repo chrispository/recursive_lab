@@ -7,8 +7,7 @@ import { Elysia } from 'elysia';
 import * as head from '../../gym/head.ts';
 import * as gymLifecycle from '../../gym/lifecycle.ts';
 import * as gymStorage from '../../gym/storage.ts';
-
-const message = (error: unknown) => (error instanceof Error ? error.message : 'Unexpected error.');
+import { errorMessage, recordBody } from '../request.ts';
 
 export const gymApi = new Elysia({ name: 'gym-api' })
   .get('/api/v1/gym/health', () => head.health())
@@ -22,30 +21,30 @@ export const gymApi = new Elysia({ name: 'gym-api' })
     process: await gymLifecycle.status(),
   }))
   .post('/api/v1/gym/lifecycle/start', async ({ body, status }) => {
-    const source = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+    const source = recordBody(body);
     const resourcesServer = typeof source.resourcesServer === 'string' ? source.resourcesServer.trim() : '';
     const modelType = typeof source.modelType === 'string' ? source.modelType.trim() : '';
     try {
       return await gymLifecycle.start({ resourcesServer, modelType: modelType || undefined });
     } catch (error) {
-      return status(409, { error: message(error) });
+      return status(409, { error: errorMessage(error) });
     }
   })
   .post('/api/v1/gym/lifecycle/stop', async ({ status }) => {
     try {
       return await gymLifecycle.stop();
     } catch (error) {
-      return status(500, { error: message(error) });
+      return status(500, { error: errorMessage(error) });
     }
   })
   .get('/api/v1/gym/storage', async () => ({ buckets: await gymStorage.usage() }))
   .post('/api/v1/gym/storage/clear', async ({ body, status }) => {
-    const source = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+    const source = recordBody(body);
     const bucket = typeof source.bucket === 'string' ? source.bucket.trim() : '';
     const target = typeof source.target === 'string' && source.target.trim() ? source.target.trim() : undefined;
     try {
       return await gymStorage.clear(bucket, target);
     } catch (error) {
-      return status(400, { error: message(error) });
+      return status(400, { error: errorMessage(error) });
     }
   });

@@ -14,6 +14,8 @@
     "jsxImportSource": "@kitajs/html",
 
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "skipLibCheck": true,

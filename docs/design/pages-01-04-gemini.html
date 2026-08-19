@@ -1,0 +1,1853 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-header-style="opt1" data-direction="dirA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pages 01–04 Design &amp; Consolidation · recursive( ) _gemini</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;650;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   DESIGN TOKENS & SYSTEM BASE
+   Incorporates the expanded typography scale (20px display, 16px head, 14px lead)
+   and multiple table-header treatments.
+   ========================================================================= */
+
+:root, :root[data-theme='light'] {
+  color-scheme: light;
+  --text-1: #101314;
+  --text-2: #3f4749;
+  --text-3: #636c6e;
+  --text-4: #868f91;
+
+  --line-soft: #dfe3e2;
+  --line: #cfd5d3;
+  --edge: #7f8886;
+
+  --black: #eff2f0;
+  --deeper: #e3e8e5;
+  --deep: #eaeeec;
+  --panel: #fafbfa;
+  --raised: #e6ebe8;
+  --raised-2: #dbe1de;
+  --code-bg: #dfe5e2;
+  --focus-bg: #fdfffe;
+
+  --brand: #c8452a;
+  --brand-ink: #9b3520;
+  --brand-press: #a8371f;
+  --btn-ink: #fdf7f5;
+  --pass: #26654a;
+  --fail: #9c3126;
+  --run: #1c6178;
+  --warn: #7f5610;
+
+  --grid: rgba(16, 19, 20, 0.05);
+  --scanline: rgba(16, 19, 20, 0.02);
+  --inset: rgba(16, 19, 20, 0.025);
+  --wash: rgba(16, 19, 20, 0.045);
+  --wash-2: rgba(16, 19, 20, 0.08);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --text-1: #f2f2f0;
+  --text-2: #b3b3af;
+  --text-3: #7c7c79;
+  --text-4: #60605d;
+
+  --line-soft: #1a1a18;
+  --line: #232321;
+  --edge: #5d5d59;
+
+  --black: #050505;
+  --deeper: #070707;
+  --deep: #080808;
+  --panel: #0a0a0a;
+  --raised: #101010;
+  --raised-2: #151515;
+  --code-bg: #060606;
+  --focus-bg: #0c0c0c;
+
+  --brand: #ff5c35;
+  --brand-ink: #ff5c35;
+  --brand-press: #d9481f;
+  --btn-ink: #160a05;
+  --pass: #4fa76f;
+  --fail: #e46452;
+  --run: #5aa9d6;
+  --warn: #d9a441;
+
+  --grid: rgba(255, 255, 255, 0.027);
+  --scanline: rgba(255, 255, 255, 0.025);
+  --inset: rgba(255, 255, 255, 0.012);
+  --wash: rgba(255, 255, 255, 0.04);
+  --wash-2: rgba(255, 255, 255, 0.07);
+}
+
+:root {
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: 'Inter', 'Avenir Next', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Spacing */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+
+  /* EXPANDED UNIFIED TYPE SCALE (Formalizes the beloved Ledger sizes) */
+  --t-micro: 10px;      /* Entity IDs, uppercase kickers, mono stamps */
+  --t-label: 11px;      /* Field labels, small captions, badges, stage links */
+  --t-body: 13px;       /* Table cells, body copy, form inputs, button text */
+  --t-lead: 14px;       /* Row headings, section ledes, modal titles */
+  --t-head: 16px;       /* One-sentence outcome banner, card headlines */
+  --t-display: 20px;    /* Primary subject name, hero metrics, ledger title */
+
+  --track-micro: 0.08em;
+  --track-label: 0.05em;
+  --track-lead: -0.012em;
+  --track-head: -0.022em;
+  --track-display: -0.03em;
+
+  --rail-w: 196px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  color: var(--text-2);
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    var(--black);
+  background-size: 32px 32px;
+  font: var(--t-body) / 1.6 var(--sans);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.10;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 3px, var(--scanline) 4px);
+}
+
+/* ============================================================================
+   TOP CONTROLS & REVIEW TOOLBAR
+   ========================================================================= */
+
+.gemini-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 10px 18px;
+  background: var(--deep);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+}
+
+.gemini-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gemini-badge {
+  background: var(--brand);
+  color: var(--btn-ink);
+  font: 700 9px/1 var(--mono);
+  letter-spacing: 0.12em;
+  padding: 3px 6px;
+  text-transform: uppercase;
+}
+
+.gemini-title strong {
+  color: var(--text-1);
+  font: 600 var(--t-body)/1 var(--sans);
+  letter-spacing: -0.01em;
+}
+
+.gemini-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 var(--t-label)/1 var(--sans);
+  color: var(--text-3);
+}
+
+.control-group label {
+  text-transform: uppercase;
+  font: 600 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--text-4);
+}
+
+.seg-btn {
+  display: inline-flex;
+  background: var(--raised);
+  border: 1px solid var(--line);
+}
+
+.seg-btn button {
+  background: transparent;
+  border: 0;
+  color: var(--text-3);
+  padding: 5px 10px;
+  font: 500 var(--t-label)/1 var(--sans);
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+
+.seg-btn button + button {
+  border-left: 1px solid var(--line);
+}
+
+.seg-btn button:hover {
+  color: var(--text-1);
+  background: var(--wash);
+}
+
+.seg-btn button[aria-pressed='true'] {
+  color: var(--text-1);
+  background: var(--raised-2);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--brand);
+}
+
+/* ============================================================================
+   SHELL LAYOUT — THE CLASSIC "BONES" (RAIL + MAIN + HANDOFF)
+   ========================================================================= */
+
+.app-layout {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  min-height: calc(100vh - 46px);
+}
+
+/* 186-196px Index Rail */
+.m-rail {
+  position: sticky;
+  top: 46px;
+  height: calc(100vh - 46px);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  background: var(--deeper);
+}
+
+.m-railhead {
+  padding: 16px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.m-wordmark {
+  display: block;
+  color: var(--text-1);
+  font-family: var(--sans);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  text-decoration: none;
+}
+
+.m-wordmark-mark {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.m-railhead small {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-4);
+  font: 500 9px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.m-railnav {
+  display: flex;
+  flex-direction: column;
+}
+
+.m-railnav a {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  font: 600 var(--t-label)/1.3 var(--sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all 0.16s var(--ease);
+}
+
+.m-railnav a .n {
+  color: var(--text-4);
+  font: 500 9px/1 var(--mono);
+  letter-spacing: 0.1em;
+}
+
+.m-railnav a:hover {
+  color: var(--text-1);
+  background: var(--wash);
+}
+
+.m-railnav a.active {
+  color: var(--text-1);
+  background: var(--wash-2);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.m-railnav a.active .n {
+  color: var(--brand-ink);
+}
+
+.m-railfoot {
+  margin-top: auto;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.m-railsettings {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--text-3);
+  font: 600 var(--t-label)/1.3 var(--sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.m-railsettings:hover {
+  color: var(--text-1);
+}
+
+.m-gates {
+  color: var(--text-4);
+  font: 500 9px/1.6 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.m-gates i {
+  color: var(--pass);
+  font-style: normal;
+}
+
+/* Main Workspace */
+.m-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--s5);
+  padding-bottom: calc(var(--s5) + 68px);
+}
+
+.tab-pane {
+  display: none;
+}
+.tab-pane.active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+/* Sticky Bottom Handoff Nav */
+.m-handoff {
+  position: fixed;
+  bottom: 0;
+  left: var(--rail-w);
+  right: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: 12px var(--s5);
+  border-top: 1px solid var(--line);
+  background: var(--deeper);
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.25);
+}
+
+.m-handoff-what {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--t-label);
+}
+
+.m-handoff-what b {
+  color: var(--text-1);
+  font: 600 11px/1 var(--mono);
+  letter-spacing: 0.07em;
+}
+
+.m-handoff-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.m-handoff-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+  font: 600 var(--t-label)/1 var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.m-handoff-back:hover {
+  color: var(--text-1);
+}
+
+.m-handoff-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 16px;
+  color: var(--btn-ink);
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  cursor: pointer;
+  font: 600 var(--t-label)/1 var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.m-handoff-go:hover {
+  background: var(--brand-press);
+}
+
+.m-handoff-go .stage-badge {
+  color: rgba(255,255,255,0.7);
+  font: 500 9px/1 var(--mono);
+}
+
+/* ============================================================================
+   PAGE HEADER & CONTEXT STRIP
+   ========================================================================= */
+
+.m-title {
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--line);
+}
+
+.m-title h2 {
+  color: var(--text-1);
+  font: 650 clamp(20px, 2.2vw, 26px)/1.15 var(--sans);
+  letter-spacing: -0.025em;
+}
+
+.m-title p {
+  max-width: 68ch;
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: var(--t-body);
+}
+
+.m-run-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand);
+  background: var(--deep);
+}
+
+.m-run-context-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.m-run-context-id {
+  color: var(--brand-ink);
+  font: 600 11px/1 var(--mono);
+  letter-spacing: 0.07em;
+}
+
+.m-run-context-name {
+  color: var(--text-1);
+  font-weight: 600;
+  font-size: var(--t-body);
+}
+
+.m-run-context-model {
+  color: var(--text-3);
+  font: 500 11px/1 var(--mono);
+}
+
+.m-run-context-tally {
+  display: inline-flex;
+  align-items: baseline;
+  border-left: 1px solid var(--line-soft);
+  margin-left: 4px;
+}
+
+.m-run-context-tally > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 10px;
+  border-right: 1px solid var(--line-soft);
+}
+
+.m-run-context-tally b {
+  color: var(--text-1);
+  font: 600 12px/1 var(--mono);
+}
+
+.m-run-context-tally i {
+  color: var(--text-3);
+  font: 500 10px/1 var(--sans);
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+/* ============================================================================
+   BOX SHELLS & CAPTION TALLY SYSTEM (CONSOLIDATED)
+   ========================================================================= */
+
+.m-tablebox {
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.m-cap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s3);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--deep);
+}
+
+.m-cap-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.m-cap h3 {
+  color: var(--text-1);
+  font: 600 12px/1.2 var(--sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.m-cap .subcode {
+  color: var(--text-4);
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.m-tally {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.m-tally span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0 12px;
+  border-right: 1px solid var(--line-soft);
+}
+
+.m-tally span:first-child { padding-left: 0; }
+.m-tally span:last-child { padding-right: 0; border-right: 0; }
+
+.m-tally b {
+  color: var(--text-1);
+  font: 600 13px/1 var(--sans);
+}
+
+.m-tally i {
+  color: var(--text-3);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.m-tally span.hot b { color: var(--brand-ink); }
+.m-tally span.pass b { color: var(--pass); }
+.m-tally span.fail b { color: var(--fail); }
+
+/* ============================================================================
+   TABLE STYLING & TABLE HEADER OPTIONS LAB
+   ========================================================================= */
+
+.m-tablewrap {
+  overflow-x: auto;
+}
+
+.m-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-body);
+}
+
+.m-table td {
+  padding: 10px 14px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+
+.m-table tbody tr:last-child td { border-bottom: 0; }
+.m-table tbody tr:hover td { background: var(--wash); }
+.m-table tr.selected td { background: var(--wash-2); }
+
+.m-table th.n, .m-table td.n { text-align: right; }
+.m-table td.n { font-family: var(--mono); font-weight: 500; }
+.m-table th.g, .m-table td.g { border-left: 1px solid var(--line-soft); }
+
+.m-table .nm { color: var(--text-1); font-weight: 600; }
+.m-table .sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 11px; }
+
+.m-table .pass { color: var(--pass); font-weight: 600; }
+.m-table .fail { color: var(--fail); font-weight: 600; }
+.m-table .warn { color: var(--warn); font-weight: 600; }
+.m-table .rate { color: var(--text-1); font-weight: 600; }
+
+.m-table td:first-child { border-left: 3px solid transparent; }
+.m-table tr[data-state='succeeded'] td:first-child,
+.m-table tr[data-state='ready'] td:first-child { border-left-color: var(--pass); }
+.m-table tr[data-state='failed'] td:first-child,
+.m-table tr[data-state='error'] td:first-child { border-left-color: var(--fail); }
+.m-table tr[data-state='running'] td:first-child { border-left-color: var(--run); }
+
+/* --- Table Header Switcher Modes --- */
+
+/* BASELINE CURRENT: 10.5px washed sans-serif sentence case */
+html[data-header-style='baseline'] .m-table th {
+  padding: 7px 12px;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font: 500 10.5px/1.4 var(--sans);
+  letter-spacing: 0.012em;
+  text-transform: none;
+  white-space: nowrap;
+}
+html[data-header-style='baseline'] .m-table tr.m-table-group th {
+  padding-bottom: 2px;
+  color: var(--text-4);
+  border-bottom: 0;
+  text-align: center;
+}
+
+/* OPTION 1 (RECOMMENDED): Precision Monospace Caps with Deep Tint & Strong Hierarchy */
+html[data-header-style='opt1'] .m-table th {
+  padding: 9px 14px;
+  color: var(--text-2);
+  background: var(--deep);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font: 600 10.5px/1.3 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+html[data-header-style='opt1'] .m-table tr.m-table-group th {
+  padding: 6px 14px 4px;
+  color: var(--text-4);
+  background: var(--deeper);
+  border-bottom: 1px solid var(--line-soft);
+  text-align: center;
+  font: 700 9.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+}
+
+/* OPTION 2: Architectural Medium-Caps Sans-Serif (11.5px / 650 weight) */
+html[data-header-style='opt2'] .m-table th {
+  padding: 9px 14px;
+  color: var(--text-1);
+  background: var(--raised);
+  border-bottom: 2px solid var(--line);
+  text-align: left;
+  font: 650 11px/1.3 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+html[data-header-style='opt2'] .m-table tr.m-table-group th {
+  padding: 6px 14px;
+  color: var(--brand-ink);
+  background: var(--deeper);
+  border-bottom: 1px solid var(--line-soft);
+  text-align: center;
+  font: 700 10px/1.2 var(--sans);
+  letter-spacing: 0.08em;
+}
+
+/* OPTION 3: High-Contrast Data Workbench (12px Semi-Bold with Crisp Top Borders) */
+html[data-header-style='opt3'] .m-table th {
+  padding: 10px 14px;
+  color: var(--text-1);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  text-align: left;
+  font: 600 12px/1.3 var(--sans);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+html[data-header-style='opt3'] .m-table tr.m-table-group th {
+  padding: 6px 14px;
+  color: var(--text-3);
+  background: var(--deep);
+  border-bottom: 0;
+  text-align: center;
+  font: 600 11px/1.2 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ============================================================================
+   THE REVOLUTIONARY "LEDGER ROW" (NOW STANDARDIZED VIA TOKENS)
+   ========================================================================= */
+
+.m-run-ledger { background: var(--panel); }
+
+.m-ledger-row {
+  position: relative;
+  display: grid;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.m-ledger-row:last-child { border-bottom: 0; }
+
+.m-ledger-live {
+  grid-template-columns: 74px 220px minmax(0, 1fr);
+  min-height: 140px;
+  border-left: 4px solid var(--run);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--run) 10%, transparent), transparent 65%);
+}
+
+.m-ledger-complete {
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 120px;
+  border-left: 4px solid var(--pass);
+}
+.m-ledger-complete[data-state='error'],
+.m-ledger-complete[data-state='failed'] {
+  border-left-color: var(--fail);
+}
+
+.m-ledger-identity, .m-ledger-progress {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.m-ledger-identity strong {
+  font-size: var(--t-display);
+  letter-spacing: var(--track-display);
+  color: var(--text-1);
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.m-ledger-identity .sub {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.m-ledger-progress strong {
+  font-size: var(--t-head);
+  letter-spacing: var(--track-head);
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.m-ledger-progress .sub {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.m-ledger-run-code {
+  position: absolute;
+  top: 10px;
+  left: 24px;
+}
+
+.m-ledger-run-code .m-id {
+  color: var(--run);
+  font: 600 11px/1 var(--mono);
+  letter-spacing: 0.07em;
+}
+.m-ledger-complete .m-ledger-run-code .m-id { color: var(--pass); }
+.m-ledger-complete[data-state='failed'] .m-ledger-run-code .m-id,
+.m-ledger-complete[data-state='error'] .m-ledger-run-code .m-id { color: var(--fail); }
+
+.m-ledger-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--run);
+  font: 700 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.m-ledger-complete .m-ledger-kicker { color: var(--pass); }
+.m-ledger-complete[data-state='failed'] .m-ledger-kicker,
+.m-ledger-complete[data-state='error'] .m-ledger-kicker { color: var(--fail); }
+
+.m-ledger-track {
+  display: block;
+  width: min(100%, 460px);
+  height: 5px;
+  margin-top: 8px;
+  overflow: hidden;
+  background: var(--line-soft);
+}
+.m-ledger-track > i { display: block; height: 100%; background: var(--run); }
+.m-ledger-complete .m-ledger-track > i { background: var(--pass); }
+.m-ledger-complete[data-state='failed'] .m-ledger-track > i,
+.m-ledger-complete[data-state='error'] .m-ledger-track > i { background: var(--fail); }
+
+.m-orb-mock {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--run) 80%, white), var(--run) 40%, transparent 80%);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--run) 50%, transparent);
+  animation: orb-pulse 2.5s ease-in-out infinite alternate;
+}
+@keyframes orb-pulse {
+  from { transform: scale(0.92); opacity: 0.8; }
+  to { transform: scale(1.04); opacity: 1; filter: drop-shadow(0 0 10px var(--run)); }
+}
+
+/* ============================================================================
+   DIRECTION B: INSTRUMENT READOUT RIBBON
+   ========================================================================= */
+
+.m-readout-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--fail);
+  background: var(--panel);
+}
+
+.m-readout-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 20px;
+  border-right: 1px solid var(--line-soft);
+  min-width: 0;
+}
+.m-readout-cell:last-child {
+  border-right: 0;
+  margin-left: auto;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.m-readout-k {
+  color: var(--text-4);
+  font: 600 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.m-readout-v {
+  color: var(--text-1);
+  font: 650 var(--t-display)/1 var(--sans);
+  letter-spacing: var(--track-display);
+}
+.m-readout-v.hot { color: var(--fail); }
+.m-readout-v.pass { color: var(--pass); }
+.m-readout-v small {
+  color: var(--text-4);
+  font: 500 13px/1 var(--sans);
+  letter-spacing: -0.01em;
+}
+
+.m-readout-sub {
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+/* ============================================================================
+   ACTION BARS & STATUS CARDS (CONSOLIDATED)
+   ========================================================================= */
+
+.m-actbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand);
+  background: var(--raised);
+}
+
+.m-actbar-copy strong {
+  display: block;
+  color: var(--text-1);
+  font: 650 var(--t-lead)/1.3 var(--sans);
+  letter-spacing: var(--track-lead);
+}
+
+.m-actbar-copy p {
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: var(--t-label);
+}
+
+.m-actbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+/* Form Buttons */
+button.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 18px;
+  color: var(--btn-ink);
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  cursor: pointer;
+  font: 600 var(--t-label)/1 var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: all 0.15s var(--ease);
+}
+button.primary-btn:hover { background: var(--brand-press); }
+
+button.secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  color: var(--text-1);
+  background: var(--raised);
+  border: 1px solid var(--edge);
+  cursor: pointer;
+  font: 600 var(--t-label)/1 var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+button.secondary-btn:hover { background: var(--raised-2); }
+
+/* Badges */
+.m-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  background: var(--deeper);
+  color: var(--text-3);
+  font: 600 10px/1.2 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-badge[data-state='ready'], .m-badge[data-state='passed'], .m-badge[data-state='succeeded'] {
+  color: var(--pass);
+  border-color: color-mix(in srgb, var(--pass) 40%, transparent);
+}
+.m-badge[data-state='failed'], .m-badge[data-state='rejected'], .m-badge[data-state='error'] {
+  color: var(--fail);
+  border-color: color-mix(in srgb, var(--fail) 40%, transparent);
+}
+.m-badge[data-state='running'] {
+  color: var(--run);
+  border-color: color-mix(in srgb, var(--run) 40%, transparent);
+}
+
+/* ============================================================================
+   PAGE 02: CRITERIA INSPECTION LIST
+   ========================================================================= */
+
+.m-criteria-task {
+  border-bottom: 1px solid var(--line);
+}
+.m-criteria-task:last-child { border-bottom: 0; }
+
+.m-criteria-task-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--deep);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.m-criterion {
+  border-bottom: 1px solid var(--line-soft);
+}
+.m-criterion:last-child { border-bottom: 0; }
+
+.m-criterion[data-result='fail'] { box-shadow: inset 3px 0 0 var(--fail); }
+.m-criterion[data-result='pass'] { box-shadow: inset 3px 0 0 var(--pass); }
+.m-criterion[data-result='error'] { box-shadow: inset 3px 0 0 var(--warn); }
+
+.m-criterion-summary {
+  display: grid;
+  grid-template-columns: 60px 70px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.m-criterion-summary:hover { background: var(--wash); }
+
+.m-criterion-body {
+  padding: 6px 14px 14px 156px;
+  background: var(--panel);
+}
+
+.m-criterion-reasoning {
+  font-size: var(--t-label);
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   AUDIT & COMPARISON GRIDS
+   ========================================================================= */
+
+.audit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--s4);
+}
+
+.audit-card {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.audit-card h4 {
+  color: var(--text-1);
+  font: 650 var(--t-lead)/1.3 var(--sans);
+  letter-spacing: var(--track-lead);
+}
+
+.audit-card p {
+  font-size: var(--t-label);
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
+.audit-card ul {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--t-label);
+  color: var(--text-3);
+}
+.audit-card ul b { color: var(--text-1); }
+
+.chip {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--code-bg);
+  color: var(--text-1);
+  font: 600 10px/1 var(--mono);
+  text-transform: uppercase;
+}
+
+</style>
+</head>
+<body>
+<div class="scanlines" aria-hidden="true"></div>
+
+<!-- Top Toolbar for Design Exploration -->
+<header class="gemini-bar">
+  <div class="gemini-title">
+    <span class="gemini-badge">recursive( ) _gemini</span>
+    <strong>Pages 01–04 Design &amp; Consolidation Blueprint</strong>
+  </div>
+
+  <div class="gemini-controls">
+    <!-- Direction Switcher -->
+    <div class="control-group">
+      <label>Architecture Direction:</label>
+      <div class="seg-btn" id="direction-toggle">
+        <button type="button" data-val="dirA" aria-pressed="true">Direction A: Ledger-First</button>
+        <button type="button" data-val="dirB" aria-pressed="false">Direction B: Readout Ribbon</button>
+      </div>
+    </div>
+
+    <!-- Table Header Style Switcher -->
+    <div class="control-group">
+      <label>Table Header Font/Size:</label>
+      <div class="seg-btn" id="header-style-toggle">
+        <button type="button" data-val="opt1" aria-pressed="true">Opt 1: Tech Mono (Rec.)</button>
+        <button type="button" data-val="opt2" aria-pressed="false">Opt 2: Sans Micro-Caps</button>
+        <button type="button" data-val="opt3" aria-pressed="false">Opt 3: Semi-Bold 12px</button>
+        <button type="button" data-val="baseline" aria-pressed="false">Current Baseline</button>
+      </div>
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="control-group">
+      <label>Theme:</label>
+      <div class="seg-btn" id="theme-toggle">
+        <button type="button" data-val="dark" aria-pressed="true">Dark Instrument</button>
+        <button type="button" data-val="light" aria-pressed="false">Ink Light</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Primary App Structure: Fixed Left Rail + Center Main + Sticky Bottom Handoff -->
+<div class="app-layout">
+
+  <!-- ==================== LEFT INDEX RAIL ==================== -->
+  <aside class="m-rail" id="app-rail">
+    <div class="m-railhead">
+      <a class="m-wordmark" href="#p01">
+        recursive<span class="m-wordmark-mark">(</span> <span class="m-wordmark-mark">)</span>
+      </a>
+      <small>BR-00012 · HARBOR</small>
+    </div>
+
+    <nav class="m-railnav" id="rail-nav">
+      <a href="#p01" data-tab="p01" class="active"><span class="n">01</span>Benchmarks</a>
+      <a href="#p02" data-tab="p02"><span class="n">02</span>Results</a>
+      <a href="#p03" data-tab="p03"><span class="n">03</span>Failure Map</a>
+      <a href="#p04" data-tab="p04"><span class="n">04</span>Data Forge</a>
+      <a href="#audit" data-tab="audit"><span class="n">05</span>System Audit</a>
+    </nav>
+
+    <div class="m-railfoot">
+      <a class="m-railsettings" href="#audit">Settings &amp; Info</a>
+      <div class="m-gates">
+        Gates <i>3 / 5</i><br>
+        z-ai/glm-5.2<br>
+        84.3% pass
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== MAIN WORKSPACE ==================== -->
+  <main class="m-main">
+
+    <!-- ==================================================================
+         PAGE 01: BENCHMARKS (NeMo Gym + Harbor)
+         ================================================================== -->
+    <section class="tab-pane active" id="pane-p01">
+      <div class="m-title">
+        <h2>01 · Run the model through NeMo Gym + Harbor</h2>
+        <p>NeMo Gym orchestrates the rollout; Harbor executes the task, records trajectory, and scores criteria.</p>
+      </div>
+
+      <div class="m-run-context">
+        <div class="m-run-context-copy">
+          <span class="m-run-context-id">BR-00012</span>
+          <span class="m-run-context-name">legal_agent_bench</span>
+          <span class="m-run-context-model">z-ai/glm-5.2</span>
+          <span class="m-run-context-tally">
+            <span><b>182/216</b><i>criteria</i></span>
+            <span><b>22/40</b><i>tasks</i></span>
+          </span>
+        </div>
+        <div style="font: 500 11px/1 var(--mono); color: var(--pass);">RUN COMPLETED</div>
+      </div>
+
+      <!-- PROMOTED TOP-LEVEL LEDGER (The answer is first, not buried under 20 inputs!) -->
+      <div class="m-tablebox">
+        <div class="m-cap">
+          <div class="m-cap-title-group">
+            <h3>Benchmark Run Ledger</h3>
+            <span class="subcode">Live &amp; Historical Trajectories</span>
+          </div>
+          <div class="m-tally">
+            <span><b>4</b><i>runs</i></span>
+            <span><b>40</b><i>tasks · current</i></span>
+            <span class="hot"><b>216</b><i>checks · scored</i></span>
+          </div>
+        </div>
+        <div class="m-run-ledger">
+          <!-- Active/Selected Run in 20px Display Typography -->
+          <article class="m-ledger-row m-ledger-complete" data-state="failed">
+            <span class="m-ledger-run-code"><span class="m-id">BR-00012</span></span>
+            <div class="m-ledger-identity">
+              <strong>legal_agent_bench</strong>
+              <span class="sub"><span class="m-id">z-ai/glm-5.2</span> · 40 selected tasks</span>
+            </div>
+            <div class="m-ledger-progress">
+              <span class="m-ledger-kicker">✕ Complete with failures</span>
+              <strong>22 of 40 tasks passed (55.0% all-pass)</strong>
+              <span class="sub">182 of 216 checks passed · 34 failed criteria · 2 ungraded</span>
+              <span class="m-ledger-track"><i style="width: 84.3%"></i></span>
+            </div>
+          </article>
+
+          <!-- History Item -->
+          <article class="m-ledger-row m-ledger-complete" data-state="succeeded" style="opacity: 0.85;">
+            <span class="m-ledger-run-code"><span class="m-id">BR-00011</span></span>
+            <div class="m-ledger-identity">
+              <strong style="font-size: 16px;">antitrust-compliance-v2</strong>
+              <span class="sub"><span class="m-id">z-ai/glm-5.2</span> · 20 tasks</span>
+            </div>
+            <div class="m-ledger-progress">
+              <span class="m-ledger-kicker" style="color: var(--pass);">✓ Succeeded</span>
+              <strong>20 of 20 tasks passed (100.0%)</strong>
+              <span class="sub">108 of 108 checks passed · zero failures</span>
+              <span class="m-ledger-track"><i style="width: 100%"></i></span>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <!-- Action Card to start new runs (Consolidated) -->
+      <div class="m-actbar">
+        <div class="m-actbar-copy">
+          <strong>Configure New Rollout Batch</strong>
+          <p>Select benchmark catalog, model under test, and Harbor agent execution budget.</p>
+        </div>
+        <div class="m-actbar-actions">
+          <button type="button" class="secondary-btn">Edit Parameters</button>
+          <button type="button" class="primary-btn">▶ Launch New Benchmark</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         PAGE 02: RESULTS (Verified Benchmark Results)
+         ================================================================== -->
+    <section class="tab-pane" id="pane-p02">
+      <div class="m-title">
+        <h2>02 · Verified Benchmark Results</h2>
+        <p>Criterion-level failures become the only inputs to capability analysis.</p>
+      </div>
+
+      <!-- DIRECTION TOGGLE VIEWS -->
+      <div class="dirA-only">
+        <!-- Direction A: Promoted Headline Card -->
+        <div class="m-tablebox" style="margin-bottom: 0;">
+          <div class="m-cap">
+            <div class="m-cap-title-group">
+              <h3>Run Verdict Summary</h3>
+              <span class="subcode">BR-00012</span>
+            </div>
+            <span class="m-badge" data-state="failed">FAILED · 34 CRITERIA UNMET</span>
+          </div>
+          <div class="m-ledger-row m-ledger-complete" data-state="failed" style="min-height: auto; padding: 14px 20px;">
+            <div class="m-ledger-identity" style="gap: 2px;">
+              <strong style="font-size: 18px;">legal_agent_bench</strong>
+              <span class="sub">z-ai/glm-5.2 · 40 rollouts</span>
+            </div>
+            <div class="m-ledger-progress" style="gap: 3px;">
+              <span class="m-ledger-kicker">Benchmark Result</span>
+              <strong>182 / 216 Criteria Passed (84.3%) across 22 / 40 Tasks</strong>
+              <span class="sub">34 failed criteria across 18 failing tasks ready for Failure Map extraction.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dirB-only" style="display: none;">
+        <!-- Direction B: Compact Instrument Readout Ribbon -->
+        <div class="m-readout-ribbon">
+          <div class="m-readout-cell">
+            <span class="m-readout-k">Selected Run</span>
+            <span class="m-readout-v" style="font-size: 16px;">legal_agent_bench</span>
+            <span class="m-readout-sub">BR-00012 · z-ai/glm-5.2</span>
+          </div>
+          <div class="m-readout-cell">
+            <span class="m-readout-k">Tasks Passed</span>
+            <span class="m-readout-v">22<small> / 40</small></span>
+            <span class="m-readout-sub">55.0% all-pass</span>
+          </div>
+          <div class="m-readout-cell">
+            <span class="m-readout-k">Criteria Passed</span>
+            <span class="m-readout-v pass">182<small> / 216</small></span>
+            <span class="m-readout-sub">84.3% pass rate</span>
+          </div>
+          <div class="m-readout-cell">
+            <span class="m-readout-k">Failures to Map</span>
+            <span class="m-readout-v hot">34</span>
+            <span class="m-readout-sub">2 ungraded</span>
+          </div>
+          <div class="m-readout-cell">
+            <span class="m-readout-k">Status</span>
+            <span class="m-badge" data-state="failed">FAILED</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULTS BY RUN TABLE (With dynamic header styles) -->
+      <div class="m-tablebox">
+        <div class="m-cap">
+          <div class="m-cap-title-group">
+            <h3>Results by Run</h3>
+            <span class="subcode">All Graded Trajectories</span>
+          </div>
+          <div class="m-tally">
+            <span><b>4</b><i>runs</i></span>
+            <span class="pass"><b>1</b><i>clean</i></span>
+            <span class="hot"><b>3</b><i>with failures</i></span>
+          </div>
+        </div>
+
+        <div class="m-tablewrap">
+          <table class="m-table">
+            <thead>
+              <tr class="m-table-group">
+                <th colspan="1">Benchmark Run</th>
+                <th class="g" colspan="5">Task Rollouts</th>
+                <th class="g" colspan="5">Criterion Verifiers</th>
+                <th class="g" colspan="1">Verdict</th>
+              </tr>
+              <tr>
+                <th>Run Label / Code</th>
+                <th class="n g">Total</th>
+                <th class="n">Passed</th>
+                <th class="n">Failed</th>
+                <th class="n">Errored</th>
+                <th class="n">Pass Rate</th>
+                <th class="n g">Total</th>
+                <th class="n">Passed</th>
+                <th class="n">Failed</th>
+                <th class="n">Ungraded</th>
+                <th class="n">Pass Rate</th>
+                <th class="g">State</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="selected" data-state="failed">
+                <td>
+                  <span class="nm">legal_agent_bench</span>
+                  <span class="sub"><span class="chip">BR-00012</span> · z-ai/glm-5.2 · 40 rollouts</span>
+                </td>
+                <td class="n g">40</td>
+                <td class="n pass">22</td>
+                <td class="n fail">18</td>
+                <td class="n">—</td>
+                <td class="n rate">55.0%</td>
+                <td class="n g">216</td>
+                <td class="n pass">182</td>
+                <td class="n fail">34</td>
+                <td class="n warn">2</td>
+                <td class="n rate">84.3%</td>
+                <td class="g"><span class="m-badge" data-state="failed">failed</span></td>
+              </tr>
+              <tr data-state="ready">
+                <td>
+                  <span class="nm">antitrust-compliance-v2</span>
+                  <span class="sub"><span class="chip">BR-00011</span> · z-ai/glm-5.2 · 20 rollouts</span>
+                </td>
+                <td class="n g">20</td>
+                <td class="n pass">20</td>
+                <td class="n">—</td>
+                <td class="n">—</td>
+                <td class="n rate">100%</td>
+                <td class="n g">108</td>
+                <td class="n pass">108</td>
+                <td class="n">—</td>
+                <td class="n">—</td>
+                <td class="n rate">100%</td>
+                <td class="g"><span class="m-badge" data-state="ready">passed</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CRITERION INSPECTION -->
+      <div class="m-tablebox">
+        <div class="m-cap">
+          <div class="m-cap-title-group">
+            <h3>Criterion Inspection</h3>
+            <span class="subcode">40 tasks · 216 criteria</span>
+          </div>
+          <button type="button" class="secondary-btn" style="min-height: 26px; padding: 0 10px; font-size: 10.5px;">Show Failed Only (34)</button>
+        </div>
+
+        <div class="m-criteria-list">
+          <div class="m-criteria-task">
+            <div class="m-criteria-task-head">
+              <span class="chip">analyze-antitrust-hsr-strategy</span>
+              <span style="font: 500 11px/1 var(--sans); color: var(--text-3);">3 passed · <b style="color: var(--fail);">2 failed</b></span>
+            </div>
+
+            <div class="m-criterion" data-result="fail">
+              <div class="m-criterion-summary">
+                <span class="m-badge" data-state="failed">FAIL</span>
+                <span class="chip">C-001</span>
+                <span style="font-weight: 500; color: var(--text-1);">Identifies correct Hart-Scott-Rodino filing threshold ($119.5M)</span>
+                <span style="color: var(--text-4); font-size: 12px;">▼</span>
+              </div>
+              <div class="m-criterion-body">
+                <p class="m-criterion-reasoning">
+                  Model cited the 2023 outdated threshold ($111.4M) instead of applying the 2024 revised annual threshold ($119.5M) as required in the prompt context.
+                </p>
+              </div>
+            </div>
+
+            <div class="m-criterion" data-result="fail">
+              <div class="m-criterion-summary">
+                <span class="m-badge" data-state="failed">FAIL</span>
+                <span class="chip">C-004</span>
+                <span style="font-weight: 500; color: var(--text-1);">Applies Item 4(c) and 4(d) document production exceptions</span>
+                <span style="color: var(--text-4); font-size: 12px;">▼</span>
+              </div>
+              <div class="m-criterion-body">
+                <p class="m-criterion-reasoning">
+                  Model failed to identify confidential banker presentations as falling under 4(c) scope.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         PAGE 03: FAILURE MAP (Misses into Capability Topics)
+         ================================================================== -->
+    <section class="tab-pane" id="pane-p03">
+      <div class="m-title">
+        <h2>03 · Turn Misses into Capability Topics</h2>
+        <p>Inspect benchmark run failure signal and categorize into novel training topics.</p>
+      </div>
+
+      <!-- REDUNDANT 14-COLUMN TABLE ELIMINATED! REPLACED WITH UNIFIED SUMMARY -->
+      <div class="dirA-only">
+        <div class="m-tablebox">
+          <div class="m-cap">
+            <div class="m-cap-title-group">
+              <h3>Signal Input Source</h3>
+              <span class="subcode">BR-00012</span>
+            </div>
+            <div class="m-tally">
+              <span class="hot"><b>34</b><i>failed criteria (signal input)</i></span>
+              <span><b>7</b><i>topics extracted</i></span>
+              <span class="pass"><b>FM-00004</b><i>ready</i></span>
+            </div>
+          </div>
+          <article class="m-ledger-row m-ledger-complete" data-state="failed" style="min-height: auto; padding: 14px 20px;">
+            <div class="m-ledger-identity">
+              <strong style="font-size: 18px;">legal_agent_bench</strong>
+              <span class="sub"><span class="m-id">z-ai/glm-5.2</span> · 40 tasks evaluated</span>
+            </div>
+            <div class="m-ledger-progress">
+              <span class="m-ledger-kicker" style="color: var(--brand);">Failure Signal Ready for Mapping</span>
+              <strong>34 Failed Criteria Identified across 18 Distinct Tasks</strong>
+              <span class="sub">Frontier analyst has clustered 34 failures into 7 capability taxonomy topics.</span>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="dirB-only" style="display: none;">
+        <div class="m-readout-ribbon">
+          <div class="m-readout-cell">
+            <span class="m-readout-k">Signal Source</span>
+            <span class="m-readout-v" style="font-size: 16px;">legal_agent_bench</span>
+            <span class="m-readout-sub">BR-00012 · z-ai/glm-5.2</span>
+          </div>
+          <div class="m-readout-cell">
+            <span class="m-readout-k">Failure Signal</span>
+            <span class="m-readout-v hot">34<small> criteria</small></span>
+            <span class="m-readout-sub">from 18 tasks</span>
+          </div>
+          <div class="m-readout-cell">
+            <span class="m-readout-k">Topics Mapped</span>
+            <span class="m-readout-v">7</span>
+            <span class="m-readout-sub">0 uncategorized</span>
+          </div>
+          <div class="m-readout-cell">
+            <span class="m-readout-k">Failure Map</span>
+            <span class="m-badge" data-state="ready">FM-00004 READY</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clear, Prominent Next Step Action -->
+      <div class="m-actbar">
+        <div class="m-actbar-copy">
+          <strong>Synthesize Failure Taxonomy &amp; Topics</strong>
+          <p>Runs frontier LLM clustering over the 34 failed criteria without leaking raw benchmark test items.</p>
+        </div>
+        <div class="m-actbar-actions">
+          <span class="m-badge" data-state="ready">FM-00004 Generated</span>
+          <button type="button" class="primary-btn">Regenerate Map</button>
+        </div>
+      </div>
+
+      <!-- EXTRACTED TOPIC TAXONOMY TABLE -->
+      <div class="m-tablebox">
+        <div class="m-cap">
+          <div class="m-cap-title-group">
+            <h3>Topics Extracted from Failed Criteria</h3>
+            <span class="subcode">FM-00004</span>
+          </div>
+          <div class="m-tally">
+            <span><b>7</b><i>topics</i></span>
+            <span class="hot"><b>34</b><i>failures mapped</i></span>
+            <span class="pass"><b>21</b><i>documents approved</i></span>
+          </div>
+        </div>
+
+        <div class="m-tablewrap">
+          <table class="m-table">
+            <thead>
+              <tr>
+                <th>Capability Topic</th>
+                <th>Topic Code</th>
+                <th class="n">Failures Mapped</th>
+                <th class="n">Docs Forged</th>
+                <th>Verifier Strategy</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="nm">Statutory Citation Accuracy</span>
+                  <span class="sub">Model cites superseded or repealed regulatory provisions</span>
+                </td>
+                <td><span class="chip">TP-00001</span></td>
+                <td class="n fail">11</td>
+                <td class="n pass">6</td>
+                <td><span class="chip">reference_match</span></td>
+                <td><span class="m-badge" data-state="ready">active</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="nm">Multi-Party Obligation Tracing</span>
+                  <span class="sub">Loses which party owes which duty across multi-layered contracts</span>
+                </td>
+                <td><span class="chip">TP-00002</span></td>
+                <td class="n fail">9</td>
+                <td class="n pass">6</td>
+                <td><span class="chip">rubric_judge</span></td>
+                <td><span class="m-badge" data-state="ready">active</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="nm">Effective-Date &amp; Cure Period Arithmetic</span>
+                  <span class="sub">Miscalculates business day vs calendar day notice windows</span>
+                </td>
+                <td><span class="chip">TP-00003</span></td>
+                <td class="n fail">7</td>
+                <td class="n pass">5</td>
+                <td><span class="chip">exact_value</span></td>
+                <td><span class="m-badge" data-state="ready">active</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         PAGE 04: DATA FORGE (Novel Training Documents)
+         ================================================================== -->
+    <section class="tab-pane" id="pane-p04">
+      <div class="m-title">
+        <h2>04 · Data Forge Novel Training Documents</h2>
+        <p>Generation receives abstract capability specs only. Every artifact is fingerprinted against its benchmark lineage.</p>
+      </div>
+
+      <!-- CONSOLIDATED FORGE CONTROLS -->
+      <div class="m-actbar">
+        <div class="m-actbar-copy">
+          <strong>NVIDIA Data Designer × Frontier Model</strong>
+          <p>Failure Map: <b>FM-00004</b> (7 topics) · Novelty Threshold: <b>0.22 max similarity</b> · Auto-approve novel: <b>enabled</b></p>
+        </div>
+        <div class="m-actbar-actions">
+          <span class="m-badge" data-state="ready">DF-00003 · COMPLETE</span>
+          <button type="button" class="secondary-btn">Inspect Prompt (REV-00004)</button>
+          <button type="button" class="primary-btn">Forge Next Batch</button>
+        </div>
+      </div>
+
+      <!-- CONSOLIDATED UNIFIED DOCUMENT QUEUE (Replaces separate table + card duplicate!) -->
+      <div class="m-tablebox">
+        <div class="m-cap">
+          <div class="m-cap-title-group">
+            <h3>Document Review &amp; Artifact Ledger</h3>
+            <span class="subcode">DF-00003 · 21 Novel Artifacts</span>
+          </div>
+          <div class="m-tally">
+            <span><b>21</b><i>requested</i></span>
+            <span class="pass"><b>21</b><i>novel passed</i></span>
+            <span><b>0</b><i>rejected</i></span>
+            <span class="pass"><b>21</b><i>approved</i></span>
+          </div>
+        </div>
+
+        <div class="m-tablewrap">
+          <table class="m-table">
+            <thead>
+              <tr>
+                <th>Generated Document</th>
+                <th>Topic</th>
+                <th>Artifact Type</th>
+                <th class="n">Similarity</th>
+                <th>Novelty Check</th>
+                <th>Review Status</th>
+                <th class="n">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-state="ready">
+                <td>
+                  <span class="nm">Cross-Border Cloud Services Master Agreement</span>
+                  <span class="sub"><span class="chip">DOC-00041</span> · 2,420 words · Tier 1 Enterprise</span>
+                </td>
+                <td>Statutory Citation Accuracy</td>
+                <td><span class="chip">contract_memo</span></td>
+                <td class="n pass">0.14 (low)</td>
+                <td><span class="m-badge" data-state="passed">PASSED</span></td>
+                <td><span class="m-badge" data-state="passed">APPROVED</span></td>
+                <td class="n">
+                  <button type="button" class="secondary-btn" style="min-height: 24px; padding: 0 8px; font-size: 10px;">Inspect</button>
+                </td>
+              </tr>
+              <tr data-state="ready">
+                <td>
+                  <span class="nm">Tri-Party Software Escrow &amp; Source Code License</span>
+                  <span class="sub"><span class="chip">DOC-00042</span> · 1,890 words · Financial Services</span>
+                </td>
+                <td>Multi-Party Obligation Tracing</td>
+                <td><span class="chip">escrow_agreement</span></td>
+                <td class="n pass">0.18 (low)</td>
+                <td><span class="m-badge" data-state="passed">PASSED</span></td>
+                <td><span class="m-badge" data-state="passed">APPROVED</span></td>
+                <td class="n">
+                  <button type="button" class="secondary-btn" style="min-height: 24px; padding: 0 8px; font-size: 10px;">Inspect</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         AUDIT & RECOMMENDATIONS TAB
+         ================================================================== -->
+    <section class="tab-pane" id="pane-audit">
+      <div class="m-title">
+        <h2>Architecture Audit &amp; Consolidation Guide</h2>
+        <p>Comprehensive findings, typography ramp formalization, and table header comparisons for Pages 01–04.</p>
+      </div>
+
+      <div class="audit-grid">
+        <div class="audit-card">
+          <span class="chip" style="color: var(--brand);">Typography Fix</span>
+          <h4>The "Run Ledger" Font Size</h4>
+          <p>
+            You love the Run Ledger because it is the <b>only object on the site with a 3-level visual hierarchy</b>:
+            20px subject title → 16px outcome headline → 10px uppercase kicker.
+          </p>
+          <ul>
+            <li><b>Problem:</b> The token scale stopped at 13px (<code>--t-data</code>), so the ledger hardcoded <code>20px</code>, <code>16px</code>, and <code>14px</code> locally.</li>
+            <li><b>Solution:</b> Expand the official design tokens to include <code>--t-display: 20px</code>, <code>--t-head: 16px</code>, and <code>--t-lead: 14px</code>.</li>
+            <li><b>Impact:</b> Pages 02, 03, and 04 gain the same confident hierarchy without arbitrary inline styles.</li>
+          </ul>
+        </div>
+
+        <div class="audit-card">
+          <span class="chip" style="color: var(--pass);">Table Headers</span>
+          <h4>Upgrading Table Header Font &amp; Size</h4>
+          <p>
+            The current table headers use faint 10.5px sentence-case text in muted gray (<code>--text-3</code>), making dense tables feel washed out.
+          </p>
+          <ul>
+            <li><b>Option 1 (Recommended):</b> 10.5px Tech Monospace in bold caps with dark-ground tint (<code>--deep</code>) and crisp hairline bounds.</li>
+            <li><b>Option 2:</b> 11px Architectural Sans in 650 weight with distinct colored super-header groups.</li>
+            <li><b>Option 3:</b> 12px Semi-Bold Modern Tabular with high-contrast text.</li>
+          </ul>
+        </div>
+
+        <div class="audit-card">
+          <span class="chip" style="color: var(--warn);">Consolidation</span>
+          <h4>Page-by-Page Redundancy Elimination</h4>
+          <ul>
+            <li><b>Page 01:</b> Invert hierarchy so the Ledger is at the top. Hide the un-wired <code>Recurse</code> card.</li>
+            <li><b>Page 02:</b> Add a prominent 16px outcome headline before the 11-column table.</li>
+            <li><b>Page 03:</b> Delete the redundant 14-column single-row table! Don't use red (<code>--fail</code>) for input signal.</li>
+            <li><b>Page 04:</b> Consolidate the redundant table + card grid into a unified Document Ledger List.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== STICKY BOTTOM HANDOFF BAR ==================== -->
+  <footer class="m-handoff" id="app-handoff">
+    <div class="m-handoff-what">
+      Carrying <b id="handoff-run-code">BR-00012</b> · <span id="handoff-meta">34 failed criteria mapped</span>
+    </div>
+    <div class="m-handoff-actions">
+      <button type="button" class="m-handoff-back" id="handoff-prev">◀ Back</button>
+      <button type="button" class="m-handoff-go" id="handoff-next">
+        <span class="stage-badge" id="handoff-next-num">02</span>
+        <span id="handoff-next-label">Send to Results</span> ➔
+      </button>
+    </div>
+  </footer>
+
+</div>
+
+<!-- Interactive Client-side Script -->
+<script>
+(function() {
+  const tabs = ['p01', 'p02', 'p03', 'p04', 'audit'];
+  const stageLabels = {
+    p01: { next: 'p02', nextNum: '02', nextLabel: 'Send to Results', meta: '22 of 40 tasks passed' },
+    p02: { next: 'p03', nextNum: '03', nextLabel: 'Send to Failure Map', meta: '34 failed criteria ready' },
+    p03: { next: 'p04', nextNum: '04', nextLabel: 'Send to Data Forge', meta: '7 capability topics ready' },
+    p04: { next: 'audit', nextNum: '05', nextLabel: 'View System Audit', meta: '21 novel documents forged' },
+    audit: { next: 'p01', nextNum: '01', nextLabel: 'Restart Pipeline', meta: 'Design system verified' }
+  };
+
+  let currentTab = 'p01';
+
+  function switchTab(targetTab) {
+    if (!tabs.includes(targetTab)) return;
+    currentTab = targetTab;
+
+    // Update Nav
+    document.querySelectorAll('#rail-nav a').forEach(a => {
+      a.classList.toggle('active', a.dataset.tab === targetTab);
+    });
+
+    // Update Panes
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+      pane.classList.toggle('active', pane.id === `pane-${targetTab}`);
+    });
+
+    // Update Handoff Footer
+    const info = stageLabels[targetTab];
+    if (info) {
+      document.getElementById('handoff-next-num').textContent = info.nextNum;
+      document.getElementById('handoff-next-label').textContent = info.nextLabel;
+      document.getElementById('handoff-meta').textContent = info.meta;
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Rail Nav Click
+  document.getElementById('rail-nav').addEventListener('click', (e) => {
+    const link = e.target.closest('a');
+    if (link && link.dataset.tab) {
+      e.preventDefault();
+      switchTab(link.dataset.tab);
+    }
+  });
+
+  // Handoff Next Click
+  document.getElementById('handoff-next').addEventListener('click', () => {
+    const info = stageLabels[currentTab];
+    if (info) switchTab(info.next);
+  });
+
+  // Handoff Prev Click
+  document.getElementById('handoff-prev').addEventListener('click', () => {
+    const idx = tabs.indexOf(currentTab);
+    if (idx > 0) switchTab(tabs[idx - 1]);
+  });
+
+  // Direction Switcher
+  document.getElementById('direction-toggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const val = btn.dataset.val;
+    document.documentElement.dataset.direction = val;
+    document.querySelectorAll('#direction-toggle button').forEach(b => {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+
+    document.querySelectorAll('.dirA-only').forEach(el => {
+      el.style.display = (val === 'dirA') ? 'block' : 'none';
+    });
+    document.querySelectorAll('.dirB-only').forEach(el => {
+      el.style.display = (val === 'dirB') ? 'block' : 'none';
+    });
+  });
+
+  // Table Header Style Switcher
+  document.getElementById('header-style-toggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const val = btn.dataset.val;
+    document.documentElement.dataset.headerStyle = val;
+    document.querySelectorAll('#header-style-toggle button').forEach(b => {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+
+  // Theme Switcher
+  document.getElementById('theme-toggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const val = btn.dataset.val;
+    document.documentElement.dataset.theme = val;
+    document.querySelectorAll('#theme-toggle button').forEach(b => {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+
+})();
+</script>
+</body>
+</html>

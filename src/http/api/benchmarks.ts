@@ -1,7 +1,6 @@
-import { Elysia } from 'elysia';
+import { Elysia, t } from 'elysia';
 import * as benchmarks from '../../domain/benchmarks/service.ts';
-
-const message = (error: unknown) => (error instanceof Error ? error.message : 'Unexpected error.');
+import { errorMessage } from '../request.ts';
 
 /**
  * Expected failures are the user's problem to fix — a bad URL, an unsupported
@@ -16,9 +15,6 @@ const status = (error: unknown) =>
     ? 400
     : 500;
 
-type PreviewBody = { url?: unknown; ref?: unknown };
-type CommitBody = { preview?: unknown; plan?: unknown; replace?: unknown };
-
 export const benchmarksApi = new Elysia({ name: 'benchmarks-api' })
   .get('/api/v1/benchmarks', () => benchmarks.list())
   .get('/api/v1/benchmarks/:id/tasks', async ({ params, query }) =>
@@ -32,7 +28,7 @@ export const benchmarksApi = new Elysia({ name: 'benchmarks-api' })
     try {
       return await benchmarks.syncGym(Number(params.id));
     } catch (error) {
-      return reply(status(error), { error: message(error) });
+      return reply(status(error), { error: errorMessage(error) });
     }
   })
   /**
@@ -40,33 +36,35 @@ export const benchmarksApi = new Elysia({ name: 'benchmarks-api' })
    * so a wrong URL costs a download and nothing else.
    */
   .post('/api/v1/benchmark-imports/preview', async ({ body, status: reply }) => {
-    const { url, ref } = (body ?? {}) as PreviewBody;
-    if (typeof url !== 'string' || !url.trim()) {
-      return reply(400, { error: 'Provide a benchmark source URL.' });
-    }
+    const url = body.url?.trim() ?? '';
+    if (!url) return reply(400, { error: 'Provide a benchmark source URL.' });
     try {
-      return await benchmarks.preview(url, typeof ref === 'string' ? ref : '');
+      return await benchmarks.preview(url, body.ref ?? '');
     } catch (error) {
-      return reply(status(error), { error: message(error) });
+      return reply(status(error), { error: errorMessage(error) });
     }
+  }, {
+    body: t.Object({ url: t.Optional(t.String()), ref: t.Optional(t.String()) }),
   })
   /**
    * Phase two: persist the previewed snapshot. Takes the preview back rather
    * than re-resolving, so what is committed is exactly what was shown.
    */
   .post('/api/v1/benchmark-imports', async ({ body, status: reply }) => {
-    const { preview, plan, replace } = (body ?? {}) as CommitBody;
-    if (!preview || typeof preview !== 'object') {
-      return reply(400, { error: 'Send the preview returned by /preview.' });
-    }
     try {
       const tally = await benchmarks.commit(
-        preview as benchmarks.ImportPreview,
-        (plan ?? {}) as Partial<benchmarks.ImportPlan>,
-        { replace: replace === true },
+        body.preview as benchmarks.ImportPreview,
+        (body.plan ?? {}) as Partial<benchmarks.ImportPlan>,
+        { replace: body.replace === true },
       );
       return reply(201, tally);
     } catch (error) {
-      return reply(status(error), { error: message(error) });
+      return reply(status(error), { error: errorMessage(error) });
     }
+  }, {
+    body: t.Object({
+      preview: t.Record(t.String(), t.Unknown()),
+      plan: t.Optional(t.Record(t.String(), t.Unknown())),
+      replace: t.Optional(t.Boolean()),
+    }),
   });

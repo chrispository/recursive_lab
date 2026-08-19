@@ -11,11 +11,9 @@ export function failedCriteriaOf(
 
 export function RunContext({
   benchmarkRun,
-  progress,
   availableRuns,
 }: {
   benchmarkRun: BenchmarkRunSummary | null;
-  progress?: BenchmarkRunProgress | null;
   availableRuns?: BenchmarkRunSummary[];
 }) {
   if (!benchmarkRun) return null;

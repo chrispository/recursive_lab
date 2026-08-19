@@ -10,7 +10,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { counter } from '../src/gym/results.ts';
+import { createRolloutCounter } from '../src/gym/results.ts';
 
 const dirs: string[] = [];
 
@@ -35,12 +35,12 @@ afterEach(async () => {
 
 test('reports zero before gym has written anything', async () => {
   const { main } = await workspace();
-  expect(await counter(main)()).toBe(0);
+  expect(await createRolloutCounter(main)()).toBe(0);
 });
 
 test('counts completed lines and only counts them once', async () => {
   const { main } = await workspace();
-  const count = counter(main);
+  const count = createRolloutCounter(main);
 
   await append(main, '{"a":1}\n{"a":2}\n');
   expect(await count()).toBe(2);
@@ -54,7 +54,7 @@ test('counts completed lines and only counts them once', async () => {
 
 test('ignores a line that is still being written', async () => {
   const { main } = await workspace();
-  const count = counter(main);
+  const count = createRolloutCounter(main);
 
   await append(main, '{"a":1}\n{"a":2');
   expect(await count()).toBe(1);
@@ -65,7 +65,7 @@ test('ignores a line that is still being written', async () => {
 
 test('resumes correctly after a partial line of multibyte text', async () => {
   const { main } = await workspace();
-  const count = counter(main);
+  const count = createRolloutCounter(main);
 
   // The offset is kept in bytes; these characters are three bytes each, so a
   // character-based offset would resume mid-codepoint and miscount from here on.
@@ -78,7 +78,7 @@ test('resumes correctly after a partial line of multibyte text', async () => {
 
 test('adds the failures sidecar to the main file', async () => {
   const { main, failures } = await workspace();
-  const count = counter(main);
+  const count = createRolloutCounter(main);
 
   await append(main, '{"a":1}\n');
   await append(failures, '{"a":2}\n{"a":3}\n');
@@ -87,7 +87,7 @@ test('adds the failures sidecar to the main file', async () => {
 
 test('starts over if the output file is replaced under it', async () => {
   const { main } = await workspace();
-  const count = counter(main);
+  const count = createRolloutCounter(main);
 
   await append(main, '{"a":1}\n{"a":2}\n');
   expect(await count()).toBe(2);

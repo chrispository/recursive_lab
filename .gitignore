@@ -3,4 +3,6 @@ data/
 .env
 *.log
 .DS_Store
-gym/
+/gym/
+
+outputs/

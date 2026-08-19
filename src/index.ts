@@ -19,7 +19,7 @@ import { jobsUi } from './http/ui/jobs.tsx';
 import { failuresUi } from './http/ui/failures.tsx';
 import { dataForgeUi } from './http/ui/data_forge.tsx';
 import { settingsUi } from './http/ui/settings.tsx';
-import { ledgerOptionsDocument, schemaDocument } from './http/schema.ts';
+import { schemaDocument } from './http/schema.ts';
 import { acquireServerLock, autostartGym, autostopGym } from './boot.ts';
 
 const releaseServerLock = await acquireServerLock();
@@ -49,8 +49,7 @@ const app = new Elysia()
   .use(jobsUi)
   .use(settingsUi)
   .use(pages)
-  .get('/schema.html', schemaDocument)
-  .get('/ledger-options.html', ledgerOptionsDocument);
+  .get('/schema.html', schemaDocument);
 
 try {
   app.listen({ hostname: config.host, port: config.port });
@@ -67,10 +66,12 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
     // First hit: wait briefly for Gym's stop ladder. Remove this handler so a
     // second Ctrl+C during that window falls through to the default immediately.
     for (const each of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.removeAllListeners(each);
+    // Bun --watch can start the replacement process before this one exits.
+    // Close the listener and release the lock before waiting on Gym cleanup.
+    releaseServerLock();
     const deadline = setTimeout(() => process.exit(0), 8_500);
-    void autostopGym().finally(() => {
+    void Promise.all([app.stop(true).catch(() => app), autostopGym()]).finally(() => {
       clearTimeout(deadline);
-      releaseServerLock();
       process.exit(0);
     });
   });

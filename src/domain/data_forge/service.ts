@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
 import { code, parse } from '../../db/ids.ts';
 import * as audit from '../audit/service.ts';
 import * as jobRows from '../jobs/service.ts';
@@ -6,15 +6,21 @@ import { isLive } from '../jobs/model.ts';
 import * as jobTrace from '../jobs/trace.ts';
 import * as prompts from '../prompts/service.ts';
 import * as settings from '../../gym/settings.ts';
+import * as dataDesigner from '../../gym/data_designer.ts';
+import { fingerprintOf } from '../../lib/fingerprint.ts';
+import { config } from '../../config.ts';
 import * as repo from './repo.ts';
-import type { DataForgeStart, DocumentRow, ForgeTopicInput } from './model.ts';
+import type { DataForgeStart, ForgeTopicInput } from './model.ts';
 
 export type { DataForgeSummary, DataForgeStart, DocumentRow, ForgeTopicInput } from './model.ts';
 
 export const byBenchmarkRun = repo.findByBenchmarkRun;
 export const documents = repo.listDocuments;
 
-export async function review(documentCode: string, reviewStatus: 'approved' | 'rejected') {
+export async function review(
+  documentCode: string,
+  reviewStatus: 'approved' | 'rejected',
+): Promise<{ documentCode: string; dataForgeRunId: number; noveltyStatus: 'passed' | 'rejected' | 'review' }> {
   const parsed = parse(documentCode);
   if (!parsed || parsed.entity !== 'documents') throw new DataForgeError('Select a valid document.');
   if (reviewStatus !== 'approved' && reviewStatus !== 'rejected') throw new DataForgeError('Choose approve or reject.');
@@ -140,6 +146,7 @@ export async function start(input: {
     topics: remaining,
     prompt,
     provider,
+    backend,
     noveltyThreshold,
     autoApprove,
     trace,
@@ -168,14 +175,25 @@ async function execute(input: {
   topics: ForgeTopicInput[];
   prompt: { promptRevisionId: number; body: string };
   provider: settings.ProviderConfig;
+  backend: 'data_designer' | 'frontier';
   noveltyThreshold: number;
   autoApprove: boolean;
   trace: jobTrace.Trace;
 }): Promise<void> {
   const { trace } = input;
   await trace.step('asking the document generator', 0.18);
-  const completion = await complete(input.provider, input.prompt.body, input.topics);
+  const completion = input.backend === 'data_designer'
+    ? await dataDesigner.generate({
+        provider: input.provider,
+        prompt: input.prompt.body,
+        topics: input.topics,
+        artifactPath: resolve(config.gym.root, 'results/lab/data-forge', code('data_forge_runs', input.dataForgeRunId)),
+      })
+    : await complete(input.provider, input.prompt.body, input.topics);
   await trace.log(`provider response      ${completion.content.length} characters`);
+  if (input.backend === 'data_designer' && typeof completion.usage.attempts === 'number') {
+    await trace.log(`data designer attempts ${completion.usage.attempts}`);
+  }
 
   await trace.step('validating document slots', 0.52);
   const output = parseOutput(completion.content, input.topics);
@@ -324,24 +342,6 @@ function parseOutput(raw: string, topics: ForgeTopicInput[]): GeneratedDocument[
   return documents;
 }
 
-function fingerprintOf(content: string) {
-  const normalized = content.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-  const words = normalized ? normalized.split(/\s+/) : [];
-  const shingles = [3, 5].flatMap((size) => {
-    const values: string[] = [];
-    for (let index = 0; index <= words.length - size; index += 1) {
-      values.push(`${size}:${words.slice(index, index + size).join(' ')}`);
-    }
-    return values;
-  });
-  return {
-    contentSha256: sha256(content),
-    normalizedSha256: sha256(normalized),
-    shingles,
-    wordCount: words.length,
-  };
-}
-
 function noveltyOf(
   fingerprint: ReturnType<typeof fingerprintOf>,
   sources: Array<{ contentSha256: string; normalizedSha256: string; shingles: string[] }>,
@@ -368,8 +368,6 @@ function jaccard(left: string[], right: string[]): number {
   for (const value of a) if (b.has(value)) intersection += 1;
   return intersection / new Set([...a, ...b]).size;
 }
-
-const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 
 function jsonObjectOf(raw: string): unknown {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();

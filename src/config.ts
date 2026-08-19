@@ -1,8 +1,8 @@
 /**
  * Every environment-dependent value in the app, resolved once at import time.
  *
- * Nothing else in the codebase reads `process.env` or hardcodes a path. If you
- * need a new knob, add it here with a default that lets the app boot.
+ * Add new knobs here with a default that lets the app boot. `NODE_ENV` is the
+ * one exception: src/index.ts reads it directly for the static cache policy.
  */
 import { resolve } from 'node:path';
 

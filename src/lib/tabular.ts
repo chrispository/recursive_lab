@@ -51,6 +51,7 @@ function parseRows(text: string, path: string): Record<string, unknown>[] {
       const parsed = JSON.parse(text) as unknown;
       return Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : [];
     } catch {
+      // Malformed JSON yields no rows; the format detector already declined it.
       return [];
     }
   }
@@ -111,6 +112,7 @@ export async function read(root: string, options: ReadOptions = {}): Promise<Imp
         taskId: taskIdOf(path, index, row),
         name: oneLine(prompt),
         sourcePath: path,
+        sourceContent: JSON.stringify(row),
         position: position++,
         metadata: {
           // Record the guess, so a wrong mapping is visible rather than silent.

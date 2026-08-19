@@ -11,7 +11,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { read } from '../src/gym/results.ts';
+import { readRollouts } from '../src/gym/results.ts';
 
 const dirs: string[] = [];
 
@@ -40,8 +40,8 @@ afterEach(async () => {
 });
 
 test('a graded zero is a failure, not an error', async () => {
-  const [only] = await read(await outputOf(rollout()));
-  expect(only?.result).toBe('failed');
+  const [only] = await readRollouts(await outputOf(rollout()));
+  expect(only?.outcome).toBe('failed');
   expect(only?.error).toBe('');
 });
 
@@ -56,22 +56,22 @@ test('a harness error is an error, not a graded failure', async () => {
       },
     }),
   );
-  const [only] = await read(path);
-  expect(only?.result).toBe('error');
+  const [only] = await readRollouts(path);
+  expect(only?.outcome).toBe('error');
   expect(only?.error).toContain('zero runnable tasks');
 });
 
 test('a failed model call is still an error', async () => {
   const path = await outputOf(rollout({ response: { error: { message: 'upstream 503' } } }));
-  const [only] = await read(path);
-  expect(only?.result).toBe('error');
+  const [only] = await readRollouts(path);
+  expect(only?.outcome).toBe('error');
   expect(only?.error).toBe('upstream 503');
 });
 
 test('an ungraded rollout that hit a wall is an error', async () => {
   const path = await outputOf(rollout({ agent_timeout_error: 1.0 }));
-  const [only] = await read(path);
-  expect(only?.result).toBe('error');
+  const [only] = await readRollouts(path);
+  expect(only?.outcome).toBe('error');
   expect(only?.error).toBe('agent timed out');
 });
 
@@ -91,8 +91,8 @@ test('a wall the agent hit does not override criteria that were graded', async (
     }),
   );
 
-  const [only] = await read(path);
-  expect(only?.result).toBe('passed');
+  const [only] = await readRollouts(path);
+  expect(only?.outcome).toBe('passed');
   expect(only?.error).toBe('');
 });
 
@@ -120,10 +120,10 @@ test('reads verifier criteria and token usage from a completed trial', async () 
     }),
   );
 
-  const [only] = await read(path);
-  expect(only?.result).toBe('passed');
+  const [only] = await readRollouts(path);
+  expect(only?.outcome).toBe('passed');
   expect(only?.criteria).toHaveLength(1);
-  expect(only?.criteria[0]?.result).toBe('pass');
+  expect(only?.criteria[0]?.verdict).toBe('pass');
   expect(only?.tokens).toEqual({
     agentInputTokens: 101,
     agentOutputTokens: 13,

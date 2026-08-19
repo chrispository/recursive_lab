@@ -16,6 +16,7 @@ import { Tally } from '../ui/Tally.tsx';
 import { Handoff } from '../layout/Handoff.tsx';
 import { RunContext } from '../layout/RunContext.tsx';
 import { Icon } from '../ui/Icon.tsx';
+import { count, dash, rate } from '../ui/Metric.tsx';
 
 type FailuresProps = {
   progress: BenchmarkRunProgress | null;
@@ -27,18 +28,6 @@ type FailuresProps = {
   topics: TopicRow[];
   uncategorised: number;
 };
-
-const dash = <span class="none">—</span>;
-
-function count(value: number | null, tone: 'pass' | 'fail' | 'warn') {
-  if (value === null) return dash;
-  return <b class={value > 0 ? tone : undefined}>{value}</b>;
-}
-
-function rate(part: number | null, total: number | null) {
-  if (part === null || total === null || total === 0) return dash;
-  return `${((part / total) * 100).toFixed(1)}%`;
-}
 
 function failureCounts(tasks: BenchmarkTaskCriteria[]) {
   return tasks.reduce(
@@ -70,7 +59,7 @@ export function Failures({
           Inspect one benchmark run and carry only its failure signal into topic generation.
         </p>
       </div>
-      <RunContext benchmarkRun={benchmarkRun} progress={progress} availableRuns={availableRuns} />
+      <RunContext benchmarkRun={benchmarkRun} availableRuns={availableRuns} />
 
       <SelectedRunSummary
         benchmarkRun={benchmarkRun}
@@ -85,7 +74,12 @@ export function Failures({
         failed={counts.failed}
       />
 
-      <TopicTable summary={summary} topics={topics} hasMap={Boolean(progress?.failureMap.entity)} />
+      <TopicTable
+        summary={summary}
+        topics={topics}
+        hasMap={Boolean(progress?.failureMap.entity)}
+        failureMapCode={progress?.failureMap.entity ?? null}
+      />
 
       <details class="m-evidence">
         <summary>
@@ -159,9 +153,22 @@ export function FailureAnalysisStatus({
   const id = 'failure-analysis-status';
   if (runId && job && isLive(job)) {
     return (
-      <div id={id} class="m-analysis-status" hx-get={`/ui/failures/status?run=${runId}`} hx-trigger="every 1s" hx-swap="outerHTML">
-        <Badge state="running">analysis running</Badge>
-        <span>{job.step || 'Working'} · {job.jobCode}</span>
+      <div
+        id={id}
+        class="m-analysis-progress"
+        role="status"
+        aria-live="polite"
+        hx-get={`/ui/failures/status?run=${runId}`}
+        hx-trigger="every 1s"
+        hx-swap="outerHTML"
+      >
+        <div class="m-analysis-progress-label">
+          <span class="m-analysis-progress-step">{job.step || 'Working'}</span>
+          <span class="m-id">{job.jobCode}</span>
+        </div>
+        <div class="m-analysis-progress-track" role="progressbar" aria-label="Analysis in progress">
+          <span class="m-analysis-progress-fill" aria-hidden="true" />
+        </div>
       </div>
     );
   }
@@ -182,7 +189,7 @@ export function FailureAnalysisStatus({
     );
   }
   if (progress?.failureMap.entity) {
-    return <div id={id} class="m-analysis-status"><Badge state="ready">failure map ready</Badge><span>{progress.failureMap.entity}</span></div>;
+    return <div id={id} class="m-analysis-status"><Badge state="ready">failure map ready</Badge></div>;
   }
   return <div id={id} class="m-analysis-status"><Badge state="pending">not started</Badge><span>Use the selected run's failed criteria to create a map.</span></div>;
 }
@@ -265,10 +272,20 @@ function SelectedRunSummary({
   );
 }
 
-function TopicTable({ summary, topics, hasMap }: { summary: TopicTally; topics: TopicRow[]; hasMap: boolean }) {
+function TopicTable({
+  summary,
+  topics,
+  hasMap,
+  failureMapCode,
+}: {
+  summary: TopicTally;
+  topics: TopicRow[];
+  hasMap: boolean;
+  failureMapCode?: string | null;
+}) {
   return (
     <TableBox>
-      <Cap title="Topics extracted from failed criteria">
+      <Cap title="Topics extracted from failed criteria" code={failureMapCode ?? undefined}>
         <Tally
           items={[
             { value: summary.topics, label: 'topics' },

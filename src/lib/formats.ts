@@ -29,6 +29,8 @@ export type ImportedTask = {
   name: string;
   /** Path relative to the snapshot root, for provenance. */
   sourcePath: string;
+  /** Exact source bytes represented by this task, retained only for hashing. */
+  sourceContent: string;
   position: number;
   metadata: Record<string, unknown>;
   criteria: ImportedCriterion[];
@@ -87,7 +89,7 @@ export const supported = () => FORMATS.map((format) => format.label).join(', ');
  * every format that was tried and why each declined, because "unsupported
  * source" alone tells the user nothing about what to fix.
  */
-export async function detect(root: string): Promise<{ detection: Detection; format: BenchmarkFormat | null }> {
+export async function detectFormat(root: string): Promise<{ detection: Detection; format: BenchmarkFormat | null }> {
   const declined: string[] = [];
   for (const format of FORMATS) {
     const detection = await format.detect(root);
@@ -109,4 +111,4 @@ export async function detect(root: string): Promise<{ detection: Detection; form
 }
 
 /** Look a format up by registry id, for a commit replaying a preview. */
-export const byId = (id: string) => FORMATS.find((format) => format.id === id) ?? null;
+export const formatById = (id: string) => FORMATS.find((format) => format.id === id) ?? null;

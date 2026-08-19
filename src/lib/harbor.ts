@@ -79,8 +79,10 @@ export async function read(
 
   for (const [index, relative] of files.entries()) {
     let raw: RawTask;
+    let sourceContent: string;
     try {
-      raw = (await Bun.file(`${root}/${relative}`).json()) as RawTask;
+      sourceContent = await Bun.file(`${root}/${relative}`).text();
+      raw = JSON.parse(sourceContent) as RawTask;
     } catch {
       // One unparseable task.json should not abort an import of thousands;
       // the count difference is reported by detect() and the import trace.
@@ -91,6 +93,7 @@ export async function read(
       taskId,
       name: raw.title || taskId,
       sourcePath: relative.replace(/\/task\.json$/, ''),
+      sourceContent,
       position: index,
       metadata: {
         work_type: raw.work_type ?? '',

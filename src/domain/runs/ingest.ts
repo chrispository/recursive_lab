@@ -56,8 +56,8 @@ export async function ingest(
   work: { benchmarkRunId: number; benchmarkId: number; taskIds: string[]; trace: jobs.Trace },
   outputPath: string,
 ): Promise<void> {
-  await work.trace.step(saving(), ROLLOUT_SHARE);
-  const rollouts = await gymResults.read(outputPath);
+  await work.trace.step(saving, ROLLOUT_SHARE);
+  const rollouts = await gymResults.readRollouts(outputPath);
   await work.trace.log(`rollouts              ${rollouts.length}`);
 
   const catalog = await benchmarks.criteriaFor(work.benchmarkId, work.taskIds);
@@ -130,7 +130,7 @@ export async function ingest(
     }
 
     const tally = tallies.get(rollout.taskId) ?? { passed: 0, failed: 0, error: 0 };
-    if (rollout.result !== 'skipped') tally[rollout.result] += 1;
+    if (rollout.outcome !== 'skipped') tally[rollout.outcome] += 1;
     tallies.set(rollout.taskId, tally);
 
     const taskResultId = await repo.insertTaskResult({
@@ -138,11 +138,11 @@ export async function ingest(
       benchmarkId: work.benchmarkId,
       taskId: rollout.taskId,
       trialName,
-      result: rollout.result,
+      result: rollout.outcome,
       reward: rollout.reward,
       criteriaTotal: rollout.criteria.length,
-      criteriaPassed: rollout.criteria.filter((item) => item.result === 'pass').length,
-      criteriaFailed: rollout.criteria.filter((item) => item.result === 'fail').length,
+      criteriaPassed: rollout.criteria.filter((item) => item.verdict === 'pass').length,
+      criteriaFailed: rollout.criteria.filter((item) => item.verdict === 'fail').length,
       resultPath: rollout.trialDir,
       metrics: { error: rollout.error },
     });
@@ -155,8 +155,8 @@ export async function ingest(
         continue;
       }
       counts.criteria += 1;
-      if (criterion.result === 'pass') counts.criteriaPassed += 1;
-      if (criterion.result === 'fail') counts.criteriaFailed += 1;
+      if (criterion.verdict === 'pass') counts.criteriaPassed += 1;
+      if (criterion.verdict === 'fail') counts.criteriaFailed += 1;
       await repo.insertCriterionResult({
         taskResultId,
         catalogCriterionId: ref.id,
@@ -164,7 +164,7 @@ export async function ingest(
         trialName,
         criterionId: criterion.criterionId,
         title: criterion.title || ref.title,
-        result: criterion.result,
+        result: criterion.verdict,
         reasoning: criterion.reasoning,
         matchCriteria: ref.matchCriteria,
         judgeModel: criterion.judgeModel,

@@ -65,7 +65,7 @@ export async function criteriaByTask(benchmarkRunId: number): Promise<BenchmarkT
   return [...groups.values()];
 }
 
-export async function current() {
+export async function current(): Promise<BenchmarkRunSummary | null> {
   const [benchmarkRun] = await repo.listAll();
   return benchmarkRun ?? null;
 }
@@ -201,7 +201,7 @@ export async function start(input: RunRequest): Promise<{ benchmarkRunId: number
   await audit('benchmark_runs', benchmarkRunId, 'create', { model, adapter, tasks: taskIds.length });
 
   const trace = await jobs.start('benchmark_run', 'benchmark_runs', benchmarkRunId, {
-    step: starting(),
+    step: starting,
     params: { model, adapter, tasks: taskIds.length, repeats: settings.repeats },
   });
 

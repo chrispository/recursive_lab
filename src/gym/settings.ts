@@ -2,9 +2,6 @@ import { existsSync } from 'node:fs';
 import { chmod, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { config, gymBin } from '../config.ts';
-import * as gymConfig from './config.ts';
-import * as head from './head.ts';
-import { pickAgent, pickResources } from './servers.ts';
 
 const ENV_PATH = resolve(config.gym.root, 'env.yaml');
 const DATA_DESIGNER_PYTHON = resolve(
@@ -12,7 +9,7 @@ const DATA_DESIGNER_PYTHON = resolve(
   'recursive_workspace/.data-designer-venv/bin/python',
 );
 
-const SETTING_KEYS = [
+export const SETTING_KEYS = [
   'policy_base_url',
   'policy_api_key',
   'policy_model_name',
@@ -254,10 +251,10 @@ async function testProvider(
   }
 }
 
-/** One directory the lab or gym writes to, for the storage panel. */
-export type StorageLocation = { label: string; path: string; note: string };
-
-export async function test(input: SettingInput) {
+export async function test(input: SettingInput): Promise<{
+  results: ApiTestResult[];
+  summary: { ok: number; error: number; skipped: number };
+}> {
   const saved = await readSaved();
   const results = await Promise.all([
     testProvider('policy', 'Model under test router', pick(input, saved, 'policy_base_url') || 'https://openrouter.ai/api/v1', pick(input, saved, 'policy_api_key'), pick(input, saved, 'policy_model_name')),

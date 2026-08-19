@@ -35,10 +35,21 @@ export function Document({ tab, title, rail, children }: DocumentProps) {
           <script>{PREPAINT}</script>
           <link rel="stylesheet" href="/css/tokens.css" />
           <link rel="stylesheet" href="/css/base.css" />
-          <link rel="stylesheet" href="/css/ledger.css" />
+          <link rel="stylesheet" href="/css/layout.css" />
+          <link rel="stylesheet" href="/css/benchmarks.css" />
+          <link rel="stylesheet" href="/css/results.css" />
+          <link rel="stylesheet" href="/css/forge.css" />
+          <link rel="stylesheet" href="/css/components.css" />
+          <link rel="stylesheet" href="/css/responsive.css" />
           <link rel="stylesheet" href="/css/settings.css" />
           <script src="/js/htmx.min.js" defer />
-          <script src="/js/app.js" defer />
+          <script src="/js/prefs.js" defer />
+          <script src="/js/settings-form.js" defer />
+          <script src="/js/tasks.js" defer />
+          <script src="/js/orb.js" defer />
+          <script src="/js/results.js" defer />
+          <script src="/js/config.js" defer />
+          <script src="/js/review.js" defer />
         </head>
         <body>
           <div class="scanlines" aria-hidden="true" />

@@ -1,0 +1,488 @@
+/* Tablebox ----------------------------------------------------------------
+   A bordered box whose caption carries the counts for the rows inside it. The
+   count lives with the rows it counts, so the two can never disagree. */
+
+.m-tablebox {
+  margin-top: var(--s4);
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.m-config-stack > .m-tablebox {
+  margin-top: 0;
+}
+
+/* Failure inventory ------------------------------------------------------
+   Keep the raw source criteria available below the topic result without
+   making the first page view carry the long criterion ledger. */
+.m-evidence {
+  margin-top: var(--s4);
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+.m-evidence > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: 10px 12px;
+  color: var(--text-3);
+  cursor: pointer;
+  font: 650 var(--t-label) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  list-style: none;
+  text-transform: uppercase;
+}
+.m-evidence > summary::-webkit-details-marker {
+  display: none;
+}
+.m-evidence-toggle {
+  display: inline-flex;
+  align-items: center;
+  width: 18px;
+  height: 16px;
+  flex: 0 0 18px;
+  color: var(--text-4);
+  transition: transform 0.16s var(--ease);
+}
+.m-evidence[open] > summary .m-evidence-toggle {
+  transform: rotate(90deg);
+}
+.m-evidence-title {
+  color: var(--text-1);
+}
+.m-evidence-note {
+  margin-left: auto;
+  color: var(--text-4);
+  font: 500 var(--t-micro) / 1.2 var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.m-evidence-body {
+  display: grid;
+  gap: var(--s3);
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--line);
+}
+.m-evidence-body > .m-tablebox {
+  margin-top: 0;
+}
+
+.m-cap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s3);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--deep);
+}
+.m-cap h3 {
+  color: var(--text-1);
+  font: 500 10.5px / 1.3 var(--sans);
+  letter-spacing: 0.012em;
+  text-transform: none;
+}
+.m-panel-head h3,
+.m-config-head h3 {
+  font: 500 10.5px / 1.3 var(--sans);
+  letter-spacing: 0.012em;
+  text-transform: none;
+}
+
+/* Tally line — replaces the old five-box metric strip everywhere. */
+.m-tally {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+}
+.m-tally span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0 12px;
+  border-right: 1px solid var(--line-soft);
+}
+.m-tally span:first-child {
+  padding-left: 0;
+}
+.m-tally span:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+.m-tally b {
+  color: var(--text-1);
+  font: 500 var(--t-data) / 1 var(--sans);
+}
+.m-tally i {
+  color: var(--text-3);
+  font-style: normal;
+  font-size: var(--t-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* The one number that matters on this screen. */
+.m-tally span.hot b {
+  color: var(--brand-ink);
+}
+
+/* Table -------------------------------------------------------------------- */
+
+.m-tablewrap {
+  overflow-x: auto;
+}
+.m-table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: var(--t-body);
+}
+.m-table th {
+  padding: 7px 12px;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font: 500 10.5px/1.4 var(--sans);
+  letter-spacing: 0.012em;
+  text-transform: none;
+  white-space: nowrap;
+}
+.m-table td {
+  padding: 9px 12px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+.m-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.m-table tbody tr:hover td {
+  background: var(--wash);
+}
+.m-table tr.selected td {
+  background: var(--wash-2);
+}
+.m-table th.n {
+  text-align: right;
+  font-family: var(--sans);
+  font-weight: 500;
+}
+.m-table td.n {
+  text-align: right;
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.m-table .nm {
+  color: var(--text-1);
+  font-weight: 500;
+}
+.m-table .sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--t-micro);
+}
+/* Grouped header. Eleven columns of counts do not read as one row of labels,
+   and the group span is what lets each "Pass rate" column stay unlabelled —
+   it is over whichever denominator its group heads. */
+.m-table tr.m-table-group th {
+  padding-bottom: 2px;
+  color: var(--text-4);
+  border-bottom: 0;
+  text-align: center;
+  letter-spacing: 0.012em;
+}
+.m-table th.g,
+.m-table td.g {
+  border-left: 1px solid var(--line-soft);
+}
+/* Counts carry the verdict, so the row needs no status badge beside them.
+   Tinted only when non-zero — see `count()` in Results.tsx. */
+.m-table .pass { color: var(--pass); }
+.m-table .fail { color: var(--fail); }
+/* Ungraded is a broken measurement, not a wrong answer. Same argument the
+   criterion list already makes for .m-criterion.error. */
+.m-table .warn { color: var(--warn); }
+.m-table .none { color: var(--text-4); }
+.m-table .rate { color: var(--text-1); }
+/* The run name doubles as the selector for the criterion list below it. */
+.m-table a.nm:hover {
+  color: var(--brand-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* A row flagged as the interesting one tints its first numeric cell. */
+.m-table tr[data-hot='1'] td.n:first-of-type {
+  color: var(--warn);
+}
+/* 3px left state stripe — the app's signature for run/job state. */
+.m-table td:first-child {
+  border-left: 3px solid transparent;
+}
+.m-table tr[data-state='succeeded'] td:first-child,
+.m-table tr[data-state='ready'] td:first-child,
+.m-table tr[data-state='approved'] td:first-child {
+  border-left-color: var(--pass);
+}
+.m-table tr[data-state='failed'] td:first-child,
+.m-table tr[data-state='rejected'] td:first-child,
+.m-table tr[data-state='error'] td:first-child {
+  border-left-color: var(--fail);
+}
+.m-table tr[data-state='queued'] td:first-child,
+.m-table tr[data-state='running'] td:first-child {
+  border-left-color: var(--run);
+}
+.m-table tr[data-state='cancelled'] td:first-child,
+.m-table tr[data-state='pending'] td:first-child,
+.m-table tr[data-state='draft'] td:first-child,
+.m-table tr[data-state='review'] td:first-child {
+  border-left-color: var(--warn);
+}
+
+/* Criterion inspection ---------------------------------------------------- */
+
+.m-criteria-list {
+  /* No gutter and no gap: the criteria read as one ruled ledger, the way the
+     run table above them does. Cards-on-a-wash made every verdict look like a
+     separate object when the list is really one column of them. */
+  display: block;
+  background: var(--panel);
+}
+/* One block per task. Criterion ids restart at C-001 on every task, so the
+   heading is load bearing, not decoration — without it the rows below are
+   ambiguous the moment a run covers more than one task. */
+.m-criteria-task-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 8px var(--s3);
+  background: var(--inset);
+  border-bottom: 1px solid var(--line-soft);
+}
+.m-criteria-task + .m-criteria-task .m-criteria-task-head {
+  border-top: 1px solid var(--line);
+}
+.m-criteria-task-head .m-id {
+  color: var(--text-2);
+  font-size: var(--t-label);
+}
+.m-criteria-task-tally {
+  color: var(--text-3);
+  font: var(--t-micro) / 1 var(--sans);
+}
+.m-criteria-task-tally b {
+  font-weight: 600;
+}
+.m-criteria-task-tally b.hot {
+  color: var(--fail);
+}
+.m-criterion {
+  border-top: 1px solid var(--line-soft);
+}
+.m-criteria-task-head + .m-criterion {
+  border-top: 0;
+}
+/* A spine, not a card border. Only the rows you have to act on carry one, so
+   the failures are findable by shape as well as by colour. */
+.m-criterion.fail,
+.m-criterion.error {
+  box-shadow: inset 3px 0 0 var(--fail);
+}
+.m-criterion.error {
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+.m-criterion summary {
+  display: grid;
+  grid-template-columns: 42px 52px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px var(--s3);
+  color: var(--text-1);
+  cursor: pointer;
+  list-style: none;
+}
+.m-criterion summary:hover {
+  background: var(--wash);
+}
+.m-criterion summary::-webkit-details-marker {
+  display: none;
+}
+.m-criterion-result {
+  font: 600 var(--t-micro) / 1 var(--sans);
+  letter-spacing: 0.08em;
+}
+.m-criterion.pass .m-criterion-result {
+  color: var(--pass);
+}
+.m-criterion.fail .m-criterion-result {
+  color: var(--fail);
+}
+/* Not --fail. An ungraded criterion is a broken measurement, not a wrong
+   answer, and colouring them alike is the same mistake as counting them alike. */
+.m-criterion.error .m-criterion-result {
+  color: var(--warn);
+}
+/* Why the judge could not grade it, on the summary line. */
+.m-criterion-error {
+  color: var(--warn);
+  font: 500 var(--t-micro) / 1 var(--sans);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.m-criterion-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* The inline disclosure icon sits in a fixed column. */
+.m-criterion-chev {
+  display: inline-flex;
+  justify-content: flex-end;
+  color: var(--text-4);
+  transition: transform 0.16s var(--ease), color 0.16s var(--ease);
+}
+.m-criterion[open] .m-criterion-chev {
+  color: var(--text-2);
+  transform: rotate(90deg);
+}
+/* Indent to the title column, not to an arbitrary number: the reasoning is
+   about the criterion it hangs under, so it starts where that title starts.
+   12 (row padding) + 42 (verdict) + 52 (id) + two 10px gaps. */
+.m-criterion-body {
+  padding: 0 var(--s3) var(--s3) 126px;
+}
+.m-criterion-reasoning {
+  max-width: 96ch;
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--t-label);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.m-failure-meta {
+  display: grid;
+  gap: 4px;
+  max-width: 96ch;
+  margin-top: 10px;
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.5 var(--sans);
+  overflow-wrap: anywhere;
+}
+.m-criterion-body > button {
+  margin-top: 10px;
+}
+
+/* Failed-only filter ------------------------------------------------------
+   A view of the same list, not a different one: the rows are still rendered,
+   so toggling the filter back restores the disclosure state you left behind.
+   Ungraded rows stay visible — a criterion the judge could not grade is one
+   you still have to look at. */
+/* Keep the filter attached to the heading it controls. The count stays on the
+   far edge, so the caption reads as title + control | context. */
+.m-criteria-box .m-cap {
+  justify-content: flex-start;
+}
+.m-criteria-box .m-cap .m-code {
+  margin-left: auto;
+}
+.m-criteria-filter {
+  border-color: var(--edge);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.m-criteria-filter:hover {
+  border-color: var(--hover-border);
+}
+.m-criteria-filter[aria-pressed='true'] {
+  color: var(--text-1);
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 9%, var(--raised));
+}
+.m-criteria-box[data-filter='unpassed'] .m-criterion.pass,
+.m-criteria-box[data-filter='unpassed'] .m-criteria-task[data-unpassed='0'] {
+  display: none;
+}
+
+
+/* Criterion dialog --------------------------------------------------------
+   Native <dialog>, so focus trapping, Esc and the backdrop come from the
+   platform. The definition is the reason this opens, so it gets the room. */
+.m-dialog {
+  /* A modal <dialog> is centred by the UA stylesheet's `margin: auto`, which
+     the `* { margin: 0 }` reset in base.css wipes out — leaving it pinned to
+     the top-left corner with the backdrop only on two sides. Restore it here. */
+  margin: auto;
+  width: min(760px, calc(100vw - 2 * var(--s4)));
+  max-height: min(80vh, 900px);
+  padding: 0;
+  color: var(--text-1);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 32%);
+}
+.m-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+.m-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--deep);
+}
+.m-dialog-head strong {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--t-data);
+  overflow-wrap: anywhere;
+}
+.m-dialog-sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-3);
+  font: 400 var(--t-micro) / 1.4 var(--mono);
+  overflow-wrap: anywhere;
+}
+.m-dialog-body {
+  display: grid;
+  gap: 6px;
+  padding: var(--s4);
+  overflow-y: auto;
+  max-height: calc(min(80vh, 900px) - 64px);
+}
+.m-dialog-body > .m-code:not(:first-child) {
+  margin-top: 10px;
+}
+/* The raw definition. Wraps rather than scrolls sideways — a criterion you
+   have to drag horizontally to finish reading is one you will not read. */
+.m-dialog-json {
+  margin: 0;
+  padding: 12px;
+  color: var(--text-1);
+  border: 1px solid var(--line-soft);
+  background: var(--deeper);
+  font: 400 var(--t-body) / 1.55 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.m-dialog-text {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--t-label);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.m-dialog-warn {
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  color: var(--text-2);
+  border-left: 2px solid var(--warn);
+  background: var(--wash);
+  font-size: var(--t-label);
+  line-height: 1.5;
+}
