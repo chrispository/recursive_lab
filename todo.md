@@ -4,3 +4,4 @@
 - [ ] Add frontier LLM synth data gen - right now only nvidia data designer actually works
 - [ ] Retry logic for various gen
 - [ ] On Data Forge - review the "button" names like "all slots filled'
+- [ ] Canary vs. train

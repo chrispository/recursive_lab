@@ -143,6 +143,26 @@ export async function read(): Promise<PublicSettings> {
   return publicSettings(await readSaved());
 }
 
+/** Resolve the policy model used for local environment rollouts. */
+export async function policyProvider(modelOverride = ''): Promise<ProviderConfig> {
+  const saved = await readSaved();
+  return {
+    baseUrl: (saved.policy_base_url || 'https://openrouter.ai/api/v1').replace(/\/$/, ''),
+    apiKey: pick(saved, saved, 'policy_api_key'),
+    model: modelOverride.trim() || saved.policy_model_name || '',
+  };
+}
+
+/** Resolve the judge that scores verifier coverage inside PI environments. */
+export async function judgeProvider(modelOverride = ''): Promise<ProviderConfig> {
+  const saved = await readSaved();
+  return {
+    baseUrl: (saved.judge_base_url || 'https://openrouter.ai/api/v1').replace(/\/$/, ''),
+    apiKey: pick(saved, saved, 'judge_api_key', 'analysis_api_key'),
+    model: modelOverride.trim() || pick(saved, saved, 'judge_model_name', 'analysis_model_name'),
+  };
+}
+
 /** Resolve the failure analyst, with the judge as the documented fallback. */
 export async function analysisProvider(modelOverride = ''): Promise<ProviderConfig> {
   const saved = await readSaved();
