@@ -1,0 +1,199 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&display=swap');
+    /* Ink — lifted from public/css/tokens.css, values unchanged. */
+    .sheet {
+      --text-1:#101314; --text-2:#3f4749; --text-3:#636c6e; --text-4:#868f91;
+      --line-soft:#dfe3e2; --line:#cfd5d3; --edge:#7f8886;
+      --black:#eff2f0; --deep:#eaeeec; --panel:#fafbfa;
+      --raised:#e6ebe8; --raised-2:#dbe1de;
+      --brand:#c8452a; --brand-ink:#9b3520; --btn-ink:#fdf7f5;
+      --pass:#26654a; --fail:#9c3126; --run:#1c6178; --warn:#7f5610;
+      --grid:rgba(16,19,20,.05); --wash:rgba(16,19,20,.045); --wash-2:rgba(16,19,20,.08);
+      --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      --sans:'Avenir Next','Segoe UI',Inter,'Adwaita Sans','Noto Sans',system-ui,sans-serif;
+    }
+    .sheet[data-theme='dark'] {
+      --text-1:#f2f2f0; --text-2:#b3b3af; --text-3:#7c7c79; --text-4:#60605d;
+      --line-soft:#1a1a18; --line:#232321; --edge:#5d5d59;
+      --black:#050505; --deep:#080808; --panel:#0a0a0a;
+      --raised:#101010; --raised-2:#151515;
+      --brand:#ff5c35; --brand-ink:#ff5c35; --btn-ink:#160a05;
+      --pass:#4fa76f; --fail:#e46452; --run:#5aa9d6; --warn:#d9a441;
+      --grid:rgba(255,255,255,.027); --wash:rgba(255,255,255,.04); --wash-2:rgba(255,255,255,.07);
+    }
+    body { margin:0; }
+    a { color:var(--brand-ink); } a:hover { color:var(--brand); }
+    .sheet {
+      padding:24px; color:var(--text-2);
+      font:12.5px/1.6 var(--sans); font-variant-numeric:tabular-nums;
+      -webkit-font-smoothing:antialiased;
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        var(--black);
+      background-size:32px 32px;
+    }
+    .sheet * { box-sizing:border-box; }
+    /* .m-tablebox / .m-cap / .m-tally — as shipped. */
+    .box { border:1px solid var(--line); background:var(--panel); }
+    .box + .box { margin-top:16px; }
+    .cap {
+      display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
+      gap:12px; padding:9px 12px; border-bottom:1px solid var(--line); background:var(--deep);
+    }
+    .cap h3 {
+      margin:0; color:var(--text-1);
+      font:600 11px/1.3 var(--sans); letter-spacing:.06em; text-transform:uppercase;
+    }
+    .tally { display:flex; flex-wrap:wrap; align-items:baseline; gap:0; }
+    .tally span { display:inline-flex; align-items:baseline; gap:6px; padding:0 12px; border-right:1px solid var(--line-soft); }
+    .tally span:first-child { padding-left:0; }
+    .tally span:last-child { padding-right:0; border-right:0; }
+    .tally b { color:var(--text-1); font:500 13px/1 var(--mono); }
+    .tally i { color:var(--text-3); font-style:normal; font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+    .tally span.hot b { color:var(--brand-ink); }
+    .code { color:var(--text-3); font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+    .id { color:var(--text-3); font:500 10px/1 var(--mono); letter-spacing:.08em; }
+    .stack { display:flex; flex-direction:column; gap:18px; }
+    .lede { color:var(--text-4); font-size:11px; letter-spacing:.02em; }
+    .body { padding:12px; }
+
+    /* A — run rail. Every run is on screen; picking one is one click, no submit. */
+    .rail { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; }
+    .chip {
+      display:flex; flex-direction:column; gap:5px; flex:0 0 auto; min-width:168px;
+      padding:9px 11px; text-align:left; cursor:pointer;
+      color:inherit; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--text-4);
+      font:inherit;
+    }
+    .chip:hover { background:var(--wash); border-color:var(--edge); }
+    .chip[data-state='succeeded'] { border-left-color:var(--pass); }
+    .chip[data-state='failed'] { border-left-color:var(--fail); }
+    .chip[data-state='error'] { border-left-color:var(--fail); }
+    .chip[data-state='running'] { border-left-color:var(--run); }
+    .chip[data-sel='on'] { background:var(--wash-2); border-color:var(--edge); box-shadow:inset 0 0 0 1px var(--edge); }
+    .chip-top { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+    .chip .id { color:var(--text-3); }
+    .chip[data-sel='on'] .id { color:var(--brand-ink); }
+    .chip-name { color:var(--text-1); font:500 12.5px/1.3 var(--sans); letter-spacing:-.012em; }
+    .chip-sub { color:var(--text-3); font:500 10px/1.3 var(--mono); letter-spacing:.04em; }
+    .chip-rate { color:var(--text-1); font:500 11px/1 var(--mono); }
+    .chip-rate.none { color:var(--text-4); }
+    .chip-meter { display:block; height:3px; background:var(--line-soft); }
+    .chip-meter > i { display:block; height:100%; background:var(--pass); }
+    .chip-meter > i[data-below='1'] { background:var(--warn); }
+    .chip-meter > i[data-below='2'] { background:var(--fail); }
+
+    /* B — current-run bar. One line, arrows step through history in place. */
+    .bar { display:flex; align-items:center; gap:14px; padding:10px 12px; }
+    .step { display:flex; gap:-1px; }
+    .step button, .cmp {
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:0; min-height:28px; padding:0 10px; cursor:pointer;
+      color:var(--text-1); background:var(--raised); border:1px solid var(--edge);
+      font:600 11.5px/1 var(--sans); border-radius:3px;
+    }
+    .step button { padding:0 8px; }
+    .step button + button { margin-left:-1px; }
+    .step button:hover, .cmp:hover { background:var(--raised-2); }
+    .now { display:flex; align-items:baseline; gap:10px; min-width:0; flex:1; }
+    .now .id { color:var(--brand-ink); font-size:11px; }
+    .now strong { color:var(--text-1); font:500 13px/1.3 var(--sans); letter-spacing:-.015em; }
+    .now .sub { color:var(--text-3); font:500 10.5px/1.3 var(--mono); letter-spacing:.04em; }
+    .now .pos { margin-left:auto; color:var(--text-4); font:500 10px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; }
+  </style>
+</helmet>
+<div class="sheet" data-theme="{{theme}}">
+  <div class="stack">
+
+    <section class="box">
+      <div class="cap">
+        <h3>A · Run rail</h3>
+        <span class="code">Replaces the dropdown + Show results</span>
+      </div>
+      <div class="body">
+        <div class="rail">
+          <sc-for list="{{runs}}" as="run" hint-placeholder-count="4">
+            <button type="button" class="chip" data-state="{{run.state}}" data-sel="{{run.sel}}" onClick="{{run.pick}}">
+              <span class="chip-top">
+                <span class="id">{{run.code}}</span>
+                <span class="chip-rate {{run.rateClass}}">{{run.rate}}</span>
+              </span>
+              <span class="chip-name">{{run.label}}</span>
+              <span class="chip-sub">{{run.model}} · {{run.when}}</span>
+              <span class="chip-meter"><i data-below="{{run.below}}" style="{{run.barStyle}}"></i></span>
+            </button>
+          </sc-for>
+        </div>
+        <p class="lede" style="margin:10px 0 0">Newest first. The whole history is visible, so picking a run is a comparison rather than a guess at an option label.</p>
+      </div>
+    </section>
+
+    <section class="box">
+      <div class="cap">
+        <h3>B · Current-run bar</h3>
+        <span class="code">One line, steps through history in place</span>
+      </div>
+      <div class="bar">
+        <span class="step">
+          <button type="button" aria-label="Newer run">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
+          </button>
+          <button type="button" aria-label="Older run">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+          </button>
+        </span>
+        <span class="now">
+          <span class="id">BR-00010</span>
+          <strong>harvey_003</strong>
+          <span class="sub">glm-5.2 · 1 task · 18 Aug 08:14 · 100.0%</span>
+          <span class="pos">2 of 4 runs</span>
+        </span>
+        <button type="button" class="cmp">Compare runs</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1180,"height":330}}'>
+const RUNS = [
+  { code: 'BR-00012', label: 'harvey_004', model: 'glm-5.2', when: '18 Aug 09:52', state: 'running', rate: 'running', share: 0.37, graded: false },
+  { code: 'BR-00010', label: 'harvey_003', model: 'glm-5.2', when: '18 Aug 08:14', state: 'succeeded', rate: '100.0%', share: 1, graded: true },
+  { code: 'BR-00009', label: 'harvey_002', model: 'glm-5.2', when: '17 Aug 17:03', state: 'error', rate: 'error', share: 0, graded: false },
+  { code: 'BR-00008', label: 'harvey_001', model: 'glm-5.2', when: '17 Aug 16:41', state: 'pending', rate: 'never ran', share: 0, graded: false },
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { picked: 'BR-00010' };
+  }
+
+  renderVals() {
+    const picked = this.state.picked;
+    return {
+      theme: this.props.theme ?? 'light',
+      runs: RUNS.map((run) => ({
+        ...run,
+        sel: run.code === picked ? 'on' : 'off',
+        rateClass: run.graded ? '' : 'none',
+        below: run.share >= 0.9 ? '0' : run.share >= 0.6 ? '1' : '2',
+        barStyle: 'width:' + Math.round(run.share * 100) + '%',
+        pick: () => this.setState({ picked: run.code }),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

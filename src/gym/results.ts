@@ -317,7 +317,9 @@ export async function read(outputPath: string): Promise<Rollout[]> {
   for (const item of pending) {
     const metadata = asObject(item.row.metadata);
     const trialDir = trialDirOf(metadata);
-    const criteria = await scoresOf(trialDir);
+    const scores = await scoresOf(trialDir);
+    const criteria = scores.criteria;
+    const agent = await agentTokensOf(trialDir);
     const fatal = rolloutError(item.row);
     const limit = rolloutLimit(item.row);
     const reward = asNumber(item.row.reward);
@@ -334,6 +336,14 @@ export async function read(outputPath: string): Promise<Rollout[]> {
       error,
       trialDir,
       criteria,
+      tokens: {
+        agentInputTokens: agent.inputTokens,
+        agentOutputTokens: agent.outputTokens,
+        agentTurns: agent.turns,
+        judgeInputTokens: scores.judgeInputTokens,
+        judgeOutputTokens: scores.judgeOutputTokens,
+        judgeWallClockSeconds: scores.judgeWallClockSeconds,
+      },
     });
   }
   return rollouts;

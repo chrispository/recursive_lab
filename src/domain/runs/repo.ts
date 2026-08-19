@@ -23,6 +23,9 @@ type BenchmarkRunDbRow = Row & {
   result_criteria_total: number | null;
   result_criteria_passed: number | null;
   result_criteria_failed: number | null;
+  result_criteria_ungraded: number | null;
+  result_tasks_failed: number | null;
+  result_tasks_error: number | null;
 };
 
 type CriterionDbRow = Row & {
@@ -59,7 +62,17 @@ const SELECT = `
          result.tasks_passed AS result_tasks_passed,
          result.criteria_total AS result_criteria_total,
          result.criteria_passed AS result_criteria_passed,
-         result.criteria_failed AS result_criteria_failed
+         result.criteria_failed AS result_criteria_failed,
+         result.tasks_failed AS result_tasks_failed,
+         result.tasks_error AS result_tasks_error,
+         -- Criteria the judge could not grade. Counted here rather than summed
+         -- in the view, because the Results table now shows one row per run and
+         -- only the selected run's verdicts are ever loaded.
+         (SELECT COUNT(*)
+            FROM criterion_results ungraded
+            JOIN task_results ungraded_task ON ungraded_task.id = ungraded.task_result_id
+           WHERE ungraded_task.benchmark_result_id = result.id
+             AND ungraded.result = 'error') AS result_criteria_ungraded
     FROM benchmark_runs br
     JOIN benchmarks b ON b.id = br.benchmark_id
     LEFT JOIN benchmark_results result ON result.benchmark_run_id = br.id`;
@@ -87,6 +100,9 @@ function toBenchmarkRun(row: BenchmarkRunDbRow): BenchmarkRunSummary {
     resultCriteriaTotal: row.result_criteria_total,
     resultCriteriaPassed: row.result_criteria_passed,
     resultCriteriaFailed: row.result_criteria_failed,
+    resultCriteriaUngraded: row.result === null ? null : row.result_criteria_ungraded ?? 0,
+    resultTasksFailed: row.result_tasks_failed,
+    resultTasksErrored: row.result_tasks_error,
   };
 }
 

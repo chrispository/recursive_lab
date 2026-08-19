@@ -652,6 +652,36 @@
   color: var(--text-3);
   font-size: var(--t-micro);
 }
+/* Grouped header. Eleven columns of counts do not read as one row of labels,
+   and the group span is what lets each "Pass rate" column stay unlabelled —
+   it is over whichever denominator its group heads. */
+.m-table tr.m-table-group th {
+  padding-bottom: 2px;
+  color: var(--text-4);
+  border-bottom: 0;
+  text-align: center;
+  letter-spacing: 0.16em;
+}
+.m-table th.g,
+.m-table td.g {
+  border-left: 1px solid var(--line-soft);
+}
+/* Counts carry the verdict, so the row needs no status badge beside them.
+   Tinted only when non-zero — see `count()` in Results.tsx. */
+.m-table .pass { color: var(--pass); }
+.m-table .fail { color: var(--fail); }
+/* Ungraded is a broken measurement, not a wrong answer. Same argument the
+   criterion list already makes for .m-criterion.error. */
+.m-table .warn { color: var(--warn); }
+.m-table .none { color: var(--text-4); }
+.m-table .rate { color: var(--text-1); }
+/* The run name doubles as the selector for the criterion list below it. */
+.m-table a.nm:hover {
+  color: var(--brand-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* A row flagged as the interesting one tints its first numeric cell. */
 .m-table tr[data-hot='1'] td.n:first-of-type {
   color: var(--warn);
@@ -1162,18 +1192,21 @@
 
 /* Benchmark run ledger — the live run is work, history is outcome. */
 .m-run-ledger { background: var(--panel); }
-.m-ledger-row { display: grid; align-items: center; gap: 20px; padding: 18px 20px; border-bottom: 1px solid var(--line-soft); }
+.m-ledger-row { position: relative; display: grid; align-items: center; gap: 20px; padding: 18px 20px; border-bottom: 1px solid var(--line-soft); }
 .m-ledger-row:last-child { border-bottom: 0; }
-.m-ledger-live { grid-template-columns: 96px minmax(190px, .85fr) minmax(260px, 1.55fr); min-height: 168px; border-left: 3px solid var(--run); padding: 26px 28px 22px 24px; background: linear-gradient(90deg, color-mix(in srgb, var(--run) 8%, transparent), transparent 62%); }
-.m-ledger-complete { grid-template-columns: 96px minmax(190px, .85fr) minmax(260px, 1.55fr); min-height: 168px; padding: 26px 28px 22px 24px; border-left: 3px solid var(--pass); }
+.m-ledger-live { grid-template-columns: 78px 210px minmax(0, 1fr); min-height: 168px; border-left: 3px solid var(--run); padding: 24px 36px 18px; background: linear-gradient(90deg, color-mix(in srgb, var(--run) 8%, transparent), transparent 62%); }
+.m-ledger-complete { grid-template-columns: 78px 210px minmax(0, 1fr); min-height: 168px; padding: 24px 36px 18px; border-left: 3px solid var(--pass); }
 .m-ledger-complete[data-state='error'] { border-left-color: var(--fail); }
 .m-ledger-identity, .m-ledger-progress, .m-ledger-outcome, .m-ledger-scores { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
 .m-ledger-identity > strong, .m-ledger-progress > strong, .m-ledger-scores > strong { font-size: 14px; letter-spacing: -.012em; }
+.m-ledger-live .m-ledger-identity > strong, .m-ledger-complete .m-ledger-identity > strong { font-size: 20px; letter-spacing: -.03em; }
+.m-ledger-live .m-ledger-identity .sub, .m-ledger-complete .m-ledger-identity .sub { font-size: 12px; }
 .m-ledger-progress > strong { font-size: 16px; letter-spacing: -.022em; }
-.m-ledger-orb-wrap { display: grid; justify-items: center; align-self: center; gap: 13px; }
-.m-ledger-orb-wrap .m-id { color: var(--run); font-size: 11px; letter-spacing: .07em; }
-.m-ledger-complete .m-ledger-orb-wrap .m-id { color: var(--pass); }
-.m-ledger-complete[data-state='error'] .m-ledger-orb-wrap .m-id { color: var(--fail); }
+.m-ledger-orb-wrap { display: grid; place-items: center; align-self: center; }
+.m-ledger-run-code { position: absolute; top: 10px; left: 18px; }
+.m-ledger-run-code .m-id { color: var(--run); font-size: 11px; letter-spacing: .07em; }
+.m-ledger-complete .m-ledger-run-code .m-id { color: var(--pass); }
+.m-ledger-complete[data-state='error'] .m-ledger-run-code .m-id { color: var(--fail); }
 .m-ledger-result-mark { display: grid; width: 74px; height: 74px; place-items: center; border: 1px solid color-mix(in srgb, var(--pass) 50%, transparent); border-radius: 50%; color: var(--pass); font-size: 29px; font-weight: 400; }
 .m-ledger-complete[data-state='error'] .m-ledger-result-mark { border-color: color-mix(in srgb, var(--fail) 50%, transparent); color: var(--fail); }
 .m-ledger-kicker { color: var(--run); font-size: 10px; font-weight: 700; letter-spacing: .095em; text-transform: uppercase; }
@@ -1184,7 +1217,7 @@
 .m-ledger-complete[data-state='error'] .m-ledger-kicker { color: var(--fail); }
 .m-ledger-complete[data-state='error'] .m-ledger-track > i { background-color: var(--fail); }
 .m-ledger-scores { align-items: end; text-align: right; }
-.m-ledger-orb { width: 96px; height: 96px; }
+.m-thinking-orb.m-ledger-orb { width: 74px; height: 74px; }
 .m-thinking-orb {
   display: block;
   width: 52px;
@@ -1193,10 +1226,11 @@
 @media (max-width: 760px) {
   .m-ledger-live, .m-ledger-complete { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 16px; }
   .m-ledger-live { min-height: 0; padding-left: 13px; }
-  .m-ledger-orb { width: 64px; height: 64px; }
+  .m-thinking-orb.m-ledger-orb { width: 58px; height: 58px; }
   .m-ledger-result-mark { width: 58px; height: 58px; }
   .m-ledger-orb-wrap { grid-row: span 2; }
   .m-ledger-progress { grid-column: 2; }
+  .m-ledger-run-code { top: 10px; left: 16px; }
 }
 
 /* Job log tail. Own region so the ledger poll stays a status row. */

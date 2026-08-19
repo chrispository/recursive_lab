@@ -8,7 +8,7 @@
  * the two writes a capability claim the run never earned.
  */
 import { afterEach, expect, test } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { read } from '../src/gym/results.ts';
@@ -94,4 +94,42 @@ test('a wall the agent hit does not override criteria that were graded', async (
   const [only] = await read(path);
   expect(only?.result).toBe('passed');
   expect(only?.error).toBe('');
+});
+
+test('reads verifier criteria and token usage from a completed trial', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rollout-outcome-scored-'));
+  dirs.push(dir);
+  await mkdir(join(dir, 'verifier'), { recursive: true });
+  await mkdir(join(dir, 'agent/artifacts/lab-run'), { recursive: true });
+  await Bun.write(
+    join(dir, 'verifier/scores.json'),
+    JSON.stringify({
+      judge_model: 'judge-model',
+      cost: { input_tokens: 11, output_tokens: 7, wall_clock_seconds: 2.5 },
+      criteria_results: [{ id: 'C-001', title: 'x', verdict: 'pass' }],
+    }),
+  );
+  await Bun.write(
+    join(dir, 'agent/artifacts/lab-run/transcript.jsonl'),
+    JSON.stringify({ role: 'assistant', input_tokens: 101, output_tokens: 13 }) + '\n',
+  );
+
+  const path = await outputOf(
+    rollout({
+      metadata: { trial_uri: dir, trial_name: 'trial-1' },
+    }),
+  );
+
+  const [only] = await read(path);
+  expect(only?.result).toBe('passed');
+  expect(only?.criteria).toHaveLength(1);
+  expect(only?.criteria[0]?.result).toBe('pass');
+  expect(only?.tokens).toEqual({
+    agentInputTokens: 101,
+    agentOutputTokens: 13,
+    agentTurns: 1,
+    judgeInputTokens: 11,
+    judgeOutputTokens: 7,
+    judgeWallClockSeconds: 2.5,
+  });
 });

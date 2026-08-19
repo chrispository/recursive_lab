@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Criterion inspection — layout studies</title>
+<!-- tokens.css inlined so this opens standalone over file:// too. -->
+<style>
+/* ============================================================================
+   Design tokens. Every colour, space, and type size in the app comes from here.
+   No component file may hardcode a colour.
+
+   Two themes: Ink (light, default) and the dark instrument palette. The theme
+   is chosen by `data-theme` on <html>, which the pre-paint script in
+   Document.tsx always sets. The @media block is the no-JS fallback.
+
+   NOTE: the dark palette appears twice — once under [data-theme="dark"] and
+   once under the media query. CSS has no way to share one declaration block
+   between a selector and a media query. If you edit one, edit both.
+   ========================================================================= */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* Text ramp. Four steps, each clearing 4.5:1 on --raised. */
+  --text-1: #101314;
+  --text-2: #3f4749;
+  --text-3: #636c6e;
+  --text-4: #868f91;
+
+  /* Borders, split by job. */
+  --line-soft: #dfe3e2;   /* decorative divider between rows */
+  --line: #cfd5d3;        /* panel frame */
+  --edge: #7f8886;        /* control bounds, 3:1 */
+
+  /* Grounds, darkest to lightest surface. */
+  --black: #eff2f0;       /* page ground */
+  --deeper: #e3e8e5;      /* rail */
+  --deep: #eaeeec;        /* table caption bar */
+  --panel: #fafbfa;
+  --raised: #e6ebe8;      /* inputs */
+  --raised-2: #dbe1de;    /* input hover, bar track */
+  --code-bg: #dfe5e2;
+  --focus-bg: #fdfffe;
+
+  /* Accent + status. */
+  --brand: #c8452a;
+  --brand-ink: #9b3520;   /* brand as text, where the fill is too light */
+  --brand-press: #a8371f;
+  --btn-ink: #fdf7f5;     /* text on a brand fill — light, because Ink's brand is dark */
+  --pass: #26654a;
+  --fail: #9c3126;
+  --run: #1c6178;
+  --warn: #7f5610;
+  --good: #1b2122;
+  --bad: #8c2a1f;
+
+  /* Overlays and washes. */
+  --grid: rgba(16, 19, 20, 0.05);
+  --scanline: rgba(16, 19, 20, 0.02);
+  --glow: rgba(16, 19, 20, 0.16);
+  --inset: rgba(16, 19, 20, 0.025);
+  --wash: rgba(16, 19, 20, 0.045);      /* row hover */
+  --wash-2: rgba(16, 19, 20, 0.08);     /* row selected */
+  --shadow: rgba(25, 45, 40, 0.18);
+  --panel-bg: rgba(250, 251, 250, 0.97);
+  --notice-bg: rgba(250, 251, 250, 0.95);
+  --focus-ring: rgba(16, 19, 20, 0.12);
+  --hover-border: #6b7472;
+  --primary-hover: #2c3436;
+  --card-hover: #7c8583;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --text-1: #f2f2f0;
+  --text-2: #b3b3af;
+  --text-3: #7c7c79;
+  --text-4: #60605d;
+
+  --line-soft: #1a1a18;
+  --line: #232321;
+  --edge: #5d5d59;
+
+  --black: #050505;
+  --deeper: #070707;
+  --deep: #080808;
+  --panel: #0a0a0a;
+  --raised: #101010;
+  --raised-2: #151515;
+  --code-bg: #060606;
+  --focus-bg: #0c0c0c;
+
+  --brand: #ff5c35;
+  --brand-ink: #ff5c35;
+  --brand-press: #d9481f;
+  --btn-ink: #160a05;
+  --pass: #4fa76f;
+  --fail: #e46452;
+  --run: #5aa9d6;
+  --warn: #d9a441;
+  --good: #e8e8e4;
+  --bad: #ffffff;
+
+  --grid: rgba(255, 255, 255, 0.027);
+  --scanline: rgba(255, 255, 255, 0.025);
+  --glow: rgba(255, 255, 255, 0.75);
+  --inset: rgba(255, 255, 255, 0.012);
+  --wash: rgba(255, 255, 255, 0.04);
+  --wash-2: rgba(255, 255, 255, 0.07);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --panel-bg: rgba(9, 9, 9, 0.95);
+  --notice-bg: rgba(5, 5, 5, 0.9);
+  --focus-ring: rgba(255, 255, 255, 0.09);
+  --hover-border: #777777;
+  --primary-hover: #bdbdb8;
+  --card-hover: #4b4b48;
+}
+
+/* No-JS fallback. Keep identical to [data-theme="dark"] above. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --text-1: #f2f2f0;
+    --text-2: #b3b3af;
+    --text-3: #7c7c79;
+    --text-4: #60605d;
+
+    --line-soft: #1a1a18;
+    --line: #232321;
+    --edge: #5d5d59;
+
+    --black: #050505;
+    --deeper: #070707;
+    --deep: #080808;
+    --panel: #0a0a0a;
+    --raised: #101010;
+    --raised-2: #151515;
+    --code-bg: #060606;
+    --focus-bg: #0c0c0c;
+
+    --brand: #ff5c35;
+    --brand-ink: #ff5c35;
+    --brand-press: #d9481f;
+    --btn-ink: #160a05;
+    --pass: #4fa76f;
+    --fail: #e46452;
+    --run: #5aa9d6;
+    --warn: #d9a441;
+    --good: #e8e8e4;
+    --bad: #ffffff;
+
+    --grid: rgba(255, 255, 255, 0.027);
+    --scanline: rgba(255, 255, 255, 0.025);
+    --glow: rgba(255, 255, 255, 0.75);
+    --inset: rgba(255, 255, 255, 0.012);
+    --wash: rgba(255, 255, 255, 0.04);
+    --wash-2: rgba(255, 255, 255, 0.07);
+    --shadow: rgba(0, 0, 0, 0.5);
+    --panel-bg: rgba(9, 9, 9, 0.95);
+    --notice-bg: rgba(5, 5, 5, 0.9);
+    --focus-ring: rgba(255, 255, 255, 0.09);
+    --hover-border: #777777;
+    --primary-hover: #bdbdb8;
+    --card-hover: #4b4b48;
+  }
+}
+
+/* Theme-independent scales. ------------------------------------------------ */
+
+:root {
+  /* Reading UI is sans. Mono is a stamp: ids, numerals, code, prompts. */
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: 'Avenir Next', 'Segoe UI', Inter, 'Adwaita Sans', 'Noto Sans', system-ui, sans-serif;
+
+  /* 4px rhythm. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+
+  /* Six-step type scale. */
+  --t-micro: 10px;
+  --t-label: 11px;
+  --t-body: 12.5px;
+  --t-data: 13px;
+  --t-sub: 17px;
+
+  --measure: 62ch;
+  --radius: 0; /* on purpose — this is an instrument, not a card UI */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --pad-panel: var(--s5);
+  --pad-row: var(--s4);
+  --rail-w: 186px;
+}
+
+:root[data-density='compact'] {
+  --pad-panel: var(--s3);
+  --pad-row: 10px;
+}
+
+</style>
+<style>
+/* ── Mockup chrome only. Everything below the "VARIANT" rules is candidate CSS. */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+body {
+  min-height: 100vh;
+  color: var(--text-2);
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    var(--black);
+  background-size: 32px 32px;
+  font: var(--t-body)/1.6 var(--sans);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  padding: var(--s6) var(--s5) var(--s7);
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: var(--s6); }
+.mock-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; }
+.mock-head h1 { font: 500 var(--t-sub)/1.2 var(--sans); color: var(--text-1); }
+.mock-head p { color: var(--text-3); font-size: var(--t-label); max-width: 60ch; }
+.mock-toggles { display: flex; gap: var(--s2); }
+.mock-toggles button {
+  font: 500 var(--t-micro)/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  padding: 7px 10px; color: var(--text-2); background: var(--raised);
+  border: 1px solid var(--edge); cursor: pointer;
+}
+.mock-toggles button[aria-pressed='true'] { color: var(--btn-ink); background: var(--brand); border-color: var(--brand); }
+.variant > h2 {
+  font: 500 var(--t-micro)/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--brand-ink); margin-bottom: 6px;
+}
+.variant > .note { color: var(--text-3); font-size: var(--t-label); margin-bottom: var(--s3); max-width: 78ch; }
+
+/* ── Shared shell: the TableBox + Cap the real page already uses. ─────────── */
+.m-box { border: 1px solid var(--line); background: var(--panel); }
+.m-cap {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  padding: 9px var(--s3); background: var(--deep); border-bottom: 1px solid var(--line);
+}
+.m-cap b { font: 600 var(--t-micro)/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--text-1); }
+.m-cap span { font: var(--t-micro)/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.m-id { font: 500 var(--t-micro)/1 var(--mono); letter-spacing: .04em; color: var(--text-3); }
+.m-taskhead {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: 4px 12px; padding: 8px var(--s3); background: var(--inset); border-bottom: 1px solid var(--line-soft);
+}
+.m-taskhead .m-id { font-size: var(--t-label); color: var(--text-2); }
+.m-tally { font: var(--t-micro)/1 var(--mono); color: var(--text-3); letter-spacing: .04em; }
+.m-tally b { font-weight: 600; }
+.m-tally b.hot { color: var(--fail); }
+.btn-ghost {
+  font: 500 var(--t-micro)/1 var(--sans); letter-spacing: .06em; text-transform: uppercase;
+  padding: 6px 9px; color: var(--text-2); background: transparent;
+  border: 1px solid var(--line); cursor: pointer;
+}
+.btn-ghost:hover { color: var(--text-1); border-color: var(--edge); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VARIANT A — BASELINE (what ships today)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.vA .list { display: grid; gap: 6px; padding: 6px; background: var(--wash); }
+.vA .m-criterion { border: 1px solid var(--line); border-left: 3px solid var(--text-4); background: var(--panel); }
+.vA .m-criterion.pass { border-left-color: var(--pass); }
+.vA .m-criterion.fail { border-left-color: var(--fail); }
+.vA .m-criterion summary {
+  display: grid; grid-template-columns: 42px 52px minmax(0,1fr); align-items: baseline; gap: 10px;
+  padding: 10px 12px; color: var(--text-1); cursor: pointer; list-style: none;
+}
+.vA .m-criterion summary::-webkit-details-marker { display: none; }
+.vA .verdict { font: 600 var(--t-micro)/1 var(--sans); letter-spacing: .08em; }
+.vA .pass .verdict { color: var(--pass); }
+.vA .fail .verdict { color: var(--fail); }
+.vA .body { padding: 0 12px 12px 104px; }
+.vA .body p { color: var(--text-3); font-size: var(--t-label); line-height: 1.55; }
+.vA .body button { margin-top: 12px; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VARIANT B — LEDGER ROWS
+   Kills the 6px gutter and the card-per-criterion. One hairline-ruled list,
+   a fixed verdict gutter, reasoning indented under the title it explains.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.vB .row { border-top: 1px solid var(--line-soft); }
+.vB .row:first-of-type { border-top: 0; }
+.vB .row > summary {
+  display: grid; grid-template-columns: 58px 46px minmax(0,1fr) auto;
+  align-items: baseline; gap: var(--s3);
+  padding: 9px var(--s3); cursor: pointer; list-style: none;
+}
+.vB .row > summary::-webkit-details-marker { display: none; }
+.vB .row > summary:hover { background: var(--wash); }
+/* Verdict as a filled stamp, not a floating word — it reads as a column even
+   when the titles below it run three lines. */
+.vB .verdict {
+  justify-self: start; padding: 3px 6px;
+  font: 600 var(--t-micro)/1 var(--sans); letter-spacing: .1em;
+  border: 1px solid currentColor;
+}
+.vB .pass > summary .verdict { color: var(--pass); background: color-mix(in srgb, var(--pass) 10%, transparent); }
+.vB .fail > summary .verdict { color: var(--fail); background: color-mix(in srgb, var(--fail) 12%, transparent); }
+.vB .title { color: var(--text-1); min-width: 0; overflow-wrap: anywhere; }
+.vB .chev { font: var(--t-micro)/1 var(--mono); color: var(--text-4); }
+.vB .row[open] .chev { color: var(--text-2); }
+.vB .body { padding: 0 var(--s3) var(--s3) calc(58px + 46px + var(--s3) * 3); }
+.vB .body p { color: var(--text-2); font-size: var(--t-label); line-height: 1.6; max-width: 92ch; }
+.vB .body .btn-ghost { margin-top: 10px; }
+/* Failures carry a spine; passes stay flat so the eye lands on the failures. */
+.vB .row.fail { box-shadow: inset 3px 0 0 var(--fail); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VARIANT C — FAILURES FIRST
+   Splits the list in two: failures expanded with full reasoning, passes
+   collapsed into a dense one-line roster behind a single disclosure.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.vC .group-head {
+  display: flex; align-items: baseline; gap: var(--s2);
+  padding: 8px var(--s3); background: var(--inset);
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line-soft);
+  font: 600 var(--t-micro)/1 var(--sans); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-2); cursor: pointer; list-style: none;
+}
+.vC .group-head::-webkit-details-marker { display: none; }
+.vC .group-head .count { font: 500 var(--t-micro)/1 var(--mono); color: var(--text-3); letter-spacing: .04em; }
+.vC .group-head.hot { color: var(--fail); }
+.vC .fail-item { padding: var(--s3); border-top: 1px solid var(--line-soft); box-shadow: inset 3px 0 0 var(--fail); }
+.vC .fail-item:first-of-type { border-top: 0; }
+.vC .fail-item .head { display: flex; align-items: baseline; gap: var(--s2); margin-bottom: 6px; }
+.vC .fail-item .title { color: var(--text-1); font-weight: 500; }
+.vC .fail-item p { color: var(--text-2); font-size: var(--t-label); line-height: 1.6; max-width: 92ch; }
+.vC .fail-item .btn-ghost { margin-top: 10px; }
+/* Passes: two columns of one-liners. Twelve of them cost one screen inch. */
+.vC .pass-roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+.vC .pass-roster > li {
+  display: grid; grid-template-columns: 46px minmax(0,1fr); gap: var(--s2); align-items: baseline;
+  padding: 6px var(--s3); border-top: 1px solid var(--line-soft); list-style: none;
+  font-size: var(--t-label); color: var(--text-2);
+}
+.vC .pass-roster > li:hover { background: var(--wash); color: var(--text-1); }
+.vC .pass-roster .tick { color: var(--pass); font: 600 var(--t-micro)/1 var(--mono); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VARIANT D — TABLE
+   Same grammar as the run ledger above it on the page: real columns, sticky
+   header, reasoning as a clamped cell that expands on click.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.vD table { width: 100%; border-collapse: collapse; }
+.vD th {
+  padding: 7px var(--s3); text-align: left; background: var(--deep);
+  border-bottom: 1px solid var(--line);
+  font: 600 var(--t-micro)/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3);
+}
+.vD td { padding: 8px var(--s3); border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.vD tr:hover td { background: var(--wash); }
+.vD .c-verdict { width: 68px; font: 600 var(--t-micro)/1.6 var(--sans); letter-spacing: .08em; }
+.vD tr.pass .c-verdict { color: var(--pass); }
+.vD tr.fail .c-verdict { color: var(--fail); }
+.vD tr.fail td:first-child { box-shadow: inset 3px 0 0 var(--fail); }
+.vD .c-id { width: 60px; }
+.vD .c-title { color: var(--text-1); }
+/* Reasoning is the wide column, clamped to two lines so the row height stays
+   a row height. Click the cell for the rest. */
+.vD .c-why { width: 46%; color: var(--text-3); font-size: var(--t-label); line-height: 1.5; }
+.vD .c-why p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.vD .c-why input { display: none; }
+.vD .c-why input:checked + p { -webkit-line-clamp: unset; }
+.vD .c-act { width: 42px; text-align: right; }
+.vD .c-act a { color: var(--text-4); text-decoration: none; font: var(--t-body)/1.4 var(--mono); }
+.vD .c-act a:hover { color: var(--brand-ink); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VARIANT E — SPLIT INSPECTOR
+   The list stops being the reading surface. Left rail is a scannable index of
+   all 23 criteria; the pane holds one criterion's full detail at a time.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.vE .split { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0,1fr); min-height: 360px; }
+.vE .index { border-right: 1px solid var(--line); overflow: auto; max-height: 420px; }
+.vE .index li { list-style: none; border-bottom: 1px solid var(--line-soft); }
+.vE .index label {
+  display: grid; grid-template-columns: 10px 44px minmax(0,1fr); gap: var(--s2); align-items: baseline;
+  padding: 8px var(--s3); cursor: pointer; font-size: var(--t-label); color: var(--text-2);
+}
+.vE .index label:hover { background: var(--wash); }
+.vE .dot { width: 7px; height: 7px; border-radius: 50%; align-self: center; }
+.vE .pass .dot { background: var(--pass); }
+.vE .fail .dot { background: var(--fail); }
+.vE .index input { display: none; }
+.vE .index input:checked + label { background: var(--wash-2); color: var(--text-1); box-shadow: inset 3px 0 0 var(--brand); }
+/* One pane, repainted by the rail selection (JS at the foot of the file). */
+.vE .pane { padding: var(--s4) var(--s5); }
+.vE .pane .verdict { font: 600 var(--t-micro)/1 var(--sans); letter-spacing: .1em; }
+.vE .pane.pass .verdict { color: var(--pass); }
+.vE .pane.fail .verdict { color: var(--fail); }
+.vE .pane h3 { font: 500 15px/1.35 var(--sans); color: var(--text-1); margin: 6px 0 var(--s3); max-width: 52ch; }
+.vE .pane p { color: var(--text-2); font-size: var(--t-body); line-height: 1.65; max-width: var(--measure); }
+.vE .pane .meta { display: flex; gap: var(--s3); align-items: baseline; }
+.vE .pane .btn-ghost { margin-top: var(--s4); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mock-head">
+    <div>
+      <h1>Criterion inspection — four ways out of the card stack</h1>
+      <p>Same run, same 23 criteria. A is what ships today; B–E each attack a different problem with it:
+         the 6px card gutter, the reasoning-block wall, the pass/fail mix, and the fact that this list sits
+         directly under a table but doesn't look like one.</p>
+    </div>
+    <div class="mock-toggles">
+      <button id="t-light" aria-pressed="true">Light</button>
+      <button id="t-dark" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+
+  <!-- ══ A ══════════════════════════════════════════════════════════════ -->
+  <section class="variant vA">
+    <h2>A · Baseline (today)</h2>
+    <p class="note">Every criterion is a bordered card on a washed gutter, and every open one reserves
+       a 104px left indent for reasoning. Two passes and a fail cost the same vertical space as a paragraph.</p>
+    <div class="m-box">
+      <div class="m-cap"><b>Criterion inspection</b><span>1 task · 23 criteria</span></div>
+      <div class="m-taskhead">
+        <span class="m-id">employment-labor__identify-issues-in-counterparty-motion-brief</span>
+        <span class="m-tally">17 passed · <b class="hot">6 failed</b></span>
+      </div>
+      <div class="list">
+        <details class="m-criterion pass"><summary><span class="verdict">PASS</span><span class="m-id">C-001</span><span>Identifies faltering company exception limited to plant closings only</span></summary>
+          <div class="body"><p>The memo expressly identifies that the faltering company exception under 29 U.S.C. § 2102(b)(1) is textually tied to plant closings and that 20 C.F.R. § 639.9(a) confirms it does not apply to mass layoffs.</p><button class="btn-ghost">View task / judge score</button></div></details>
+        <details class="m-criterion fail" open><summary><span class="verdict">FAIL</span><span class="m-id">C-002</span><span>Notes inconsistent application of faltering company argument across facilities</span></summary>
+          <div class="body"><p>The memo discusses the faltering company exception and notes the plant closing/mass layoff distinction. However, it does not identify any inconsistency in Plaintiff's brief applying the exception differently across the three facilities.</p><button class="btn-ghost">View task / judge score</button></div></details>
+        <details class="m-criterion pass"><summary><span class="verdict">PASS</span><span class="m-id">C-003</span><span>Identifies Huntsville fails independent WARN Act mass layoff threshold (37 &lt; 50)</span></summary>
+          <div class="body"><p>Correctly computes the threshold.</p><button class="btn-ghost">View task / judge score</button></div></details>
+        <details class="m-criterion pass"><summary><span class="verdict">PASS</span><span class="m-id">C-004</span><span>Identifies Plaintiff's aggregation theory for single site of employment</span></summary>
+          <div class="body"><p>Names the aggregation theory and its statutory basis.</p><button class="btn-ghost">View task / judge score</button></div></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ B ══════════════════════════════════════════════════════════════ -->
+  <section class="variant vB">
+    <h2>B · Ledger rows</h2>
+    <p class="note">One ruled list, no gutter, no per-card border. Verdict becomes a stamped chip in a fixed
+       column; failures get an inset spine so they're findable without colour alone. Passes collapse by default —
+       a pass with no dispute doesn't need its reasoning on screen.</p>
+    <div class="m-box">
+      <div class="m-cap"><b>Criterion inspection</b><span>1 task · 23 criteria</span></div>
+      <div class="m-taskhead">
+        <span class="m-id">employment-labor__identify-issues-in-counterparty-motion-brief</span>
+        <span class="m-tally">17 passed · <b class="hot">6 failed</b></span>
+      </div>
+      <details class="row pass"><summary><span class="verdict">PASS</span><span class="m-id">C-001</span><span class="title">Identifies faltering company exception limited to plant closings only</span><span class="chev">＋</span></summary>
+        <div class="body"><p>The memo expressly identifies that the faltering company exception under 29 U.S.C. § 2102(b)(1) is textually tied to plant closings and that 20 C.F.R. § 639.9(a) confirms it does not apply to mass layoffs. It also notes the relevance: Voss testified no plant closed and all three facilities remain operational.</p><button class="btn-ghost">View task / judge score</button></div></details>
+      <details class="row fail" open><summary><span class="verdict">FAIL</span><span class="m-id">C-002</span><span class="title">Notes inconsistent application of faltering company argument across facilities</span><span class="chev">－</span></summary>
+        <div class="body"><p>The memo discusses the faltering company exception and notes the plant closing/mass layoff distinction, including that Greenleaf should not rely on it where facilities remained operational. However, it does not identify any inconsistency in Plaintiff's brief applying the exception differently across the three facilities.</p><button class="btn-ghost">View task / judge score</button></div></details>
+      <details class="row pass"><summary><span class="verdict">PASS</span><span class="m-id">C-003</span><span class="title">Identifies Huntsville fails independent WARN Act mass layoff threshold (37 &lt; 50)</span><span class="chev">＋</span></summary>
+        <div class="body"><p>Correctly computes 37 of 143 employees (25.9%) and reads the threshold against the statute.</p><button class="btn-ghost">View task / judge score</button></div></details>
+      <details class="row pass"><summary><span class="verdict">PASS</span><span class="m-id">C-004</span><span class="title">Identifies Plaintiff's aggregation theory for single site of employment</span><span class="chev">＋</span></summary>
+        <div class="body"><p>Names the aggregation theory and its statutory basis.</p><button class="btn-ghost">View task / judge score</button></div></details>
+      <details class="row fail" open><summary><span class="verdict">FAIL</span><span class="m-id">C-005</span><span class="title">Identifies misquotation of Hargrove v. Consolidated Logistics (insertion of 'completely')</span><span class="chev">－</span></summary>
+        <div class="body"><p>The memo does not identify that Plaintiff's brief misquotes Hargrove by inserting 'completely' before 'beyond the employer's control.' It only flags Hargrove for verification and says to quote it accurately, without noting the alleged misquotation or its effect on the legal standard.</p><button class="btn-ghost">View task / judge score</button></div></details>
+    </div>
+  </section>
+
+  <!-- ══ C ══════════════════════════════════════════════════════════════ -->
+  <section class="variant vC">
+    <h2>C · Failures first, passes as a roster</h2>
+    <p class="note">The six failures are the reason anyone opens this panel, so they get the top of the box and
+       full reasoning without a click. The seventeen passes drop into a two-column roster that fits on one
+       screen inch and stays available.</p>
+    <div class="m-box">
+      <div class="m-cap"><b>Criterion inspection</b><span>1 task · 23 criteria</span></div>
+      <div class="m-taskhead">
+        <span class="m-id">employment-labor__identify-issues-in-counterparty-motion-brief</span>
+        <span class="m-tally">17 passed · <b class="hot">6 failed</b></span>
+      </div>
+      <div class="group-head hot" style="border-top:0">Failed <span class="count">6</span></div>
+      <div class="fail-item">
+        <div class="head"><span class="m-id">C-002</span><span class="title">Notes inconsistent application of faltering company argument across facilities</span></div>
+        <p>The memo discusses the faltering company exception and notes the plant closing/mass layoff distinction, including that Greenleaf should not rely on it where facilities remained operational. However, it does not identify any inconsistency in Plaintiff's brief applying the exception differently across the three facilities.</p>
+        <button class="btn-ghost">View task / judge score</button>
+      </div>
+      <div class="fail-item">
+        <div class="head"><span class="m-id">C-005</span><span class="title">Identifies misquotation of Hargrove v. Consolidated Logistics (insertion of 'completely')</span></div>
+        <p>The memo does not identify that Plaintiff's brief misquotes Hargrove by inserting 'completely' before 'beyond the employer's control.' It only flags Hargrove for verification and says to quote it accurately.</p>
+        <button class="btn-ghost">View task / judge score</button>
+      </div>
+      <details open>
+        <summary class="group-head">Passed <span class="count">17</span></summary>
+        <ul class="pass-roster">
+          <li><span class="tick">C-001</span><span>Identifies faltering company exception limited to plant closings only</span></li>
+          <li><span class="tick">C-003</span><span>Identifies Huntsville fails independent WARN mass layoff threshold (37 &lt; 50)</span></li>
+          <li><span class="tick">C-004</span><span>Identifies Plaintiff's aggregation theory for single site of employment</span></li>
+          <li><span class="tick">C-006</span><span>Flags 60-day notice window computation</span></li>
+          <li><span class="tick">C-007</span><span>Identifies unforeseeable business circumstances defence</span></li>
+          <li><span class="tick">C-008</span><span>Notes Voss deposition testimony on facility operations</span></li>
+        </ul>
+      </details>
+    </div>
+  </section>
+
+  <!-- ══ D ══════════════════════════════════════════════════════════════ -->
+  <section class="variant vD">
+    <h2>D · Table, matching the run ledger</h2>
+    <p class="note">This panel sits directly under a numeric table; here it borrows the same grammar. Reasoning
+       is a real column clamped to two lines, so 23 criteria fit in one screen and a row stays a row. Click a
+       reasoning cell to expand it in place.</p>
+    <div class="m-box">
+      <div class="m-cap"><b>Criterion inspection</b><span>1 task · 23 criteria</span></div>
+      <div class="m-taskhead">
+        <span class="m-id">employment-labor__identify-issues-in-counterparty-motion-brief</span>
+        <span class="m-tally">17 passed · <b class="hot">6 failed</b></span>
+      </div>
+      <table>
+        <thead><tr><th class="c-verdict">Result</th><th class="c-id">ID</th><th>Criterion</th><th class="c-why">Judge reasoning</th><th class="c-act"></th></tr></thead>
+        <tbody>
+          <tr class="pass"><td class="c-verdict">PASS</td><td class="c-id m-id">C-001</td><td class="c-title">Identifies faltering company exception limited to plant closings only</td>
+            <td class="c-why"><input type="checkbox" id="d1"><p><label for="d1">The memo expressly identifies that the faltering company exception under 29 U.S.C. § 2102(b)(1) is textually tied to plant closings and that 20 C.F.R. § 639.9(a) confirms it does not apply to mass layoffs. It also notes Voss testified no plant closed.</label></p></td>
+            <td class="c-act"><a href="#" title="View task / judge score">↗</a></td></tr>
+          <tr class="fail"><td class="c-verdict">FAIL</td><td class="c-id m-id">C-002</td><td class="c-title">Notes inconsistent application of faltering company argument across facilities</td>
+            <td class="c-why"><input type="checkbox" id="d2"><p><label for="d2">The memo discusses the exception and the plant closing/mass layoff distinction, but does not identify any inconsistency in Plaintiff's brief applying it differently across the three facilities. It frames the issue as Greenleaf's own vulnerability instead.</label></p></td>
+            <td class="c-act"><a href="#">↗</a></td></tr>
+          <tr class="pass"><td class="c-verdict">PASS</td><td class="c-id m-id">C-003</td><td class="c-title">Identifies Huntsville fails independent WARN mass layoff threshold (37 &lt; 50)</td>
+            <td class="c-why"><input type="checkbox" id="d3"><p><label for="d3">Computes 37 of 143 employees (25.9%) and reads the threshold against the statute.</label></p></td>
+            <td class="c-act"><a href="#">↗</a></td></tr>
+          <tr class="pass"><td class="c-verdict">PASS</td><td class="c-id m-id">C-004</td><td class="c-title">Identifies Plaintiff's aggregation theory for single site of employment</td>
+            <td class="c-why"><input type="checkbox" id="d4"><p><label for="d4">Names the aggregation theory and its statutory basis.</label></p></td>
+            <td class="c-act"><a href="#">↗</a></td></tr>
+          <tr class="fail"><td class="c-verdict">FAIL</td><td class="c-id m-id">C-005</td><td class="c-title">Identifies misquotation of Hargrove v. Consolidated Logistics</td>
+            <td class="c-why"><input type="checkbox" id="d5"><p><label for="d5">Does not identify that Plaintiff's brief misquotes Hargrove by inserting 'completely' before 'beyond the employer's control.' It only flags Hargrove for verification without noting the misquotation or its effect on the legal standard.</label></p></td>
+            <td class="c-act"><a href="#">↗</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══ E ══════════════════════════════════════════════════════════════ -->
+  <section class="variant vE">
+    <h2>E · Split inspector</h2>
+    <p class="note">Stops scrolling entirely: the left rail indexes all 23 criteria at one line each, the right
+       pane gives the selected one real reading width. Best if criterion counts keep growing or a run covers
+       several tasks.</p>
+    <div class="m-box">
+      <div class="m-cap"><b>Criterion inspection</b><span>1 task · 23 criteria</span></div>
+      <div class="m-taskhead">
+        <span class="m-id">employment-labor__identify-issues-in-counterparty-motion-brief</span>
+        <span class="m-tally">17 passed · <b class="hot">6 failed</b></span>
+      </div>
+      <div class="split">
+        <ul class="index">
+          <li class="pass"><input type="radio" name="vE" id="e1"><label for="e1"><span class="dot"></span><span class="m-id">C-001</span><span>Faltering company exception limited to plant closings</span></label></li>
+          <li class="fail"><input type="radio" name="vE" id="e2" checked><label for="e2"><span class="dot"></span><span class="m-id">C-002</span><span>Inconsistent application across facilities</span></label></li>
+          <li class="pass"><input type="radio" name="vE" id="e3"><label for="e3"><span class="dot"></span><span class="m-id">C-003</span><span>Huntsville fails mass layoff threshold (37 &lt; 50)</span></label></li>
+          <li class="pass"><input type="radio" name="vE" id="e4"><label for="e4"><span class="dot"></span><span class="m-id">C-004</span><span>Plaintiff's aggregation theory for single site</span></label></li>
+          <li class="fail"><input type="radio" name="vE" id="e5"><label for="e5"><span class="dot"></span><span class="m-id">C-005</span><span>Misquotation of Hargrove v. Consolidated Logistics</span></label></li>
+          <li class="pass"><input type="radio" name="vE" id="e6"><label for="e6"><span class="dot"></span><span class="m-id">C-006</span><span>60-day notice window computation</span></label></li>
+          <li class="pass"><input type="radio" name="vE" id="e7"><label for="e7"><span class="dot"></span><span class="m-id">C-007</span><span>Unforeseeable business circumstances defence</span></label></li>
+        </ul>
+        <div class="pane fail" data-for="e2">
+          <div class="meta"><span class="verdict">FAIL</span><span class="m-id">C-002</span></div>
+          <h3>Notes inconsistent application of faltering company argument across facilities</h3>
+          <p>The memo discusses the faltering company exception and notes the plant closing/mass layoff
+             distinction, including that Greenleaf should not rely on it where facilities remained operational.
+             However, it does not identify any inconsistency in Plaintiff's brief applying the faltering company
+             exception differently across the three facilities. The memo frames the issue as Greenleaf's own
+             vulnerability rather than pointing out that Plaintiff's brief inconsistently applies the exception
+             facility-by-facility.</p>
+          <button class="btn-ghost">View task / judge score</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  /* Theme toggle + a tiny bit of wiring so E's pane follows the rail. */
+  const setTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    t1.setAttribute('aria-pressed', String(t === 'light'));
+    t2.setAttribute('aria-pressed', String(t === 'dark'));
+  };
+  const t1 = document.getElementById('t-light'), t2 = document.getElementById('t-dark');
+  t1.onclick = () => setTheme('light');
+  t2.onclick = () => setTheme('dark');
+
+  const pane = document.querySelector('.vE .pane');
+  const copy = {
+    e1: ['pass', 'C-001', 'Identifies faltering company exception limited to plant closings only', "The memo expressly identifies that the faltering company exception under 29 U.S.C. § 2102(b)(1) is textually tied to plant closings and that 20 C.F.R. § 639.9(a) confirms it does not apply to mass layoffs. Voss testified no plant closed and all three facilities remain operational."],
+    e2: ['fail', 'C-002', 'Notes inconsistent application of faltering company argument across facilities', "The memo discusses the faltering company exception and notes the plant closing/mass layoff distinction. However, it does not identify any inconsistency in Plaintiff's brief applying the exception differently across the three facilities."],
+    e3: ['pass', 'C-003', 'Identifies Huntsville fails independent WARN Act mass layoff threshold (37 < 50)', 'Computes 37 of 143 employees (25.9%) and reads the threshold against the statute.'],
+    e4: ['pass', 'C-004', "Identifies Plaintiff's aggregation theory for single site of employment", 'Names the aggregation theory and its statutory basis.'],
+    e5: ['fail', 'C-005', "Identifies misquotation of Hargrove v. Consolidated Logistics (insertion of 'completely')", "Does not identify that Plaintiff's brief misquotes Hargrove by inserting 'completely' before 'beyond the employer's control.'"],
+    e6: ['pass', 'C-006', 'Flags 60-day notice window computation', 'Computes the window from the notice date and states the statutory basis.'],
+    e7: ['pass', 'C-007', 'Identifies unforeseeable business circumstances defence', 'Raises the defence and the evidence it would need.'],
+  };
+  document.querySelectorAll('.vE .index input').forEach((r) => r.addEventListener('change', () => {
+    const [v, id, title, why] = copy[r.id];
+    pane.className = 'pane ' + v;
+    pane.querySelector('.verdict').textContent = v.toUpperCase();
+    pane.querySelector('.m-id').textContent = id;
+    pane.querySelector('h3').textContent = title;
+    pane.querySelector('p').textContent = why;
+  }));
+</script>
+</body>
+</html>

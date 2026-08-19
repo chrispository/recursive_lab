@@ -90,6 +90,16 @@ export type BenchmarkRunSummary = {
   resultCriteriaTotal: number | null;
   resultCriteriaPassed: number | null;
   resultCriteriaFailed: number | null;
+  /**
+   * Criteria the judge could not grade. Never folded into `resultCriteriaFailed`
+   * — a criterion that could not be graded is not one the model got wrong, and
+   * it means the pass rate beside it is over a smaller denominator than the run
+   * asked for.
+   */
+  resultCriteriaUngraded: number | null;
+  resultTasksFailed: number | null;
+  /** Same argument one level up: a task that errored is not a task that failed. */
+  resultTasksErrored: number | null;
 };
 
 export type RunSettings = {

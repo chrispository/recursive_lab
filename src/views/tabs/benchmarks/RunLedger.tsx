@@ -27,8 +27,8 @@ function LiveRun({ run, job, live }: { run: BenchmarkRunSummary; job: JobRow; li
   const progress = total ? `${(done / total) * 100}%` : '0%';
   return (
     <article class="m-ledger-row m-ledger-live" data-state={job.status}>
+      <span class="m-ledger-run-code"><Id value={run.benchmarkRunCode} /></span>
       <div class="m-ledger-orb-wrap">
-        <Id value={run.benchmarkRunCode} />
         <canvas
           class="m-thinking-orb m-ledger-orb"
           data-thinking-orb
@@ -86,8 +86,8 @@ function CompletedRun({ run }: { run: BenchmarkRunSummary }) {
   const bar = allPass === null ? 0 : Math.max(0, Math.min(1, allPass)) * 100;
   return (
     <article class="m-ledger-row m-ledger-complete" data-state={state}>
+      <span class="m-ledger-run-code"><Id value={run.benchmarkRunCode} /></span>
       <div class="m-ledger-orb-wrap">
-        <Id value={run.benchmarkRunCode} />
         <span class="m-ledger-result-mark" aria-label={kicker}>{mark}</span>
       </div>
       <div class="m-ledger-identity">

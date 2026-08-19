@@ -1,11 +1,34 @@
 import type { BenchmarkCriterionResult, BenchmarkTaskCriteria, BenchmarkRunSummary } from '../../domain/runs/model.ts';
-import { Badge } from '../ui/Badge.tsx';
 import { Cap } from '../ui/Cap.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
-import { Tally } from '../ui/Tally.tsx';
 
 const numberOf = (value: unknown) => (typeof value === 'number' ? value : Number(value ?? 0));
+
+/** An em dash, not a zero. A run that recorded nothing did not score nothing. */
+const dash = <span class="none">—</span>;
+
+/**
+ * A count, tinted only when it is non-zero.
+ *
+ * A green 0 passed and a red 0 failed both claim something the number does not,
+ * so the colour is reserved for counts that actually happened.
+ */
+function count(value: number | null, tone: 'pass' | 'fail') {
+  if (value === null) return dash;
+  return <b class={value > 0 ? tone : undefined}>{value}</b>;
+}
+
+/**
+ * A share of a total, as the group beside it defines it.
+ *
+ * Deliberately unlabelled: it sits last in its column group, so the header
+ * spanning that group says which denominator it is over.
+ */
+function rate(part: number | null, total: number | null) {
+  if (part === null || total === null || total === 0) return dash;
+  return `${((part / total) * 100).toFixed(1)}%`;
+}
 
 /** Stable per-criterion dialog id. Criterion ids repeat across tasks, so both. */
 const dialogId = (taskId: string, criterionId: string) =>
@@ -72,6 +95,58 @@ function CriterionDialog({ taskId, criterion }: { taskId: string; criterion: Ben
   );
 }
 
+/**
+ * One run per row, with its own counts.
+ *
+ * The counts used to live in the caption tally at the top right, which meant a
+ * page listing several runs showed exactly one run's numbers and left you to
+ * guess which. Each pass rate sits immediately after the group it divides —
+ * task pass rate closes the task columns, criterion pass rate closes the
+ * criterion columns — so neither needs a word to say what its denominator is.
+ */
+function RunRow({ run, selected }: { run: BenchmarkRunSummary; selected: boolean }) {
+  const metrics = run.metrics;
+  const graded = run.result !== null && run.result !== 'error';
+  const tasksTotal = run.resultTasksTotal ?? run.taskCount;
+  const tasksPassed = run.resultTasksPassed;
+  const criteriaTotal = run.resultCriteriaTotal ?? 0;
+  const criteriaPassed = run.resultCriteriaPassed;
+  const ungraded = run.resultCriteriaUngraded ?? 0;
+  const name = run.label || run.benchmarkName;
+  const rollouts = numberOf(metrics.rollouts) || run.taskCount;
+  const state = run.result === 'failed' ? 'failed'
+    : run.result === 'error' ? 'error'
+    : run.result === 'passed' ? 'succeeded'
+    : 'pending';
+  return (
+    <tr data-state={state} class={selected ? 'selected' : undefined}>
+      <td>
+        <a class="nm" href={`/results?run=${run.benchmarkRunId}`}>{name}</a>
+        {/* The benchmark is only worth repeating when the run is not named
+            after it, which is the common case once a run carries a label. */}
+        <span class="sub">
+          {run.benchmarkRunCode}{name === run.benchmarkName ? '' : ` · ${run.benchmarkName}`}
+          {' · '}{rollouts} {rollouts === 1 ? 'rollout' : 'rollouts'}
+        </span>
+      </td>
+      <td class="n g">{tasksTotal}</td>
+      <td class="n">{count(tasksPassed, 'pass')}</td>
+      <td class="n">{count(run.resultTasksFailed, 'fail')}</td>
+      <td class="n">{count(run.resultTasksErrored, 'fail')}</td>
+      <td class="n rate">{rate(tasksPassed, run.resultTasksTotal)}</td>
+      <td class="n g">{graded ? criteriaTotal : dash}</td>
+      <td class="n">{count(criteriaPassed, 'pass')}</td>
+      <td class="n">{count(run.resultCriteriaFailed, 'fail')}</td>
+      {/* Ungraded is its own column, never folded into failed: a criterion the
+          judge could not grade is not one the model got wrong, and it means the
+          pass rate beside it is over a smaller denominator than the run asked
+          for. */}
+      <td class="n">{graded ? <b class={ungraded > 0 ? 'warn' : undefined}>{ungraded}</b> : dash}</td>
+      <td class="n rate">{rate(criteriaPassed, run.resultCriteriaTotal)}</td>
+    </tr>
+  );
+}
+
 export function Results({ benchmarkRun, tasks, availableRuns }: {
   benchmarkRun: BenchmarkRunSummary | null;
   /** Criterion verdicts grouped by task — `C-001` repeats across tasks. */
@@ -79,12 +154,6 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
   availableRuns: BenchmarkRunSummary[];
 }) {
   const criterionCount = tasks.reduce((sum, task) => sum + task.criteria.length, 0);
-  const metrics = benchmarkRun?.metrics ?? {};
-  const total = numberOf(benchmarkRun?.resultCriteriaTotal ?? metrics.criteria_total);
-  const passed = numberOf(benchmarkRun?.resultCriteriaPassed ?? metrics.criteria_passed);
-  const failed = numberOf(benchmarkRun?.resultCriteriaFailed ?? Math.max(0, total - passed));
-  const errored = tasks.reduce((sum, task) => sum + task.errored, 0);
-  const rate = total > 0 ? passed / total : 0;
   const resultStatus = benchmarkRun?.result ?? 'pending';
 
   return (
@@ -108,31 +177,28 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
       </div>
 
       <TableBox>
-        <Cap title="Result rollup">
-          <Tally items={[
-            { value: total, label: 'criteria' },
-            { value: passed, label: 'passed' },
-            { value: failed, label: 'failed', hot: failed > 0 },
-            // Ungraded is its own column, never folded into failed: a criterion
-            // the judge could not grade is not one the model got wrong, and it
-            // means the pass rate beside it is over a smaller denominator than
-            // the run asked for.
-            { value: errored, label: 'ungraded', hot: errored > 0 },
-            { value: `${(rate * 100).toFixed(1)}%`, label: 'pass rate' },
-          ]} />
-        </Cap>
-        {benchmarkRun ? (
+        <Cap title="Results by run" code={benchmarkRun ? 'criteria below are the selected run' : undefined} />
+        {availableRuns.length ? (
           <Table>
-            <thead><tr><th>Run</th><th>Model</th><th class="n">Rollouts</th><th class="n">Input tokens</th><th class="n">Output tokens</th><th>Status</th></tr></thead>
-            <tbody>
-              <tr data-state={resultStatus}>
-                <td><span class="nm">{benchmarkRun.label}</span><span class="sub">{benchmarkRun.benchmarkRunCode} · {benchmarkRun.benchmarkName}</span></td>
-                <td>{benchmarkRun.model}</td>
-                <td class="n">{numberOf(metrics.rollouts)}</td>
-                <td class="n">{numberOf(metrics.input_tokens).toLocaleString()}</td>
-                <td class="n">{numberOf(metrics.output_tokens).toLocaleString()}</td>
-                <td><Badge state={resultStatus}>{resultStatus}</Badge></td>
+            {/* Two header rows: eleven columns of counts do not read without
+                the grouping, and the grouping is what lets each pass rate be
+                unlabelled. */}
+            <thead>
+              <tr class="m-table-group">
+                <th />
+                <th class="g" colspan={5}>Tasks</th>
+                <th class="g" colspan={5}>Criteria</th>
               </tr>
+              <tr>
+                <th>Run</th>
+                <th class="n g">Total</th><th class="n">Passed</th><th class="n">Failed</th><th class="n">Errored</th><th class="n">Pass rate</th>
+                <th class="n g">Total</th><th class="n">Passed</th><th class="n">Failed</th><th class="n">Ungraded</th><th class="n">Pass rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {availableRuns.map((run) => (
+                <RunRow run={run} selected={run.benchmarkRunId === benchmarkRun?.benchmarkRunId} />
+              ))}
             </tbody>
           </Table>
         ) : <div class="m-empty">No verified benchmark results.</div>}

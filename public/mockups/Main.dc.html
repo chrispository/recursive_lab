@@ -1,0 +1,272 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&display=swap');
+    /* Ink — lifted from public/css/tokens.css, values unchanged. */
+    .sheet {
+      --text-1:#101314; --text-2:#3f4749; --text-3:#636c6e; --text-4:#868f91;
+      --line-soft:#dfe3e2; --line:#cfd5d3; --edge:#7f8886;
+      --black:#eff2f0; --deep:#eaeeec; --panel:#fafbfa;
+      --raised:#e6ebe8; --raised-2:#dbe1de;
+      --brand:#c8452a; --brand-ink:#9b3520; --btn-ink:#fdf7f5;
+      --pass:#26654a; --fail:#9c3126; --run:#1c6178; --warn:#7f5610;
+      --grid:rgba(16,19,20,.05); --wash:rgba(16,19,20,.045); --wash-2:rgba(16,19,20,.08);
+      --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      --sans:'Avenir Next','Segoe UI',Inter,'Adwaita Sans','Noto Sans',system-ui,sans-serif;
+    }
+    .sheet[data-theme='dark'] {
+      --text-1:#f2f2f0; --text-2:#b3b3af; --text-3:#7c7c79; --text-4:#60605d;
+      --line-soft:#1a1a18; --line:#232321; --edge:#5d5d59;
+      --black:#050505; --deep:#080808; --panel:#0a0a0a;
+      --raised:#101010; --raised-2:#151515;
+      --brand:#ff5c35; --brand-ink:#ff5c35; --btn-ink:#160a05;
+      --pass:#4fa76f; --fail:#e46452; --run:#5aa9d6; --warn:#d9a441;
+      --grid:rgba(255,255,255,.027); --wash:rgba(255,255,255,.04); --wash-2:rgba(255,255,255,.07);
+    }
+    body { margin:0; }
+    a { color:var(--brand-ink); } a:hover { color:var(--brand); }
+    .sheet {
+      padding:24px; color:var(--text-2);
+      font:12.5px/1.6 var(--sans); font-variant-numeric:tabular-nums;
+      -webkit-font-smoothing:antialiased;
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        var(--black);
+      background-size:32px 32px;
+    }
+    .sheet * { box-sizing:border-box; }
+    /* .m-tablebox / .m-cap / .m-tally — as shipped. */
+    .box { border:1px solid var(--line); background:var(--panel); }
+    .box + .box { margin-top:16px; }
+    .cap {
+      display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
+      gap:12px; padding:9px 12px; border-bottom:1px solid var(--line); background:var(--deep);
+    }
+    .cap h3 {
+      margin:0; color:var(--text-1);
+      font:600 11px/1.3 var(--sans); letter-spacing:.06em; text-transform:uppercase;
+    }
+    .tally { display:flex; flex-wrap:wrap; align-items:baseline; gap:0; }
+    .tally span { display:inline-flex; align-items:baseline; gap:6px; padding:0 12px; border-right:1px solid var(--line-soft); }
+    .tally span:first-child { padding-left:0; }
+    .tally span:last-child { padding-right:0; border-right:0; }
+    .tally b { color:var(--text-1); font:500 13px/1 var(--mono); }
+    .tally i { color:var(--text-3); font-style:normal; font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+    .tally span.hot b { color:var(--brand-ink); }
+    .code { color:var(--text-3); font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+    .id { color:var(--text-3); font:500 10px/1 var(--mono); letter-spacing:.08em; }
+    /* Ledger — compact. Same anatomy as m-ledger-row, 168px -> 80px. */
+    .ledger { background:var(--panel); }
+    .row {
+      display:grid; align-items:center; gap:0 18px;
+      grid-template-columns:66px minmax(150px,1fr) minmax(122px,.72fr) minmax(230px,1.5fr) auto;
+      padding:13px 18px 13px 15px;
+      border-bottom:1px solid var(--line-soft); border-left:3px solid var(--pass);
+    }
+    .row:last-child { border-bottom:0; }
+    .row[data-state='error'] { border-left-color:var(--fail); }
+    .row[data-state='pending'] { border-left-color:var(--warn); }
+    .row[data-state='running'] {
+      border-left-color:var(--run);
+      background:linear-gradient(90deg, color-mix(in srgb, var(--run) 8%, transparent), transparent 62%);
+    }
+    .row:hover { background:var(--wash); }
+    .row[data-state='running']:hover { background:linear-gradient(90deg, color-mix(in srgb, var(--run) 13%, transparent), transparent 62%); }
+
+    .stamp { display:grid; justify-items:center; gap:7px; }
+    .stamp .id { color:var(--pass); font-size:10.5px; letter-spacing:.07em; }
+    .row[data-state='error'] .stamp .id { color:var(--fail); }
+    .row[data-state='running'] .stamp .id { color:var(--run); }
+    .row[data-state='pending'] .stamp .id { color:var(--warn); }
+    .mark {
+      display:grid; place-items:center; width:34px; height:34px; border-radius:50%;
+      border:1px solid color-mix(in srgb, var(--pass) 50%, transparent);
+      color:var(--pass); font:400 16px/1 var(--sans);
+    }
+    .row[data-state='error'] .mark { border-color:color-mix(in srgb, var(--fail) 50%, transparent); color:var(--fail); }
+    .row[data-state='pending'] .mark { border-color:color-mix(in srgb, var(--warn) 50%, transparent); color:var(--warn); }
+    .row[data-state='running'] .mark { border-color:color-mix(in srgb, var(--run) 50%, transparent); color:var(--run); }
+    .spin { animation:turn 1.8s linear infinite; }
+    @keyframes turn { to { transform:rotate(360deg); } }
+
+    .cell { display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .cell strong { color:var(--text-1); font:500 13px/1.35 var(--sans); letter-spacing:-.012em; }
+    .sub { color:var(--text-3); font-size:10px; letter-spacing:.02em; }
+    .sub .id { letter-spacing:.06em; }
+    .model { color:var(--text-2); font:500 11.5px/1.35 var(--mono); }
+
+    .kicker { color:var(--pass); font:700 10px/1 var(--sans); letter-spacing:.095em; text-transform:uppercase; }
+    .row[data-state='error'] .kicker { color:var(--fail); }
+    .row[data-state='running'] .kicker { color:var(--run); }
+    .row[data-state='pending'] .kicker { color:var(--warn); }
+    .outcome strong { font:500 13.5px/1.35 var(--sans); letter-spacing:-.018em; }
+    .track { display:block; width:min(100%,300px); height:3px; margin-top:5px; overflow:hidden; background:var(--line-soft); }
+    .track > i { display:block; height:100%; background:var(--pass); }
+    .row[data-state='error'] .track > i { background:var(--fail); }
+    .row[data-state='running'] .track > i { background:var(--run); }
+
+    /* Right rail: the four columns the row did not have before. */
+    .stats { display:grid; grid-template-columns:repeat(4,minmax(0,auto)); gap:0; }
+    .stat { display:grid; gap:3px; justify-items:end; padding:0 11px; border-right:1px solid var(--line-soft); }
+    .stat:last-child { padding-right:0; border-right:0; }
+    .stat b { color:var(--text-1); font:500 12px/1 var(--mono); }
+    .stat b.quiet { color:var(--text-4); }
+    .stat i { color:var(--text-3); font-style:normal; font:500 9px/1 var(--mono); letter-spacing:.13em; text-transform:uppercase; }
+  </style>
+</helmet>
+<div class="sheet" data-theme="{{theme}}">
+  <section class="box">
+    <div class="cap">
+      <h3>Benchmark run ledger</h3>
+      <div class="tally">
+        <span><b>4</b><i>runs</i></span>
+        <span><b>1</b><i>running</i></span>
+        <span><b>12</b><i>tasks · current</i></span>
+        <span><b>96</b><i>checks · expected</i></span>
+      </div>
+    </div>
+
+    <div class="ledger">
+      <article class="row" data-state="running">
+        <div class="stamp">
+          <span class="id">BR-00012</span>
+          <span class="mark">
+            <svg class="spin" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 3a9 9 0 1 0 9 9" />
+            </svg>
+          </span>
+        </div>
+        <div class="cell">
+          <strong>Harvey Labs</strong>
+          <span class="sub">harvey_004 · Harvey</span>
+        </div>
+        <div class="cell">
+          <span class="model">glm-5.2</span>
+          <span class="sub">12 tasks × 2 repeats</span>
+        </div>
+        <div class="cell outcome">
+          <span class="kicker">Running · judging</span>
+          <strong>9 of 24 task attempts completed</strong>
+          <span class="sub">3 in progress · 12 waiting</span>
+          <span class="track"><i style="width:37.5%"></i></span>
+        </div>
+        <div class="stats">
+          <span class="stat"><b class="quiet">— / 96</b><i>checks</i></span>
+          <span class="stat"><b>9</b><i>rollouts</i></span>
+          <span class="stat"><b>6m 41s</b><i>elapsed</i></span>
+          <span class="stat"><b>09:52</b><i>18 Aug</i></span>
+        </div>
+      </article>
+
+      <article class="row" data-state="succeeded">
+        <div class="stamp">
+          <span class="id">BR-00010</span>
+          <span class="mark">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 12.5 9.5 18 20 6.5" />
+            </svg>
+          </span>
+        </div>
+        <div class="cell">
+          <strong>Harvey Labs</strong>
+          <span class="sub">harvey_003 · Harvey</span>
+        </div>
+        <div class="cell">
+          <span class="model">glm-5.2</span>
+          <span class="sub">1 task × 1 repeat</span>
+        </div>
+        <div class="cell outcome">
+          <span class="kicker">Complete</span>
+          <strong>1 of 1 tasks passed</strong>
+          <span class="sub">100.0% tasks all-pass</span>
+          <span class="track"><i style="width:100%"></i></span>
+        </div>
+        <div class="stats">
+          <span class="stat"><b>1 / 1</b><i>checks</i></span>
+          <span class="stat"><b>1</b><i>rollouts</i></span>
+          <span class="stat"><b>2m 08s</b><i>runtime</i></span>
+          <span class="stat"><b>08:14</b><i>18 Aug</i></span>
+        </div>
+      </article>
+
+      <article class="row" data-state="error">
+        <div class="stamp">
+          <span class="id">BR-00009</span>
+          <span class="mark">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 6v8" /><path d="M12 18h.01" />
+            </svg>
+          </span>
+        </div>
+        <div class="cell">
+          <strong>Harvey Labs</strong>
+          <span class="sub">harvey_002 · Harvey</span>
+        </div>
+        <div class="cell">
+          <span class="model">glm-5.2</span>
+          <span class="sub">1 task × 1 repeat</span>
+        </div>
+        <div class="cell outcome">
+          <span class="kicker">Could not complete</span>
+          <strong>The run could not be completed</strong>
+          <span class="sub">Judge timed out · no checks were recorded</span>
+          <span class="track"><i style="width:100%"></i></span>
+        </div>
+        <div class="stats">
+          <span class="stat"><b class="quiet">0 / 1</b><i>checks</i></span>
+          <span class="stat"><b>1</b><i>rollouts</i></span>
+          <span class="stat"><b>9m 30s</b><i>runtime</i></span>
+          <span class="stat"><b>17:03</b><i>17 Aug</i></span>
+        </div>
+      </article>
+
+      <article class="row" data-state="pending">
+        <div class="stamp">
+          <span class="id">BR-00008</span>
+          <span class="mark">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+              <path d="M5 12h14" />
+            </svg>
+          </span>
+        </div>
+        <div class="cell">
+          <strong>Harvey Labs</strong>
+          <span class="sub">harvey_001 · Harvey</span>
+        </div>
+        <div class="cell">
+          <span class="model">glm-5.2</span>
+          <span class="sub">1 task × 1 repeat</span>
+        </div>
+        <div class="cell outcome">
+          <span class="kicker">Not completed</span>
+          <strong>0 of 1 tasks passed</strong>
+          <span class="sub">No checks were recorded.</span>
+        </div>
+        <div class="stats">
+          <span class="stat"><b class="quiet">—</b><i>checks</i></span>
+          <span class="stat"><b class="quiet">—</b><i>rollouts</i></span>
+          <span class="stat"><b class="quiet">—</b><i>runtime</i></span>
+          <span class="stat"><b>16:41</b><i>17 Aug</i></span>
+        </div>
+      </article>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1180,"height":470}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'light' };
+  }
+}
+</script>
+</body>
+</html>

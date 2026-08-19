@@ -1,0 +1,88 @@
+{
+  "pages": [
+    {
+      "id": "benchmarks",
+      "name": "01 Benchmarks \u2014 run ledger"
+    },
+    {
+      "id": "results",
+      "name": "02 Results \u2014 tables + run selection"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "title": "Ledger A \u2014 compact row",
+      "page": "benchmarks",
+      "x": 0,
+      "y": 0,
+      "w": 1180,
+      "h": 470
+    },
+    {
+      "file": "LedgerTable.dc.html",
+      "title": "Ledger B \u2014 full table",
+      "page": "benchmarks",
+      "x": 0,
+      "y": 560,
+      "w": 1180,
+      "h": 260
+    },
+    {
+      "file": "ResultsRuns.dc.html",
+      "title": "Results by run",
+      "page": "results",
+      "x": 0,
+      "y": 0,
+      "w": 1180,
+      "h": 290
+    },
+    {
+      "file": "RunSelect.dc.html",
+      "title": "Run selection",
+      "page": "results",
+      "x": 0,
+      "y": 380,
+      "w": 1180,
+      "h": 330
+    }
+  ],
+  "annotations": [
+    {
+      "id": "ledger-a",
+      "page": "benchmarks",
+      "x": -300,
+      "y": 0,
+      "w": 260,
+      "text": "A \u2014 keeps the layout you liked.\n\nRow height 168px -> 80px: the mark drops to 34px and the vertical padding goes from 26px to 13px.\n\nThe space buys the right rail \u2014 checks, rollouts, runtime, started \u2014 plus the run label and lab under the benchmark name. Two runs of the same benchmark are no longer identical rows.\n\nNeeds br.created_at and a jobs join for runtime (see table_info.md)."
+    },
+    {
+      "id": "ledger-b",
+      "page": "benchmarks",
+      "x": -300,
+      "y": 560,
+      "w": 260,
+      "text": "B \u2014 the same history as a real table, ~46px a row.\n\nEvery count gets its own column and the 3px state stripe carries the verdict, so nothing needs a badge.\n\nThe tradeoff: the live run loses its progress bar and headline. If runs are usually watched live, A is the better home."
+    },
+    {
+      "id": "results-runs",
+      "page": "results",
+      "x": -300,
+      "y": 0,
+      "w": 260,
+      "text": "Per-run counts, grouped under Tasks and Criteria.\n\nEach pass rate closes the group it divides \u2014 task pass rate after Errored, criterion pass rate after Ungraded \u2014 so neither column needs a label to say what its denominator is.\n\nNo model column: one model per run, and it is already on the run.\n\nNo status square. The stripe plus the numbers say it; an explicit word is kept only for Error, which the numbers cannot express.\n\nShipped in src/views/tabs/Results.tsx."
+    },
+    {
+      "id": "results-select",
+      "page": "results",
+      "x": -300,
+      "y": 380,
+      "w": 260,
+      "text": "Two replacements for the dropdown + Show results.\n\nA puts the whole history on screen \u2014 the chips are clickable here, try them.\n\nB collapses it to one line for when the table above is doing the comparing.\n\nThere is a third option worth considering: make the Results-by-run table itself the picker, since it already has one row per run."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "results"
+  }
+}
