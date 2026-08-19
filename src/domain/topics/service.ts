@@ -4,7 +4,6 @@ import { hottest } from './model.ts';
 import * as repo from './repo.ts';
 
 export type { TopicRow } from './model.ts';
-export { isBelowThreshold } from './model.ts';
 
 export const listByFailureMap = repo.listByFailureMap;
 export const countUncategorised = repo.countUncategorised;

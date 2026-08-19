@@ -44,7 +44,10 @@ const SELECT = `
            JOIN benchmark_results r ON r.id = fm.benchmark_result_id WHERE r.benchmark_run_id = br.id) AS topic_count,
          (SELECT count(*) FROM documents d JOIN data_forge_runs df ON df.id = d.data_forge_run_id
            JOIN failure_maps fm ON fm.id = df.failure_map_id
-           JOIN benchmark_results r ON r.id = fm.benchmark_result_id WHERE r.benchmark_run_id = br.id) AS document_count,
+           JOIN benchmark_results r ON r.id = fm.benchmark_result_id
+          WHERE r.benchmark_run_id = br.id
+            AND d.novelty_status = 'passed'
+            AND d.review_status = 'approved') AS document_count,
          (SELECT count(*) FROM environments    WHERE benchmark_run_id = br.id) AS environment_count
     FROM benchmark_runs br
     LEFT JOIN benchmark_results result ON result.benchmark_run_id = br.id

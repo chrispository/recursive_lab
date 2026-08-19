@@ -39,9 +39,11 @@ Anti-benchmax rules:
 - Teach the underlying capability through a fresh scenario with independently derived facts.
 - The source document must contain enough evidence to solve the task, including realistic distractors.
 - The reference answer and verifier targets are hidden from the policy model.
+- Return exactly the requested count for every input topic.
+- topic_name must exactly match one of the input topic names.
 
 Return one JSON object with this shape:
-{"documents":[{"title":"...","document_type":"memo|email|contract|spreadsheet_text|record","content":"...","task_instruction":"...","reference_answer":"...","verifier_targets":["observable target", "observable target"]}]}
+{"documents":[{"topic_name":"exact topic name from the input","title":"...","document_type":"memo|email|contract|spreadsheet_text|record","content":"...","task_instruction":"...","reference_answer":"...","verifier_targets":["observable target", "observable target"]}]}
 ',
   '', 1, '2026-08-11T07:16:45+00:00'
 FROM prompt_templates

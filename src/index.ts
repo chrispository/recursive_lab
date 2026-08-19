@@ -10,12 +10,14 @@ import { staticPlugin } from '@elysiajs/static';
 import { config, ROOT } from './config.ts';
 import { benchmarksApi } from './http/api/benchmarks.ts';
 import { failureMapsApi } from './http/api/failure_maps.ts';
+import { dataForgeApi } from './http/api/data_forge.ts';
 import { gymApi } from './http/api/gym.ts';
 import { settingsApi } from './http/api/settings.ts';
 import { pages } from './http/pages.tsx';
 import { benchmarksUi } from './http/ui/benchmarks.tsx';
 import { jobsUi } from './http/ui/jobs.tsx';
 import { failuresUi } from './http/ui/failures.tsx';
+import { dataForgeUi } from './http/ui/data_forge.tsx';
 import { settingsUi } from './http/ui/settings.tsx';
 import { ledgerOptionsDocument, schemaDocument } from './http/schema.ts';
 import { acquireServerLock, autostartGym, autostopGym } from './boot.ts';
@@ -40,8 +42,10 @@ const app = new Elysia()
   .use(gymApi)
   .use(benchmarksApi)
   .use(failureMapsApi)
+  .use(dataForgeApi)
   .use(benchmarksUi)
   .use(failuresUi)
+  .use(dataForgeUi)
   .use(jobsUi)
   .use(settingsUi)
   .use(pages)

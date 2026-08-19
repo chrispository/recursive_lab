@@ -10,7 +10,7 @@ import { code } from '../../db/ids.ts';
 export type ProgressStep = {
   /** Display code of the entity that satisfies this stage, if any. */
   entity: string | null;
-  /** Row count under it — failures, topics, documents, environments. */
+  /** Eligible row count under it — failures, topics, approved documents, environments. */
   count: number;
 };
 
@@ -29,6 +29,15 @@ export type BenchmarkRunProgress = {
   environments: ProgressStep;
 };
 
+/** The pipeline destinations that can be reached by a handoff action. */
+export type HandoffTarget = 'benchmarks' | 'results' | 'failures' | 'forge' | 'env-lab';
+
+/** A handoff's current availability and the explanation shown when it is closed. */
+export type GateDecision = {
+  open: boolean;
+  reason: string | null;
+};
+
 const EMPTY: ProgressStep = { entity: null, count: 0 };
 
 /**
@@ -45,6 +54,40 @@ export function gatesOf(progress: BenchmarkRunProgress | null): number {
   if (progress.dataForgeRun.entity) gates++;
   if (progress.environments.count > 0) gates++;
   return gates;
+}
+
+/**
+ * Decides whether a handoff destination is currently available.
+ *
+ * These are derived workflow rules, not persisted state. The UI uses the
+ * decision to explain and disable a handoff, while the destination's domain
+ * service remains responsible for enforcing its own prerequisite when work
+ * is eventually started.
+ *
+ * The transitions are ordered prerequisites: benchmark results unlock failure
+ * analysis, a stored failure map unlocks Data forge, and at least one generated
+ * document unlocks the environment stage.
+ */
+export function handoffGate(target: HandoffTarget, progress: BenchmarkRunProgress | null): GateDecision {
+  if ((target === 'results' || target === 'failures') && !progress?.benchmarkResult.entity) {
+    return {
+      open: false,
+      reason: 'Finish a benchmark result before sending this run onward.',
+    };
+  }
+  if (target === 'forge' && !progress?.failureMap.entity) {
+    return {
+      open: false,
+      reason: 'Create a failure map before sending this run to Data forge.',
+    };
+  }
+  if (target === 'env-lab' && (!progress?.dataForgeRun.entity || progress.dataForgeRun.count < 1)) {
+    return {
+      open: false,
+      reason: 'Generate at least one reviewed data-forged document before sending this run to Env lab.',
+    };
+  }
+  return { open: true, reason: null };
 }
 
 /** Builds a step from a nullable id plus its count. */

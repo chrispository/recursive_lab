@@ -214,7 +214,7 @@ export function Results({ benchmarkRun, progress, tasks, availableRuns }: {
           {notPassed > 0 ? (
             <button
               type="button"
-              class="ghost compact m-criteria-filter"
+              class="secondary compact m-criteria-filter"
               data-criteria-filter
               aria-pressed="false"
             >Show failed only</button>

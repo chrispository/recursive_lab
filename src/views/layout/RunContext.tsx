@@ -9,16 +9,6 @@ export function failedCriteriaOf(
   return run?.resultCriteriaFailed ?? progress?.failureMap.count ?? 0;
 }
 
-function passRateOf(run: BenchmarkRunSummary, progress: BenchmarkRunProgress | null) {
-  if (progress?.passRate !== null && progress?.passRate !== undefined) {
-    return `${(progress.passRate * 100).toFixed(1)}%`;
-  }
-  if (run.resultCriteriaPassed !== null && run.resultCriteriaTotal) {
-    return `${((run.resultCriteriaPassed / run.resultCriteriaTotal) * 100).toFixed(1)}%`;
-  }
-  return '—';
-}
-
 export function RunContext({
   benchmarkRun,
   progress,
@@ -29,15 +19,18 @@ export function RunContext({
   availableRuns?: BenchmarkRunSummary[];
 }) {
   if (!benchmarkRun) return null;
-  const criteria = benchmarkRun.resultCriteriaTotal ?? benchmarkRun.expectedCriteria;
-  const failures = failedCriteriaOf(benchmarkRun, progress ?? null);
+  const criteriaTotal = benchmarkRun.resultCriteriaTotal ?? benchmarkRun.expectedCriteria;
+  const tasksTotal = benchmarkRun.resultTasksTotal ?? benchmarkRun.taskCount;
 
   return (
     <div class="m-run-context">
       <div class="m-run-context-copy">
         <span class="m-run-context-id">{benchmarkRun.benchmarkRunCode}</span>
-        <span class="m-run-context-prose">
-          {benchmarkRun.benchmarkName} · <b>{benchmarkRun.model}</b> · {criteria} criteria · <b>{passRateOf(benchmarkRun, progress ?? null)}</b> pass · {failures} failed
+        <span class="m-run-context-name">{benchmarkRun.benchmarkName}</span>
+        <span class="m-run-context-model">{benchmarkRun.model}</span>
+        <span class="m-run-context-tally" aria-label="Run summary">
+          <span><b>{benchmarkRun.resultCriteriaPassed ?? '—'}/{criteriaTotal}</b><i>criteria</i></span>
+          <span><b>{benchmarkRun.resultTasksPassed ?? '—'}/{tasksTotal}</b><i>tasks</i></span>
         </span>
       </div>
       {availableRuns?.length ? (

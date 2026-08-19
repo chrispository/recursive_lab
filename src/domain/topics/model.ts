@@ -23,17 +23,9 @@ export const TopicRow = t.Object({
   failureCount: t.Integer(),
   /** Documents generated for it by the data-forge stage. */
   documentCount: t.Integer(),
-  /** Mean reward local validation measured, or null if never proved. */
-  reward: t.Union([t.Number(), t.Null()]),
-  /** The verifier's pass threshold, so the bar can show where the line is. */
-  passThreshold: t.Union([t.Number(), t.Null()]),
 });
 
 export type TopicRow = Static<typeof TopicRow>;
-
-/** Is this topic's measured reward below the bar its verifier sets? */
-export const isBelowThreshold = (topic: TopicRow): boolean =>
-  topic.reward !== null && topic.passThreshold !== null && topic.reward < topic.passThreshold;
 
 /**
  * The topic carrying the most unaddressed failures — the one the tally

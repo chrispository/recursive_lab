@@ -156,6 +156,20 @@ export async function analysisProvider(modelOverride = ''): Promise<ProviderConf
   };
 }
 
+/** Resolve the provider used for novel document generation. */
+export async function generationProvider(modelOverride = ''): Promise<ProviderConfig> {
+  const saved = await readSaved();
+  return {
+    baseUrl:
+      pick(saved, saved, 'generation_base_url', 'nvidia_data_designer_base_url', 'policy_base_url') ||
+      'https://openrouter.ai/api/v1',
+    apiKey: pick(saved, saved, 'generation_api_key', 'nvidia_api_key', 'policy_api_key'),
+    model:
+      modelOverride.trim() ||
+      pick(saved, saved, 'generation_model_name', 'nvidia_data_designer_model', 'policy_model_name'),
+  };
+}
+
 /**
  * Rewrite only the lines we own, leaving the rest of the file byte for byte.
  *

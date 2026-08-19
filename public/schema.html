@@ -78,7 +78,7 @@
 <body>
   <header class="schema-head">
     <div class="wordmark">recursive<span>( )</span><b> /</b></div>
-    <div class="head-copy"><strong id="view-title">Schema map</strong><small id="view-sub">24 tables · derived progress · drag the canvas or any table</small></div>
+    <div class="head-copy"><strong id="view-title">Schema map</strong><small id="view-sub">24 tables · 1 derived progress read · drag the canvas or any table</small></div>
     <div class="hint">pan · move · wheel zoom · layout persists locally</div>
     <div class="toolbar">
       <input id="search" type="search" placeholder="filter tables or fields" aria-label="Filter tables or fields">
@@ -318,6 +318,21 @@
           { method: 'POST', path: '/api/v1/settings/test', note: 'Try the sent credentials against their endpoints without saving.' },
         ],
       },
+      {
+        name: '/api/v1/failure-maps',
+        note: 'src/http/api/failure_maps.ts — starts the frontier analysis job for one completed benchmark run. The analyst receives only failed criterion titles and judge reasoning; the map and topics are written in one transaction.',
+        routes: [
+          { method: 'POST', path: '/api/v1/failure-maps', note: 'Start or reject failure-map analysis. Body: <b>benchmark_run_id</b>; optional provider_model. 202 with a job receipt, 400 when the run has no eligible failures or credentials.' },
+        ],
+      },
+      {
+        name: '/api/v1/data-forge-runs · /api/v1/documents',
+        note: 'src/http/api/data_forge.ts — starts/resumes one forge run per failure map and keeps the human review gate on each generated document.',
+        routes: [
+          { method: 'POST', path: '/api/v1/data-forge-runs', note: 'Start or resume generation. Body: benchmark_run_id, optional backend, provider_model, docs_per_topic, novelty_threshold, auto_approve. The provider receives topic name, description, verifier strategy, and count only. 202 with a job receipt.' },
+          { method: 'POST', path: '/api/v1/documents/:code/review', note: 'Set one document to approved or rejected. Novelty-rejected documents are permanently ineligible for approval. Body: status=approved|rejected.' },
+        ],
+      },
     ];
     const totalRoutes = apiGroups.reduce((sum, group) => sum + group.routes.length, 0);
     const apiView = document.querySelector('#api-view');
@@ -344,8 +359,8 @@
       document.querySelector('#reset').style.display = next === 'api' ? 'none' : '';
       document.querySelector('#view-title').textContent = next === 'api' ? 'API routes' : 'Schema map';
       document.querySelector('#view-sub').textContent = next === 'api'
-        ? `${totalRoutes} routes · 3 modules · scripts, tests and future clients`
-        : '24 tables · derived progress · drag the canvas or any table';
+        ? `${totalRoutes} routes · 5 API modules · scripts, tests and future clients`
+        : '24 tables · 1 derived progress read · drag the canvas or any table';
       document.querySelector('#search').placeholder = next === 'api' ? 'filter routes' : 'filter tables or fields';
       applyFilter(); updateCount();
     };

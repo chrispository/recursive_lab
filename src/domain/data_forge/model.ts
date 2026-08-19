@@ -1,6 +1,7 @@
 export type DataForgeSummary = {
   dataForgeCode: string;
   failureMapCode: string;
+  promptRevisionId: number;
   topicCount: number;
   backend: 'data_designer' | 'frontier';
   providerModel: string;
@@ -27,4 +28,26 @@ export type DocumentRow = {
   role: 'train' | 'canary' | 'heldout' | 'excluded';
   wordCount: number;
   maxSimilarity: number;
+  content: string;
+  taskInstruction: string;
+  referenceAnswer: string;
+  verifierTargets: string[];
+};
+
+export type ForgeTopicInput = {
+  topicId: number;
+  topicCode: string;
+  name: string;
+  description: string;
+  verifierStrategy: string;
+  remaining: number;
+};
+
+export type DataForgeStart = {
+  benchmarkRunId: number;
+  dataForgeRunCode: string;
+  failureMapCode: string;
+  jobId: number;
+  jobCode: string;
+  requestedDocuments: number;
 };

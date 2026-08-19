@@ -12,6 +12,7 @@ import * as progress from '../domain/progress/service.ts';
 import * as topics from '../domain/topics/service.ts';
 import * as runs from '../domain/runs/service.ts';
 import * as dataForge from '../domain/data_forge/service.ts';
+import * as prompts from '../domain/prompts/service.ts';
 import * as environments from '../domain/environments/service.ts';
 import * as benchmarks from '../domain/benchmarks/service.ts';
 import * as jobs from '../domain/jobs/service.ts';
@@ -89,7 +90,6 @@ export const pages = new Elysia({ name: 'pages' })
             progress={failureProgress}
             benchmarkRun={failureRun}
             availableRuns={availableRuns}
-            runProgress={await progress.list()}
             analysisJob={analysisJob}
             tasks={failureRun ? await runs.criteriaByTask(failureRun.benchmarkRunId) : []}
             topics={failureMapId ? await topics.listByFailureMap(failureMapId) : []}
@@ -101,6 +101,16 @@ export const pages = new Elysia({ name: 'pages' })
       case 'forge': {
         const availableRuns = await runs.list();
         const dataForgeRun = selectedProgress ? await dataForge.byBenchmarkRun(selectedProgress.benchmarkRunId) : null;
+        const forgeJobs = selectedProgress ? await jobs.listByBenchmarkRun(selectedProgress.benchmarkRunId) : [];
+        const forgeJob = [...forgeJobs].reverse().find((job) => job.kind === 'data_forge_run') ?? null;
+        const generationSettings = await settings.read();
+        const requestedPromptRevisionId = Number(new URL(request.url).searchParams.get('prompt_revision_id'));
+        const promptRevisions = await prompts.list('document-generation');
+        const selectedPromptRevisionId = dataForgeRun?.promptRevisionId
+          ?? (Number.isInteger(requestedPromptRevisionId) && requestedPromptRevisionId > 0 ? requestedPromptRevisionId : undefined);
+        const prompt = selectedPromptRevisionId
+          ? await prompts.byId('document-generation', selectedPromptRevisionId)
+          : await prompts.active('document-generation');
         body = (
           <DataForge
             benchmarkRun={benchmarkRun}
@@ -108,6 +118,12 @@ export const pages = new Elysia({ name: 'pages' })
             availableRuns={availableRuns}
             dataForge={dataForgeRun}
             documents={dataForgeRun ? await dataForge.documents(dataForgeRun.dataForgeCode) : []}
+            forgeJob={forgeJob}
+            generationBackend={generationSettings.generation_backend}
+            generationModel={generationSettings.generation_model_name}
+            generationConfigured={generationSettings.has_generation_key && Boolean(generationSettings.generation_model_name)}
+            prompt={prompt}
+            promptRevisions={promptRevisions}
           />
         );
         break;

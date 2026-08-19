@@ -5,14 +5,11 @@ import type {
   BenchmarkRunSummary,
   BenchmarkTaskCriteria,
 } from '../../domain/runs/model.ts';
-import { isBelowThreshold, type TopicRow } from '../../domain/topics/model.ts';
+import type { TopicRow } from '../../domain/topics/model.ts';
 import { tally, type TopicTally } from '../../domain/topics/service.ts';
 import { Badge } from '../ui/Badge.tsx';
-import { Bar } from '../ui/Bar.tsx';
 import { Cap } from '../ui/Cap.tsx';
-import { Field } from '../ui/Field.tsx';
 import { Id } from '../ui/Id.tsx';
-import { Panel } from '../ui/Panel.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
@@ -24,7 +21,6 @@ type FailuresProps = {
   progress: BenchmarkRunProgress | null;
   benchmarkRun: BenchmarkRunSummary | null;
   availableRuns: BenchmarkRunSummary[];
-  runProgress: BenchmarkRunProgress[];
   analysisJob: JobRow | null;
   /** Criterion verdicts grouped by task — criterion ids repeat across tasks. */
   tasks: BenchmarkTaskCriteria[];
@@ -32,7 +28,17 @@ type FailuresProps = {
   uncategorised: number;
 };
 
-const formatReward = (value: number | null) => (value === null ? '—' : value.toFixed(3));
+const dash = <span class="none">—</span>;
+
+function count(value: number | null, tone: 'pass' | 'fail' | 'warn') {
+  if (value === null) return dash;
+  return <b class={value > 0 ? tone : undefined}>{value}</b>;
+}
+
+function rate(part: number | null, total: number | null) {
+  if (part === null || total === null || total === 0) return dash;
+  return `${((part / total) * 100).toFixed(1)}%`;
+}
 
 function failureCounts(tasks: BenchmarkTaskCriteria[]) {
   return tasks.reduce(
@@ -48,14 +54,12 @@ export function Failures({
   progress,
   benchmarkRun,
   availableRuns,
-  runProgress,
   analysisJob,
   tasks,
   topics,
   uncategorised,
 }: FailuresProps) {
   const counts = failureCounts(tasks);
-  const selectedFailures = counts.failed + counts.errored;
   const summary = tally(topics, uncategorised);
 
   return (
@@ -72,70 +76,72 @@ export function Failures({
         benchmarkRun={benchmarkRun}
         progress={progress}
         failed={counts.failed}
-        errored={counts.errored}
-        selectedFailures={selectedFailures}
       />
 
-      <div class="m-split">
-        <Panel title="Failure analysis" code="selected run">
-          <Field label="Benchmark run">
-            <div class="m-input">
-              {benchmarkRun ? (
-                <>
-                  <Id value={benchmarkRun.benchmarkRunCode} />
-                  {' · '}{benchmarkRun.label} · {benchmarkRun.model}
-                </>
-              ) : 'No benchmark run selected'}
-            </div>
-          </Field>
-          <Field label="Analysis input" note="The failure inventory below is the handoff to the frontier analyst.">
-            <div class="m-input">
-              {selectedFailures ? `${selectedFailures} criteria need analysis` : 'No failed criteria yet'}
-            </div>
-          </Field>
-          <div class="m-actions">
-            <form
-              hx-post="/ui/failures/map"
-              hx-target="#failure-analysis-status"
-              hx-swap="outerHTML"
-              hx-disabled-elt="find button"
-            >
-              <input type="hidden" name="benchmark_run_id" value={benchmarkRun ? String(benchmarkRun.benchmarkRunId) : ''} />
-              <button
-                type="submit"
-                disabled={!benchmarkRun || !progress?.benchmarkResult.entity || !counts.failed || Boolean(progress.failureMap.entity) || isLive(analysisJob)}
-              >
-                {isLive(analysisJob) ? 'Analysis running…' : progress?.failureMap.entity ? 'Failure map created' : 'Create failure map + topics'}
-              </button>
-            </form>
-          </div>
-          <FailureAnalysisStatus runId={benchmarkRun?.benchmarkRunId ?? null} job={analysisJob} progress={progress} />
-        </Panel>
-
-        <Panel title="Analysis boundary" code="anti-benchmax">
-          <p class="m-note">
-            Only criterion titles and judge reasoning belong in this analysis surface. Benchmark
-            source documents, task answers, names, dates, and figures stay outside topic and
-            verifier generation.
-          </p>
-          <p class="m-note">
-            Topics are scoped to the failure map that produced them, so later data generation can
-            use the topic description and verifier strategy without seeing the originating task.
-          </p>
-        </Panel>
-      </div>
-
-      <FailureMapLedger
-        selectedRunId={benchmarkRun?.benchmarkRunId ?? null}
-        runProgress={runProgress}
-        availableRuns={availableRuns}
+      <FailureAnalysisHandoff
+        benchmarkRun={benchmarkRun}
+        progress={progress}
+        analysisJob={analysisJob}
+        failed={counts.failed}
       />
 
       <TopicTable summary={summary} topics={topics} hasMap={Boolean(progress?.failureMap.entity)} />
 
-      <FailureInventory tasks={tasks} failed={counts.failed} errored={counts.errored} />
+      <details class="m-evidence">
+        <summary>
+          <span class="m-evidence-toggle" aria-hidden="true"><Icon name="chevron" /></span>
+          <span class="m-evidence-title">Failure inventory</span>
+          <span class="m-evidence-note">source criteria</span>
+        </summary>
+        <div class="m-evidence-body">
+          <FailureInventory tasks={tasks} failed={counts.failed} errored={counts.errored} />
+        </div>
+      </details>
       <Handoff stage="failures" benchmarkRun={benchmarkRun} progress={progress} />
     </>
+  );
+}
+
+function FailureAnalysisHandoff({
+  benchmarkRun,
+  progress,
+  analysisJob,
+  failed,
+}: {
+  benchmarkRun: BenchmarkRunSummary | null;
+  progress: BenchmarkRunProgress | null;
+  analysisJob: JobRow | null;
+  failed: number;
+}) {
+  return (
+    <section class="m-analysis-handoff">
+      <div class="m-analysis-handoff-copy">
+        <h3>Turn these misses into capability topics</h3>
+        <p>The frontier analyst will inspect each failed criterion and group the signal into a failure map.</p>
+        <div class="m-analysis-meta">
+          <span><b>{failed}</b> failed criteria</span>
+          <span><b>{progress?.topicCount ?? 0}</b> topics</span>
+        </div>
+      </div>
+      <div class="m-analysis-action">
+        <small>next step · 03</small>
+        <form
+          hx-post="/ui/failures/map"
+          hx-target="#failure-analysis-status"
+          hx-swap="outerHTML"
+          hx-disabled-elt="find button"
+        >
+          <input type="hidden" name="benchmark_run_id" value={benchmarkRun ? String(benchmarkRun.benchmarkRunId) : ''} />
+          <button
+            type="submit"
+            disabled={!benchmarkRun || !progress?.benchmarkResult.entity || !failed || Boolean(progress.failureMap.entity) || isLive(analysisJob)}
+          >
+            {isLive(analysisJob) ? 'Analysis running…' : progress?.failureMap.entity ? 'Failure map created' : 'Create failure map + topics'}
+          </button>
+        </form>
+      </div>
+      <FailureAnalysisStatus runId={benchmarkRun?.benchmarkRunId ?? null} job={analysisJob} progress={progress} />
+    </section>
   );
 }
 
@@ -185,14 +191,10 @@ function SelectedRunSummary({
   benchmarkRun,
   progress,
   failed,
-  errored,
-  selectedFailures,
 }: {
   benchmarkRun: BenchmarkRunSummary | null;
   progress: BenchmarkRunProgress | null;
   failed: number;
-  errored: number;
-  selectedFailures: number;
 }) {
   return (
     <TableBox>
@@ -202,23 +204,35 @@ function SelectedRunSummary({
       >
         <Tally
           items={[
-            { value: selectedFailures, label: 'criteria to analyse', hot: selectedFailures > 0 },
             { value: failed, label: 'failed' },
-            { value: errored, label: 'ungraded' },
             { value: progress?.topicCount ?? 0, label: 'topics' },
-            { value: progress?.dataForgeRun.count ?? 0, label: 'docs generated' },
           ]}
         />
       </Cap>
       {benchmarkRun ? (
         <Table>
           <thead>
+            <tr class="m-table-group">
+              <th colspan={3} />
+              <th class="g" colspan={5}>Tasks</th>
+              <th class="g" colspan={5}>Criteria</th>
+              <th />
+            </tr>
             <tr>
               <th>Run</th>
               <th>Benchmark</th>
-              <th>Model</th>
-              <th>Status</th>
+              <th>Test model</th>
+              <th class="n g">Total</th>
+              <th class="n">Passed</th>
+              <th class="n">Failed</th>
+              <th class="n">Errored</th>
               <th class="n">Pass rate</th>
+              <th class="n g">Total</th>
+              <th class="n">Passed</th>
+              <th class="n">Failed</th>
+              <th class="n">Ungraded</th>
+              <th class="n">Pass rate</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -232,69 +246,21 @@ function SelectedRunSummary({
                 <span class="sub"><Id value={benchmarkRun.benchmarkCode} /></span>
               </td>
               <td>{benchmarkRun.model}</td>
+              <td class="n g">{benchmarkRun.resultTasksTotal ?? benchmarkRun.taskCount}</td>
+              <td class="n">{count(benchmarkRun.resultTasksPassed, 'pass')}</td>
+              <td class="n">{count(benchmarkRun.resultTasksFailed, 'fail')}</td>
+              <td class="n">{count(benchmarkRun.resultTasksErrored, 'warn')}</td>
+              <td class="n rate">{rate(benchmarkRun.resultTasksPassed, benchmarkRun.resultTasksTotal)}</td>
+              <td class="n g">{benchmarkRun.resultCriteriaTotal === null ? dash : benchmarkRun.resultCriteriaTotal}</td>
+              <td class="n">{count(benchmarkRun.resultCriteriaPassed, 'pass')}</td>
+              <td class="n">{count(benchmarkRun.resultCriteriaFailed, 'fail')}</td>
+              <td class="n">{count(benchmarkRun.resultCriteriaUngraded, 'warn')}</td>
+              <td class="n rate">{rate(benchmarkRun.resultCriteriaPassed, benchmarkRun.resultCriteriaTotal)}</td>
               <td><Badge state={benchmarkRun.result === 'failed' ? 'failed' : benchmarkRun.result === 'error' ? 'pending' : 'ready'}>{benchmarkRun.result ?? 'pending'}</Badge></td>
-              <td class="n">{progress?.passRate === null || progress?.passRate === undefined ? '—' : `${(progress.passRate * 100).toFixed(1)}%`}</td>
             </tr>
           </tbody>
         </Table>
       ) : <div class="m-empty">No benchmark runs available.</div>}
-    </TableBox>
-  );
-}
-
-function FailureMapLedger({
-  selectedRunId,
-  runProgress,
-  availableRuns,
-}: {
-  selectedRunId: number | null;
-  runProgress: BenchmarkRunProgress[];
-  availableRuns: BenchmarkRunSummary[];
-}) {
-  const runsById = new Map(availableRuns.map((run) => [run.benchmarkRunId, run]));
-  const maps = runProgress.filter((item) => item.failureMap.entity);
-
-  return (
-    <TableBox>
-      <Cap title="Failure map ledger" code={maps.length ? `${maps.length} ${maps.length === 1 ? 'map' : 'maps'}` : 'no maps'} />
-      {maps.length ? (
-        <Table>
-          <thead>
-            <tr>
-              <th>Map</th>
-              <th>Source run</th>
-              <th class="n">Failures</th>
-              <th class="n">Topics</th>
-              <th class="n">Docs</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {maps.map((item) => {
-              const run = runsById.get(item.benchmarkRunId);
-              if (!run) return null;
-              return (
-                <tr data-state="ready" class={item.benchmarkRunId === selectedRunId ? 'selected' : undefined}>
-                  <td>
-                    <span class="nm"><Id value={item.failureMap.entity!} /></span>
-                    <span class="sub">Connected to {item.benchmarkRunCode}</span>
-                  </td>
-                  <td>
-                    <a class="nm" href={`/failures?run=${item.benchmarkRunId}`}>{run.label}</a>
-                    <span class="sub">{run.model}</span>
-                  </td>
-                  <td class="n">{item.failureMap.count}</td>
-                  <td class="n">{item.topicCount}</td>
-                  <td class="n">{item.dataForgeRun.count}</td>
-                  <td><Badge state="ready">mapped</Badge></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-      ) : (
-        <div class="m-empty">No failure maps yet. The selected run's inventory is ready below.</div>
-      )}
     </TableBox>
   );
 }
@@ -308,7 +274,7 @@ function TopicTable({ summary, topics, hasMap }: { summary: TopicTally; topics: 
             { value: summary.topics, label: 'topics' },
             { value: summary.failures, label: 'failures mapped', hot: summary.failures > 0 },
             { value: summary.uncategorised, label: 'uncategorized' },
-            { value: summary.documents, label: 'docs generated' },
+            { value: summary.documents, label: 'docs approved' },
           ]}
         />
       </Cap>
@@ -320,8 +286,7 @@ function TopicTable({ summary, topics, hasMap }: { summary: TopicTally; topics: 
               <th>Id</th>
               <th class="n">Fails</th>
               <th class="n">Docs</th>
-              <th class="n">Reward</th>
-              <th>Verifier</th>
+              <th>Verifier strategy</th>
             </tr>
           </thead>
           <tbody>
@@ -334,8 +299,7 @@ function TopicTable({ summary, topics, hasMap }: { summary: TopicTally; topics: 
                 <td><Id value={topic.code} /></td>
                 <td class="n">{topic.failureCount}</td>
                 <td class="n">{topic.documentCount}</td>
-                <td class="n">{formatReward(topic.reward)}</td>
-                <td><Bar value={topic.reward} below={isBelowThreshold(topic)} /></td>
+                <td><span class="sub">{topic.verifierStrategy}</span></td>
               </tr>
             ))}
           </tbody>
@@ -368,7 +332,7 @@ function FailureInventory({ tasks, failed, errored }: { tasks: BenchmarkTaskCrit
                 <header class="m-criteria-task-head">
                   <span class="m-id">{task.taskId}</span>
                   <span class="m-criteria-task-tally">
-                    {failures.length} {failures.length === 1 ? 'criterion' : 'criteria'} for analysis
+                    {failures.length} {failures.length === 1 ? 'unpassed criterion' : 'unpassed criteria'}
                   </span>
                 </header>
                 {failures.map((criterion) => <FailureCriterion criterion={criterion} />)}

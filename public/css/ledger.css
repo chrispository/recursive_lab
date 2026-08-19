@@ -129,6 +129,8 @@
 /* Main column -------------------------------------------------------------- */
 
 .m-main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   padding: var(--s5);
   padding-bottom: calc(var(--s5) + 58px);
@@ -179,15 +181,43 @@
   font: 500 11px / 1 var(--mono);
   letter-spacing: 0.07em;
 }
-.m-run-context-prose {
+.m-run-context-name {
   min-width: 0;
-  color: var(--text-2);
-  font-size: var(--t-label);
   overflow-wrap: anywhere;
-}
-.m-run-context-prose b {
   color: var(--text-1);
   font-weight: 600;
+}
+.m-run-context-model {
+  color: var(--text-3);
+  font: 500 11px / 1 var(--mono);
+}
+.m-run-context-tally {
+  display: inline-flex;
+  align-items: baseline;
+  margin-left: 2px;
+  border-left: 1px solid var(--line-soft);
+}
+.m-run-context-tally > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 11px;
+  border-right: 1px solid var(--line-soft);
+}
+.m-run-context-tally > span:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+.m-run-context-tally b {
+  color: var(--text-1);
+  font: 500 12px / 1 var(--mono);
+}
+.m-run-context-tally i {
+  color: var(--text-3);
+  font: 500 10px / 1 var(--sans);
+  font-style: normal;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 .m-run-switch {
   position: relative;
@@ -621,7 +651,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--s4);
-  margin: var(--s5) calc(var(--s5) * -1) calc(var(--s5) * -1);
+  margin: auto calc(var(--s5) * -1) calc(-1 * (var(--s5) + 58px));
   padding: 10px var(--s5);
   border-top: 1px solid var(--line);
   background: var(--deeper);
@@ -674,6 +704,14 @@
   background: var(--brand-press);
   border-color: var(--brand-press);
 }
+/* Blocked handoffs are spans without href, so they need their own muted state. */
+.m-handoff-go.is-disabled {
+  color: var(--text-3);
+  background: var(--raised);
+  border-color: var(--line);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 /* Tablebox ----------------------------------------------------------------
    A bordered box whose caption carries the counts for the rows inside it. The
    count lives with the rows it counts, so the two can never disagree. */
@@ -684,6 +722,58 @@
   background: var(--panel);
 }
 .m-config-stack > .m-tablebox {
+  margin-top: 0;
+}
+
+/* Failure inventory ------------------------------------------------------
+   Keep the raw source criteria available below the topic result without
+   making the first page view carry the long criterion ledger. */
+.m-evidence {
+  margin-top: var(--s4);
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+.m-evidence > summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  padding: 10px 12px;
+  color: var(--text-3);
+  cursor: pointer;
+  font: 650 var(--t-label) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  list-style: none;
+  text-transform: uppercase;
+}
+.m-evidence > summary::-webkit-details-marker {
+  display: none;
+}
+.m-evidence-toggle {
+  display: inline-flex;
+  width: 16px;
+  color: var(--text-4);
+  transition: transform 0.16s var(--ease);
+}
+.m-evidence[open] > summary .m-evidence-toggle {
+  transform: rotate(90deg);
+}
+.m-evidence-title {
+  color: var(--text-1);
+}
+.m-evidence-note {
+  margin-left: auto;
+  color: var(--text-4);
+  font: 500 var(--t-micro) / 1.2 var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.m-evidence-body {
+  display: grid;
+  gap: var(--s3);
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--line);
+}
+.m-evidence-body > .m-tablebox {
   margin-top: 0;
 }
 
@@ -1001,14 +1091,26 @@
    so toggling the filter back restores the disclosure state you left behind.
    Ungraded rows stay visible — a criterion the judge could not grade is one
    you still have to look at. */
-/* Right-hand end of the caption, beside the count it filters — a control
-   floating mid-caption reads as a third heading. */
-.m-cap .m-criteria-filter {
+/* Keep the filter attached to the heading it controls. The count stays on the
+   far edge, so the caption reads as title + control | context. */
+.m-criteria-box .m-cap {
+  justify-content: flex-start;
+}
+.m-criteria-box .m-cap .m-code {
   margin-left: auto;
+}
+.m-criteria-filter {
+  border-color: var(--edge);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.m-criteria-filter:hover {
+  border-color: var(--hover-border);
 }
 .m-criteria-filter[aria-pressed='true'] {
   color: var(--text-1);
-  background: var(--wash-2);
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 9%, var(--raised));
 }
 .m-criteria-box[data-filter='unpassed'] .m-criterion.pass,
 .m-criteria-box[data-filter='unpassed'] .m-criteria-task[data-unpassed='0'] {
@@ -1098,6 +1200,282 @@
 
 /* Panels ------------------------------------------------------------------- */
 
+/* Data forge --------------------------------------------------------------
+   The forge has two kinds of work: configuring the next batch and reviewing
+   the artifacts it produced. Both stay in the ledger language — hairlines,
+   quiet ids, and a single left-edge state stripe. */
+.m-forge-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+  gap: var(--s4);
+  margin-top: var(--s4);
+}
+.m-forge-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--inset);
+}
+.m-forge-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--deep);
+}
+.m-forge-card-head h3 {
+  color: var(--text-1);
+  font-size: var(--t-data);
+}
+.m-forge-card-head p {
+  max-width: 60ch;
+  margin-top: 5px;
+  font-size: var(--t-label);
+}
+.m-forge-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+  padding: var(--s4);
+}
+.m-forge-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.m-forge-field.full,
+.m-forge-check.full,
+.m-forge-actions.full {
+  grid-column: 1 / -1;
+}
+.m-forge-field label {
+  color: var(--text-2);
+  font: 650 var(--t-label) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-forge-field input,
+.m-forge-field select {
+  width: 100%;
+}
+.m-field-note {
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.45 var(--sans);
+}
+.m-forge-check {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  color: var(--text-2);
+  font-size: var(--t-label);
+}
+.m-forge-check input {
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+}
+.m-forge-check b,
+.m-forge-check small {
+  display: block;
+}
+.m-forge-check small {
+  margin-top: 4px;
+  color: var(--text-3);
+  line-height: 1.45;
+}
+.m-forge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line-soft);
+}
+.m-forge-actions button {
+  min-width: 170px;
+}
+.m-prompt-card {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+.m-prompt-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: 0 0 auto;
+}
+.m-prompt-revision-picker {
+  display: flex;
+  min-width: 0;
+}
+.m-prompt-revision-picker select {
+  width: auto;
+  min-width: 108px;
+  padding: 5px 28px 5px 8px;
+  color: var(--text-2);
+  background: var(--raised);
+  border-color: var(--line);
+  font: 500 var(--t-micro) / 1.2 var(--mono);
+}
+.m-prompt-revision-picker select:hover:not(:disabled) {
+  color: var(--text-1);
+  border-color: var(--edge);
+}
+.m-prompt-revision-picker select:disabled {
+  color: var(--text-3);
+  opacity: 1;
+}
+.m-prompt-settings {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+}
+.m-prompt-settings:hover:not(:disabled) {
+  border-color: var(--edge);
+}
+.m-prompt-notice {
+  margin: var(--s3) var(--s4) 0;
+  padding: 8px 10px;
+  color: var(--pass);
+  border-left: 2px solid var(--pass);
+  background: var(--wash);
+  font-size: var(--t-label);
+}
+.m-prompt-notice.is-error {
+  color: var(--fail);
+  border-left-color: var(--fail);
+}
+.m-prompt-editor {
+  flex: 1;
+  min-height: 250px;
+  margin: var(--s4);
+  resize: vertical;
+}
+.m-prompt-dialog {
+  width: min(900px, calc(100vw - 2 * var(--s4)));
+}
+.m-prompt-form {
+  grid-template-columns: 1fr;
+}
+.m-prompt-label {
+  color: var(--text-2);
+  font: 650 var(--t-label) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-prompt-label span {
+  color: var(--text-4);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.m-prompt-dialog-editor {
+  min-height: 360px;
+  resize: vertical;
+  color: var(--text-1);
+  background: var(--deeper);
+  font: 400 var(--t-label) / 1.55 var(--mono);
+}
+.m-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+.m-prompt-card > .m-field-note {
+  padding: 0 var(--s4) var(--s4);
+}
+.m-document-queue {
+  margin-top: var(--s4);
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.m-document-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line-soft);
+}
+.m-document-card {
+  min-width: 0;
+  padding: var(--s4);
+  border-left: 3px solid var(--line);
+  background: var(--raised);
+}
+.m-document-card[data-review='approved'] { border-left-color: var(--pass); }
+.m-document-card[data-review='rejected'] { border-left-color: var(--fail); }
+.m-document-card[data-review='pending'] { border-left-color: var(--warn); }
+.m-document-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.m-document-card h4 {
+  color: var(--text-1);
+  font-size: var(--t-data);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.m-document-card .sub {
+  display: block;
+  margin-top: 5px;
+}
+.m-document-card details {
+  margin-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+.m-document-card details > summary {
+  padding-top: var(--s3);
+  color: var(--text-2);
+  cursor: pointer;
+  font: 650 var(--t-label) / 1.3 var(--sans);
+}
+.m-document-content {
+  display: grid;
+  gap: 5px;
+  padding-top: var(--s3);
+  color: var(--text-2);
+  font-size: var(--t-label);
+  line-height: 1.55;
+}
+.m-document-content b {
+  color: var(--text-3);
+  font: 650 var(--t-micro) / 1.2 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.m-document-content p + b {
+  margin-top: 7px;
+}
+.m-review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+.m-review-controls .m-field-note {
+  margin-right: auto;
+}
+.m-review-controls button {
+  min-height: 28px;
+  padding: 0 9px;
+  font-size: var(--t-label);
+}
+
 .m-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1123,6 +1501,68 @@
 .m-body {
   display: grid;
   gap: var(--s3);
+}
+
+/* Failure analysis handoff -----------------------------------------------
+   The selected-run table already carries the run identity. This compact
+   surface keeps only the reason for the next step, its useful counts, and the
+   one action that advances the run into topic generation. */
+.m-analysis-handoff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s5);
+  align-items: center;
+  margin-top: var(--s4);
+  padding: 19px 20px;
+  border: 1px solid var(--line);
+  background: linear-gradient(90deg, var(--raised) 0%, var(--panel) 100%);
+  box-shadow: inset 0 0 0 1px var(--inset);
+}
+.m-analysis-handoff-copy h3 {
+  color: var(--text-1);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+.m-analysis-handoff-copy p {
+  max-width: 68ch;
+  margin-top: 5px;
+}
+.m-analysis-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 17px;
+  margin-top: 11px;
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-analysis-meta b {
+  margin-right: 4px;
+  color: var(--fail);
+  font-size: var(--t-label);
+  letter-spacing: 0;
+}
+.m-analysis-action {
+  display: grid;
+  justify-items: end;
+  gap: var(--s2);
+}
+.m-analysis-action small {
+  color: var(--text-4);
+  font: 500 var(--t-micro) / 1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-analysis-action button {
+  min-width: 180px;
+}
+.m-analysis-handoff > .m-analysis-status {
+  grid-column: 1 / -1;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
 }
 
 /* Small parts -------------------------------------------------------------- */
@@ -1654,6 +2094,17 @@
   .m-split {
     grid-template-columns: 1fr;
   }
+  .m-forge-layout,
+  .m-forge-form,
+  .m-document-grid {
+    grid-template-columns: 1fr;
+  }
+  .m-analysis-handoff {
+    grid-template-columns: 1fr;
+  }
+  .m-analysis-action {
+    justify-items: start;
+  }
   .m-appearance-grid,
   .m-settings-grid,
   .m-config-layout,
@@ -1689,6 +2140,11 @@
   .m-config-body > .full,
   .m-config-fields > .full,
   .m-config-grid > .full {
+    grid-column: auto;
+  }
+  .m-forge-field.full,
+  .m-forge-check.full,
+  .m-forge-actions.full {
     grid-column: auto;
   }
   .m-import-controls {
