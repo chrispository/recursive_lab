@@ -116,6 +116,9 @@ export const pages = new Elysia({ name: 'pages' })
       case 'forge': {
         const availableRuns = await runs.list();
         const dataForgeRun = selectedProgress ? await dataForge.byBenchmarkRun(selectedProgress.benchmarkRunId) : null;
+        const forgeTopics = selectedProgress?.failureMapId
+          ? await topics.listByFailureMap(selectedProgress.failureMapId)
+          : [];
         const forgeJobs = selectedProgress ? await jobs.listByBenchmarkRun(selectedProgress.benchmarkRunId) : [];
         const forgeJob = [...forgeJobs].reverse().find((job) => job.kind === 'data_forge_run') ?? null;
         const generationSettings = await settings.read();
@@ -133,6 +136,7 @@ export const pages = new Elysia({ name: 'pages' })
             availableRuns={availableRuns}
             dataForge={dataForgeRun}
             documents={dataForgeRun ? await dataForge.documents(dataForgeRun.dataForgeCode) : []}
+            topics={forgeTopics}
             forgeJob={forgeJob}
             generationBackend={generationSettings.generation_backend}
             generationModel={generationSettings.generation_model_name}

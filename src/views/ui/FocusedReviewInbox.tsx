@@ -90,26 +90,32 @@ export function FocusedReviewInbox({ benchmarkRunId, dataForge, documents }: { b
   const pending = documents.filter((document) => bucketOf(document) === 'pending');
   const approved = documents.filter((document) => bucketOf(document) === 'approved');
   const blocked = documents.filter((document) => bucketOf(document) === 'blocked');
+  const topics = [...new Map(documents.map((document) => [document.topicCode, document.topicName])).entries()]
+    .sort((left, right) => left[1].localeCompare(right[1]));
   const initialBucket: ReviewBucket = pending.length ? 'pending' : approved.length ? 'approved' : 'blocked';
   const selected = (initialBucket === 'pending' ? pending : initialBucket === 'approved' ? approved : blocked)[0] ?? documents[0] ?? null;
   const complete = Boolean(dataForge && dataForge.novelDocuments >= dataForge.requestedDocuments);
   const handoffReady = complete && pending.length === 0 && blocked.length === 0;
 
   return (
-    <section
+    <details
       id="focused-review-inbox"
       class="m-review-inbox"
       data-review-inbox
-      data-review-filter={initialBucket}
+      data-review-status-filter={initialBucket}
       data-review-selected={selected?.documentCode ?? ''}
+      open
     >
-      <div class="m-review-inbox-head">
+      <summary class="m-review-inbox-head">
         <div>
           <h3>Focused review inbox</h3>
           <p>One queue, one document open, one decision at a time.</p>
         </div>
-        <span class="m-review-recommended">recommended</span>
-      </div>
+        <span class="m-review-head-tools">
+          <span class="m-review-recommended">recommended</span>
+          <span class="m-review-collapse"><span class="m-review-collapse-open">collapse</span><span class="m-review-collapse-closed">open</span></span>
+        </span>
+      </summary>
 
       <div class="m-review-decision-bar">
         <div class="m-review-decision-copy">
@@ -122,7 +128,7 @@ export function FocusedReviewInbox({ benchmarkRunId, dataForge, documents }: { b
         </label>
         <div class="m-review-decision-actions">
           <button type="button" class="secondary compact" data-review-bulk="approved" disabled={!pending.length}>
-            Approve all {pending.length} passed
+            Approve all <span data-review-bulk-count>{pending.length}</span> passed
           </button>
           {handoffReady && benchmarkRunId ? (
             <a class="m-review-send compact" href={`/env-lab?run=${benchmarkRunId}`}>Send to Env Lab</a>
@@ -137,6 +143,13 @@ export function FocusedReviewInbox({ benchmarkRunId, dataForge, documents }: { b
       <div class="m-review-split">
         <div class="m-review-queue">
           <div class="m-review-queue-tools" role="tablist" aria-label="Document review status">
+            <label class="m-review-topic-filter">
+              <span>Topic</span>
+              <select data-review-topic-filter aria-label="Filter documents by topic">
+                <option value="all">All topics</option>
+                {topics.map(([code, name]) => <option value={code}>{name}</option>)}
+              </select>
+            </label>
             <button type="button" class={initialBucket === 'pending' ? 'm-review-filter is-active' : 'm-review-filter'} data-review-filter="pending" aria-pressed={initialBucket === 'pending' ? 'true' : 'false'}>
               Needs review {pending.length}
             </button>
@@ -157,6 +170,7 @@ export function FocusedReviewInbox({ benchmarkRunId, dataForge, documents }: { b
                   data-review-queue-row
                   data-review-select={document.documentCode}
                   data-review-status={bucket}
+                  data-review-topic={document.topicCode}
                   aria-controls={`review-detail-${document.documentCode}`}
                   hidden={bucket !== initialBucket}
                 >
@@ -169,7 +183,7 @@ export function FocusedReviewInbox({ benchmarkRunId, dataForge, documents }: { b
                 </button>
               );
             })}
-            {!documents.length ? <div class="m-review-empty">No data-forged documents yet. Start a run above to open the review inbox.</div> : null}
+            {documents.length ? <div class="m-review-empty" data-review-filter-empty hidden>No documents match these filters.</div> : <div class="m-review-empty">No data-forged documents yet. Start a run above to open the review inbox.</div>}
           </div>
         </div>
 
@@ -178,6 +192,6 @@ export function FocusedReviewInbox({ benchmarkRunId, dataForge, documents }: { b
           {!documents.length ? <div class="m-review-empty m-review-empty-detail">A generated document will appear here after the forge run completes.</div> : null}
         </div>
       </div>
-    </section>
+    </details>
   );
 }

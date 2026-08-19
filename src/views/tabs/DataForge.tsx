@@ -1,12 +1,11 @@
 import type { PromptRevision } from '../../domain/prompts/model.ts';
 import type { DataForgeSummary, DocumentRow } from '../../domain/data_forge/model.ts';
+import type { TopicRow } from '../../domain/topics/model.ts';
 import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
 import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { isLive, type JobRow } from '../../domain/jobs/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Cap } from '../ui/Cap.tsx';
-import { Field } from '../ui/Field.tsx';
-import { Panel } from '../ui/Panel.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
@@ -27,6 +26,7 @@ export function DataForge({
   availableRuns,
   dataForge,
   documents,
+  topics,
   forgeJob,
   generationBackend,
   generationModel,
@@ -39,6 +39,7 @@ export function DataForge({
   availableRuns: BenchmarkRunSummary[];
   dataForge: DataForgeSummary | null;
   documents: DocumentRow[];
+  topics: TopicRow[];
   forgeJob: JobRow | null;
   generationBackend: 'data_designer' | 'frontier';
   generationModel: string;
@@ -135,21 +136,84 @@ export function DataForge({
         </TableBox>
       ) : null}
 
-      <div class="m-split">
-        <Panel title="Generation boundary" code="anti-benchmax">
-          <p class="m-note">The generator sees topic name, description, verifier strategy, and requested count. It does not receive the original task, criterion text, reference answer, names, dates, or figures.</p>
-        </Panel>
-        <Panel title="Data forge configuration" code={dataForge?.dataForgeCode ?? 'not started'}>
-          <Field label="Novelty threshold"><div class="m-input">{dataForge?.noveltyThreshold.toFixed(2) ?? '0.22'}</div></Field>
-          <Field label="Auto approve"><div class="m-input">{dataForge?.autoApprove ? 'enabled' : 'disabled'}</div></Field>
-          <Field label="Token usage"><div class="m-input">{dataForge ? `${(dataForge.inputTokens + dataForge.outputTokens).toLocaleString()} total` : '—'}</div></Field>
-        </Panel>
-      </div>
-
-      <Handoff stage="forge" benchmarkRun={benchmarkRun} progress={progress} />
+      <TopicTable topics={topics} documents={documents} dataForge={dataForge} failureMapCode={progress?.failureMap.entity ?? null} />
 
       <FocusedReviewInbox benchmarkRunId={benchmarkRun?.benchmarkRunId ?? null} dataForge={dataForge} documents={documents} />
+
+      <Handoff stage="forge" benchmarkRun={benchmarkRun} progress={progress} />
     </>
+  );
+}
+
+function TopicTable({
+  topics,
+  documents,
+  dataForge,
+  failureMapCode,
+}: {
+  topics: TopicRow[];
+  documents: DocumentRow[];
+  dataForge: DataForgeSummary | null;
+  failureMapCode: string | null;
+}) {
+  const docsByTopic = new Map<string, { total: number; novel: number; rejected: number }>();
+  for (const document of documents) {
+    const counts = docsByTopic.get(document.topicCode) ?? { total: 0, novel: 0, rejected: 0 };
+    counts.total += 1;
+    if (document.noveltyStatus === 'passed') counts.novel += 1;
+    if (document.noveltyStatus === 'rejected' || document.reviewStatus === 'rejected') counts.rejected += 1;
+    docsByTopic.set(document.topicCode, counts);
+  }
+
+  return (
+    <TableBox>
+      <Cap title="Topics" code={failureMapCode ?? undefined}>
+        <Tally
+          items={[
+            { value: topics.length, label: 'topics' },
+            { value: documents.length, label: 'docs' },
+            ...(dataForge ? [
+              { value: dataForge.novelDocuments, label: 'novel', hot: true },
+              { value: Math.max(0, dataForge.requestedDocuments - dataForge.novelDocuments), label: 'slots open' },
+            ] : []),
+          ]}
+        />
+      </Cap>
+      {topics.length ? (
+        <Table>
+          <thead>
+            <tr>
+              <th>Topic</th>
+              <th>Id</th>
+              <th class="n">Docs</th>
+              <th class="n">Novel</th>
+              <th class="n">Rejected</th>
+              <th class="n">Target</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topics.map((topic) => {
+              const counts = docsByTopic.get(topic.code) ?? { total: 0, novel: 0, rejected: 0 };
+              return (
+                <tr data-state={dataForge && counts.novel >= dataForge.docsPerTopic ? 'ready' : counts.total ? 'pending' : 'failed'}>
+                  <td>
+                    <span class="nm">{topic.name}</span>
+                    <span class="sub">{topic.description}</span>
+                  </td>
+                  <td><span class="m-id">{topic.code}</span></td>
+                  <td class="n">{counts.total}</td>
+                  <td class="n">{counts.novel}</td>
+                  <td class="n">{counts.rejected}</td>
+                  <td class="n">{dataForge?.docsPerTopic ?? '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      ) : (
+        <div class="m-empty">{failureMapCode ? 'No topics found for this failure map.' : 'Create a failure map to populate the topic list.'}</div>
+      )}
+    </TableBox>
   );
 }
 

@@ -26,6 +26,13 @@
   }
   .m-review-split {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .m-review-inbox {
+    max-height: none;
+    overflow: visible;
   }
   .m-review-queue {
     border-right: 0;
@@ -36,6 +43,9 @@
   .m-review-detail,
   .m-review-empty-detail {
     min-height: 560px;
+  }
+  .m-review-details {
+    overflow: visible;
   }
   .m-review-decision-actions {
     justify-content: flex-start;

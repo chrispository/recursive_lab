@@ -3,3 +3,4 @@
 - [ ] Add LLM-call auditing: record redacted request metadata, prompt/input fingerprints, timing phases, provider request IDs, response status, usage/cost, retries, and failure details for every outbound call without storing credentials.
 - [ ] Add frontier LLM synth data gen - right now only nvidia data designer actually works
 - [ ] Retry logic for various gen
+- [ ] On Data Forge - review the "button" names like "all slots filled'

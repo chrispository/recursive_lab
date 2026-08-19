@@ -213,14 +213,13 @@
   padding: var(--s3);
   color: var(--text-3);
   background: var(--raised);
-  border-left: 3px solid var(--line);
+  border: 1px solid var(--line);
   font-size: var(--t-label);
 }
-.m-api-result[data-status='ok'] { border-left-color: var(--pass); }
-.m-api-result[data-status='error'] { border-left-color: var(--fail); }
 .m-api-result strong { color: var(--text-1); font-weight: 500; }
 .m-api-result[data-status='ok'] .m-api-status { color: var(--pass); }
 .m-api-result[data-status='error'] .m-api-status { color: var(--fail); }
+
 .m-api-status {
   color: var(--text-3);
   font: 500 11px / 1.4 var(--sans);
@@ -325,9 +324,9 @@
 .m-run-ledger { background: var(--panel); }
 .m-ledger-row { position: relative; display: grid; align-items: center; gap: 20px; padding: 18px 20px; border-bottom: 1px solid var(--line-soft); }
 .m-ledger-row:last-child { border-bottom: 0; }
-.m-ledger-live { grid-template-columns: 78px 210px minmax(0, 1fr); min-height: 168px; border-left: 3px solid var(--run); padding: 24px 36px 18px; background: linear-gradient(90deg, color-mix(in srgb, var(--run) 8%, transparent), transparent 62%); }
-.m-ledger-complete { grid-template-columns: 210px minmax(0, 1fr); min-height: 168px; padding: 24px 36px 18px; border-left: 3px solid var(--pass); }
-.m-ledger-complete[data-state='error'] { border-left-color: var(--fail); }
+.m-ledger-live { grid-template-columns: 78px 210px minmax(0, 1fr); min-height: 168px; padding: 24px 36px 18px; background: linear-gradient(90deg, color-mix(in srgb, var(--run) 8%, transparent), transparent 62%); }
+.m-ledger-complete { grid-template-columns: 210px minmax(0, 1fr); min-height: 168px; padding: 24px 36px 18px; }
+
 .m-ledger-identity, .m-ledger-progress, .m-ledger-outcome, .m-ledger-scores { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
 .m-ledger-identity > strong, .m-ledger-progress > strong, .m-ledger-scores > strong { font-size: 14px; letter-spacing: -.012em; }
 .m-ledger-live .m-ledger-identity > strong, .m-ledger-complete .m-ledger-identity > strong { font-size: 20px; letter-spacing: -.03em; }

@@ -124,12 +124,19 @@ export function Failures({
         <summary>
           <span class="m-evidence-toggle" aria-hidden="true"><Icon name="chevron" /></span>
           <span class="m-evidence-title">Failure inventory</span>
-          <span class="m-evidence-note">source criteria</span>
+          <Tally
+            items={[
+              { value: counts.failed, label: 'failed', hot: counts.failed > 0 },
+              { value: counts.errored, label: 'ungraded' },
+            ]}
+          />
+          <span class="m-code m-evidence-note">{counts.failed + counts.errored} {counts.failed + counts.errored === 1 ? 'criterion' : 'criteria'}</span>
         </summary>
         <div class="m-evidence-body">
-          <FailureInventory tasks={tasks} failed={counts.failed} errored={counts.errored} />
+          <FailureInventory tasks={tasks} />
         </div>
       </details>
+
       <Handoff stage="failures" benchmarkRun={benchmarkRun} progress={progress} />
     </>
   );
@@ -401,43 +408,35 @@ function TopicTable({
   );
 }
 
-function FailureInventory({ tasks, failed, errored }: { tasks: BenchmarkTaskCriteria[]; failed: number; errored: number }) {
+function FailureInventory({ tasks }: { tasks: BenchmarkTaskCriteria[] }) {
+  if (!tasks.some((task) => task.failed + task.errored > 0)) {
+    return (
+      <div class="m-empty">
+        {tasks.length ? 'This run passed every imported criterion.' : 'No criterion verdicts were imported for this run.'}
+      </div>
+    );
+  }
   return (
-    <TableBox class="m-failure-box">
-      <Cap title="Failure inventory" code={`${failed + errored} ${failed + errored === 1 ? 'criterion' : 'criteria'}`}>
-        <Tally
-          items={[
-            { value: failed, label: 'failed', hot: failed > 0 },
-            { value: errored, label: 'ungraded' },
-          ]}
-        />
-      </Cap>
-      {tasks.some((task) => task.failed + task.errored > 0) ? (
-        <div class="m-criteria-list">
-          {tasks.map((task) => {
-            const failures = task.criteria.filter((criterion) => criterion.result !== 'pass');
-            if (!failures.length) return null;
-            return (
-              <section class="m-criteria-task" data-unpassed={failures.length}>
-                <header class="m-criteria-task-head">
-                  <span class="m-id">{task.taskId}</span>
-                  <span class="m-criteria-task-tally">
-                    {failures.length} {failures.length === 1 ? 'unpassed criterion' : 'unpassed criteria'}
-                  </span>
-                </header>
-                {failures.map((criterion) => <FailureCriterion criterion={criterion} />)}
-              </section>
-            );
-          })}
-        </div>
-      ) : (
-        <div class="m-empty">
-          {tasks.length ? 'This run passed every imported criterion.' : 'No criterion verdicts were imported for this run.'}
-        </div>
-      )}
-    </TableBox>
+    <div class="m-criteria-list">
+      {tasks.map((task) => {
+        const failures = task.criteria.filter((criterion) => criterion.result !== 'pass');
+        if (!failures.length) return null;
+        return (
+          <section class="m-criteria-task" data-unpassed={failures.length}>
+            <header class="m-criteria-task-head">
+              <span class="m-id">{task.taskId}</span>
+              <span class="m-criteria-task-tally">
+                {failures.length} {failures.length === 1 ? 'unpassed criterion' : 'unpassed criteria'}
+              </span>
+            </header>
+            {failures.map((criterion) => <FailureCriterion criterion={criterion} />)}
+          </section>
+        );
+      })}
+    </div>
   );
 }
+
 
 function FailureCriterion({ criterion }: { criterion: BenchmarkCriterionResult }) {
   return (

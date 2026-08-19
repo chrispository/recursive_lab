@@ -109,37 +109,6 @@
       text-transform: uppercase;
     }
 
-    .font-picker {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 7px;
-      padding: 14px 0;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .font-picker-label {
-      margin-right: 7px;
-      color: var(--dim);
-      font: 500 9px/1 "IBM Plex Mono", monospace;
-      letter-spacing: .11em;
-      text-transform: uppercase;
-    }
-
-    .font-choice {
-      padding: 7px 10px;
-      border: 1px solid var(--line);
-      border-radius: 2px;
-      background: var(--bar);
-      color: var(--muted);
-      cursor: pointer;
-      font-family: var(--choice-font);
-      font-size: 10px;
-    }
-
-    .font-choice:hover { color: var(--text); border-color: var(--dim); }
-    .font-choice[aria-pressed="true"] { background: var(--text); color: var(--page); border-color: var(--text); }
-
     .options {
       display: grid;
       gap: 42px;
@@ -209,6 +178,7 @@
     .run-id {
       flex: 0 0 auto;
       color: var(--text);
+      font-family: "IBM Plex Mono", monospace;
       font-size: 11px;
       font-weight: 500;
       line-height: 1;
@@ -272,63 +242,43 @@
       transform: translateY(-1px);
     }
 
-    /* 01: the current structure with only the orange stripe removed. */
-    .option-1 .run-id { font-family: "IBM Plex Mono", monospace; }
+    /* 01: the selected quiet baseline, used as the control. */
 
-    /* 02: a cold, one-pixel gradient replaces the brand stripe. */
+    /* 02: a directional gradient that reads as depth rather than decoration. */
     .option-2 .bar {
-      border-color: transparent;
       background:
-        linear-gradient(var(--bar), var(--bar)) padding-box,
-        linear-gradient(100deg, var(--line) 0%, var(--blue) 48%, var(--violet) 72%, var(--line) 100%) border-box;
-    }
-    .option-2 .run-id {
-      color: var(--blue);
-      font-family: "DM Mono", monospace;
-      letter-spacing: .045em;
+        linear-gradient(105deg,
+          color-mix(in srgb, var(--blue) 9%, var(--bar)) 0%,
+          var(--bar) 38%,
+          color-mix(in srgb, var(--violet) 7%, var(--bar)) 100%);
     }
 
-    /* 03: keep the bar neutral and place the gradient only in the run id. */
-    .option-3 .bar { background: var(--bar-raised); }
-    .option-3 .run-id {
-      background: linear-gradient(90deg, var(--blue), var(--mint));
-      background-clip: text;
-      color: transparent;
-      font-family: "Azeret Mono", monospace;
-      font-weight: 600;
-      letter-spacing: .035em;
-    }
-
-    /* 04: a very soft ambient wash gives the entire surface some depth. */
-    .option-4 .bar {
+    /* 03: two broad radial fields create a soft aurora surface. */
+    .option-3 .bar {
       background:
-        radial-gradient(75% 190% at 7% 50%, color-mix(in srgb, var(--blue) 13%, transparent), transparent 68%),
-        radial-gradient(50% 170% at 68% 130%, color-mix(in srgb, var(--violet) 10%, transparent), transparent 75%),
+        radial-gradient(65% 220% at 10% 40%, color-mix(in srgb, var(--blue) 13%, transparent), transparent 65%),
+        radial-gradient(55% 230% at 78% 130%, color-mix(in srgb, var(--mint) 9%, transparent), transparent 72%),
         var(--bar);
     }
-    .option-4 .run-id {
-      font-family: "Fragment Mono", monospace;
-      letter-spacing: .075em;
+
+    /* 04: a low-contrast engineering grid, clipped inside the bar. */
+    .option-4 .bar {
+      background:
+        linear-gradient(color-mix(in srgb, var(--text) 3.5%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--text) 3.5%, transparent) 1px, transparent 1px),
+        linear-gradient(100deg, color-mix(in srgb, var(--blue) 5%, var(--bar)), var(--bar) 55%),
+        var(--bar);
+      background-size: 16px 16px, 16px 16px, 100% 100%, 100% 100%;
     }
 
-    /* 05: a compact plaque makes the identifier read as an object, not a label. */
+    /* 05: a fine diagonal weave adds texture without becoming a focal point. */
     .option-5 .bar {
-      border-color: var(--line-soft);
-      box-shadow: inset 0 1px rgba(255,255,255,.025);
+      background:
+        repeating-linear-gradient(135deg,
+          transparent 0 7px,
+          color-mix(in srgb, var(--blue) 5%, transparent) 7px 8px),
+        linear-gradient(90deg, var(--bar), color-mix(in srgb, var(--violet) 5%, var(--bar)));
     }
-    .option-5 .run-id {
-      padding: 6px 8px;
-      border: 1px solid color-mix(in srgb, var(--blue) 36%, var(--line));
-      border-radius: 2px;
-      background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 10%, transparent), color-mix(in srgb, var(--violet) 5%, transparent));
-      font-family: "Martian Mono", monospace;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: .04em;
-    }
-
-    .option-5 .copy { align-items: center; }
-    .option-5 .tally { align-items: center; }
 
     .footer-note {
       margin: 42px 0 0;
@@ -366,27 +316,17 @@
     <header class="page-head">
       <div>
         <span class="eyebrow">Recursive Lab · Component Study</span>
-        <h1>Run context, five ways.</h1>
-        <p class="intro">The content, spacing, and overall shape stay close to the current bar. Every option removes the orange stripe; only the run ID typography and cool neutral treatments change.</p>
+        <h1>Run context surfaces.</h1>
+        <p class="intro">Five background treatments on the chosen Quiet baseline. Typography, spacing, border, content, and behavior stay identical so only the surface changes.</p>
       </div>
       <button class="theme-toggle" type="button" aria-label="Toggle light and dark theme">Light mode</button>
     </header>
-
-    <div class="font-picker" aria-label="Run ID font picker">
-      <span class="font-picker-label">Try BR-00421 in</span>
-      <button class="font-choice" style="--choice-font: 'IBM Plex Mono'" data-font="'IBM Plex Mono', monospace" aria-pressed="false">IBM Plex</button>
-      <button class="font-choice" style="--choice-font: 'DM Mono'" data-font="'DM Mono', monospace" aria-pressed="false">DM Mono</button>
-      <button class="font-choice" style="--choice-font: 'Azeret Mono'" data-font="'Azeret Mono', monospace" aria-pressed="false">Azeret</button>
-      <button class="font-choice" style="--choice-font: 'Fragment Mono'" data-font="'Fragment Mono', monospace" aria-pressed="false">Fragment</button>
-      <button class="font-choice" style="--choice-font: 'Martian Mono'" data-font="'Martian Mono', monospace" aria-pressed="false">Martian</button>
-      <button class="font-choice" data-font="" aria-pressed="true">Variant defaults</button>
-    </div>
 
     <div class="options">
       <section class="option option-1">
         <header class="option-head">
           <h2 class="option-title"><span class="number">01</span> Quiet baseline</h2>
-          <span class="note">IBM Plex Mono · stripe removed</span>
+          <span class="note">Current selection · solid neutral</span>
         </header>
         <div class="stage">
           <div class="bar">
@@ -402,8 +342,8 @@
 
       <section class="option option-2">
         <header class="option-head">
-          <h2 class="option-title"><span class="number">02</span> Signal edge</h2>
-          <span class="note">DM Mono · full gradient hairline</span>
+          <h2 class="option-title"><span class="number">02</span> Spectral sweep</h2>
+          <span class="note">Directional blue · violet gradient</span>
         </header>
         <div class="stage">
           <div class="bar">
@@ -419,8 +359,8 @@
 
       <section class="option option-3">
         <header class="option-head">
-          <h2 class="option-title"><span class="number">03</span> Chromatic code</h2>
-          <span class="note">Azeret Mono · gradient ID only</span>
+          <h2 class="option-title"><span class="number">03</span> Aurora field</h2>
+          <span class="note">Broad blue · green radial glow</span>
         </header>
         <div class="stage">
           <div class="bar">
@@ -436,8 +376,8 @@
 
       <section class="option option-4">
         <header class="option-head">
-          <h2 class="option-title"><span class="number">04</span> Ambient field</h2>
-          <span class="note">Fragment Mono · soft surface gradient</span>
+          <h2 class="option-title"><span class="number">04</span> Technical grid</h2>
+          <span class="note">16px grid · slight cool wash</span>
         </header>
         <div class="stage">
           <div class="bar">
@@ -453,8 +393,8 @@
 
       <section class="option option-5">
         <header class="option-head">
-          <h2 class="option-title"><span class="number">05</span> Run plaque</h2>
-          <span class="note">Martian Mono · contained gradient</span>
+          <h2 class="option-title"><span class="number">05</span> Diagonal weave</h2>
+          <span class="note">Fine hatch · violet falloff</span>
         </header>
         <div class="stage">
           <div class="bar">
@@ -482,12 +422,6 @@
       toggle.textContent = light ? 'Dark mode' : 'Light mode';
     });
 
-    document.querySelector('.font-picker').addEventListener('click', (event) => {
-      const choice = event.target.closest('.font-choice');
-      if (!choice) return;
-      document.querySelectorAll('.run-id').forEach((id) => id.style.fontFamily = choice.dataset.font);
-      document.querySelectorAll('.font-choice').forEach((button) => button.setAttribute('aria-pressed', String(button === choice)));
-    });
   </script>
 </body>
 </html>

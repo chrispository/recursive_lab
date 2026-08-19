@@ -160,8 +160,10 @@
   margin-top: var(--s3);
   padding: 9px 12px;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--brand);
-  background: var(--deep);
+  background: linear-gradient(105deg,
+    color-mix(in srgb, var(--run) 9%, var(--deep)) 0%,
+    var(--deep) 38%,
+    color-mix(in srgb, var(--violet) 7%, var(--deep)) 100%);
 }
 .m-run-context-copy {
   display: flex;
@@ -171,7 +173,7 @@
 }
 .m-run-context-id {
   flex: 0 0 auto;
-  color: var(--brand-ink);
+  color: var(--text-1);
   font: 500 11px / 1 var(--mono);
   letter-spacing: 0.07em;
 }

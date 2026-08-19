@@ -44,6 +44,7 @@
   --pass: #26654a;
   --fail: #9c3126;
   --run: #1c6178;
+  --violet: #6655a4;
   --warn: #7f5610;
   --good: #1b2122;
   --bad: #8c2a1f;
@@ -92,6 +93,7 @@
   --pass: #4fa76f;
   --fail: #e46452;
   --run: #5aa9d6;
+  --violet: #bdb5e9;
   --warn: #d9a441;
   --good: #e8e8e4;
   --bad: #ffffff;
@@ -141,6 +143,7 @@
     --pass: #4fa76f;
     --fail: #e46452;
     --run: #5aa9d6;
+    --violet: #bdb5e9;
     --warn: #d9a441;
     --good: #e8e8e4;
     --bad: #ffffff;

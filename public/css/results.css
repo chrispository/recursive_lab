@@ -17,29 +17,39 @@
 .m-evidence {
   margin-top: var(--s4);
   border: 1px solid var(--line);
-  background: var(--raised);
+  background: var(--panel);
 }
 .m-evidence > summary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--s1);
-  padding: 10px 12px;
+  gap: var(--s3);
+  padding: 9px 12px;
   color: var(--text-3);
   cursor: pointer;
-  font: 650 var(--t-label) / 1.2 var(--sans);
-  letter-spacing: 0.06em;
+  font: 500 10.5px / 1.3 'Inter', var(--sans);
+  letter-spacing: 0.08em;
   list-style: none;
   text-transform: uppercase;
+  background: var(--deep);
+  border-left: 3px solid var(--brand);
+}
+.m-evidence[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+.m-evidence > summary:hover {
+  background: var(--raised);
 }
 .m-evidence > summary::-webkit-details-marker {
   display: none;
 }
+
 .m-evidence-toggle {
   display: inline-flex;
   align-items: center;
-  width: 18px;
-  height: 16px;
-  flex: 0 0 18px;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
   color: var(--text-4);
   transition: transform 0.16s var(--ease);
 }
@@ -48,23 +58,18 @@
 }
 .m-evidence-title {
   color: var(--text-1);
+  font: 500 10.5px / 1.3 'Inter', var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .m-evidence-note {
   margin-left: auto;
-  color: var(--text-4);
-  font: 500 var(--t-micro) / 1.2 var(--sans);
-  letter-spacing: 0.04em;
-  text-transform: none;
 }
 .m-evidence-body {
-  display: grid;
-  gap: var(--s3);
-  padding: 0 12px 12px;
-  border-top: 1px solid var(--line);
+  display: block;
+  background: var(--panel);
 }
-.m-evidence-body > .m-tablebox {
-  margin-top: 0;
-}
+
 
 .m-cap {
   display: flex;
@@ -77,18 +82,21 @@
   border-left: 3px solid var(--brand);
   background: var(--deep);
 }
+
+
 .m-cap h3 {
   color: var(--text-1);
-  font: 600 10.5px / 1.3 'Inter', var(--sans);
+  font: 500 10.5px / 1.3 'Inter', var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .m-panel-head h3,
 .m-config-head h3 {
-  font: 600 10.5px / 1.3 'Inter', var(--sans);
+  font: 500 10.5px / 1.3 'Inter', var(--sans);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
 
 
 /* Tally line — replaces the old five-box metric strip everywhere. */
@@ -218,30 +226,7 @@
 .m-table tr[data-hot='1'] td.n:first-of-type {
   color: var(--warn);
 }
-/* 3px left state stripe — the app's signature for run/job state. */
-.m-table td:first-child {
-  border-left: 3px solid transparent;
-}
-.m-table tr[data-state='succeeded'] td:first-child,
-.m-table tr[data-state='ready'] td:first-child,
-.m-table tr[data-state='approved'] td:first-child {
-  border-left-color: var(--pass);
-}
-.m-table tr[data-state='failed'] td:first-child,
-.m-table tr[data-state='rejected'] td:first-child,
-.m-table tr[data-state='error'] td:first-child {
-  border-left-color: var(--fail);
-}
-.m-table tr[data-state='queued'] td:first-child,
-.m-table tr[data-state='running'] td:first-child {
-  border-left-color: var(--run);
-}
-.m-table tr[data-state='cancelled'] td:first-child,
-.m-table tr[data-state='pending'] td:first-child,
-.m-table tr[data-state='draft'] td:first-child,
-.m-table tr[data-state='review'] td:first-child {
-  border-left-color: var(--warn);
-}
+
 
 /* Criterion inspection ---------------------------------------------------- */
 
@@ -288,15 +273,7 @@
 .m-criteria-task-head + .m-criterion {
   border-top: 0;
 }
-/* A spine, not a card border. Only the rows you have to act on carry one, so
-   the failures are findable by shape as well as by colour. */
-.m-criterion.fail,
-.m-criterion.error {
-  box-shadow: inset 3px 0 0 var(--fail);
-}
-.m-criterion.error {
-  box-shadow: inset 3px 0 0 var(--warn);
-}
+
 .m-criterion summary {
   display: grid;
   grid-template-columns: 42px 52px minmax(0, 1fr) auto;

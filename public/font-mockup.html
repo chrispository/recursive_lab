@@ -953,15 +953,21 @@
         </div>
 
         <!-- Failure Inventory Accordion -->
-        <details class="m-evidence">
+        <details class="m-evidence" open>
           <summary>
             <span class="sample-target">Failure inventory</span>
-            <span class="m-code">6 source criteria</span>
+            <div class="m-tally" style="display:inline-flex; gap:0;">
+              <span><b style="color:var(--fail);">6</b> failed</span>
+              <span style="color:var(--text-4);">·</span>
+              <span><b>0</b> ungraded</span>
+            </div>
+            <span class="m-code m-evidence-note" style="margin-left:auto;">6 criteria</span>
           </summary>
           <div style="padding: 12px; font-size: 11.5px; color: var(--text-3);">
             Expandable raw criteria definitions and judge audit logs.
           </div>
         </details>
+
       </section>
 
     </div>
@@ -1009,12 +1015,15 @@
       },
       'inter-small-caps': {
         fontFamily: "'Inter', sans-serif",
-        fontWeight: '600',
+        fontWeight: '500',
         fontSize: '10.5px',
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
         capAccent: 'cap-style-left-accent'
       },
+
+
+
 
       'geist-sans-sharp': {
         fontFamily: "'Geist', sans-serif",
