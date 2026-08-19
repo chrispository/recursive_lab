@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "dev:once": "bun src/index.ts",
     "start": "bun src/index.ts",
     "db:setup": "bun scripts/setup-db.ts",
     "db:reset": "rm -f data/lab.db data/lab.db-* && bun scripts/setup-db.ts",

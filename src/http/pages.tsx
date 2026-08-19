@@ -72,10 +72,26 @@ export const pages = new Elysia({ name: 'pages' })
         }
         break;
       case 'failures': {
-        const failureMapId = current.progress?.failureMapId;
+        const availableRuns = await runs.list();
+        const requestedRunId = Number(new URL(request.url).searchParams.get('run'));
+        const selectedRun = Number.isInteger(requestedRunId) && requestedRunId > 0
+          ? availableRuns.find((run) => run.benchmarkRunId === requestedRunId) ?? null
+          : null;
+        const failureRun = selectedRun ?? benchmarkRun ?? availableRuns[0] ?? null;
+        const failureProgress = failureRun
+          ? await progress.byBenchmarkRun(failureRun.benchmarkRunId)
+          : null;
+        const failureMapId = failureProgress?.failureMapId;
+        const failureJobs = failureRun ? await jobs.listByBenchmarkRun(failureRun.benchmarkRunId) : [];
+        const analysisJob = [...failureJobs].reverse().find((job) => job.kind === 'failure_map') ?? null;
         body = (
           <Failures
-            progress={current.progress}
+            progress={failureProgress}
+            benchmarkRun={failureRun}
+            availableRuns={availableRuns}
+            runProgress={await progress.list()}
+            analysisJob={analysisJob}
+            tasks={failureRun ? await runs.criteriaByTask(failureRun.benchmarkRunId) : []}
             topics={failureMapId ? await topics.listByFailureMap(failureMapId) : []}
             uncategorised={failureMapId ? await topics.countUncategorised(failureMapId) : 0}
           />

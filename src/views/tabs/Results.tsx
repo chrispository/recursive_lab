@@ -154,16 +154,24 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
   availableRuns: BenchmarkRunSummary[];
 }) {
   const criterionCount = tasks.reduce((sum, task) => sum + task.criteria.length, 0);
+  /* Ungraded criteria count as not-passed here on purpose: a criterion the
+     judge could not grade is one you still have to look at. */
+  const notPassed = tasks.reduce((sum, task) => sum + task.failed + task.errored, 0);
   const resultStatus = benchmarkRun?.result ?? 'pending';
 
   return (
     <>
-      <div class="m-title">
-        <h2>Benchmark results</h2>
-        <p>Criterion-level failures become the only inputs to capability analysis.</p>
+      {/* The picker sits beside the heading rather than under it: it selects
+          what this whole screen is about, and a full-width control under the
+          strapline read as a form the page was asking you to fill in. */}
+      <div class="m-title m-title-row">
+        <div>
+          <h2>Benchmark results</h2>
+          <p>Criterion-level failures become the only inputs to capability analysis.</p>
+        </div>
         {availableRuns.length ? (
           <form class="m-run-picker" method="get">
-            <label for="results-run">Benchmark run</label>
+            <label for="results-run">Run</label>
             <select id="results-run" name="run">
               {availableRuns.map((run) => (
                 <option value={String(run.benchmarkRunId)} selected={run.benchmarkRunId === benchmarkRun?.benchmarkRunId}>
@@ -171,7 +179,9 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
                 </option>
               ))}
             </select>
-            <button class="compact" type="submit">Show results</button>
+            {/* Secondary: switching which run you are reading is navigation,
+                and the brand fill is spent on actions that change state. */}
+            <button class="secondary compact" type="submit">Show</button>
           </form>
         ) : null}
       </div>
@@ -208,11 +218,26 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
         <Cap
           title="Criterion inspection"
           code={`${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'} · ${criterionCount} criteria`}
-        />
+        >
+          {/* The filter is off by default: the panel's job is to show what the
+              judge said about every criterion, and hiding passes by default
+              would make a clean run look like an empty one. */}
+          {notPassed > 0 ? (
+            <button
+              type="button"
+              class="ghost compact m-criteria-filter"
+              data-criteria-filter
+              aria-pressed="false"
+            >Show failed only</button>
+          ) : null}
+        </Cap>
         {tasks.length ? (
           <div class="m-criteria-list">
             {tasks.map((task) => (
-              <section class="m-criteria-task">
+              /* data-unpassed lets the failed-only filter drop whole tasks that
+                 have nothing to show, rather than leaving a bare task heading
+                 over an empty gap. */
+              <section class="m-criteria-task" data-unpassed={task.failed + task.errored}>
                 {/* Criterion ids restart at C-001 on every task, so the task
                     heading is what makes the rows below unambiguous. */}
                 <header class="m-criteria-task-head">
@@ -235,6 +260,9 @@ export function Results({ benchmarkRun, tasks, availableRuns }: {
                       {criterion.judgeError ? (
                         <span class="m-criterion-error">{criterion.errorType ?? 'judge error'}</span>
                       ) : null}
+                      {/* Disclosure state is carried by a glyph, not a marker:
+                          the default triangle cannot sit in a fixed column. */}
+                      <span class="m-criterion-chev" aria-hidden="true"></span>
                     </summary>
                     <div class="m-criterion-body">
                       <p class="m-criterion-reasoning">{criterion.reasoning}</p>

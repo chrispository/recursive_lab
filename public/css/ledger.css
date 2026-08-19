@@ -141,23 +141,32 @@
   max-width: 64ch;
   margin-top: 8px;
 }
+/* A heading that carries a control on its right edge. */
+.m-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s3) var(--s5);
+}
 .m-run-picker {
-  display: grid;
-  grid-template-columns: auto minmax(240px, 420px) auto;
-  align-items: end;
-  gap: 8px;
-  margin-top: var(--s4);
-  max-width: 760px;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
 }
 .m-run-picker label {
-  padding-bottom: 9px;
   color: var(--text-3);
   font: 500 var(--t-label) / 1 var(--mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+/* Sized to the run codes it holds, not to the column it sits in. */
 .m-run-picker select {
   width: auto;
+  min-width: 260px;
+  max-width: 46ch;
+  padding: 5px 8px;
+  font-size: var(--t-body);
 }
 
 /* Benchmark configuration -------------------------------------------------- */
@@ -711,29 +720,31 @@
 /* Criterion inspection ---------------------------------------------------- */
 
 .m-criteria-list {
-  display: grid;
-  gap: 6px;
-  padding: 6px;
-  background: var(--wash);
+  /* No gutter and no gap: the criteria read as one ruled ledger, the way the
+     run table above them does. Cards-on-a-wash made every verdict look like a
+     separate object when the list is really one column of them. */
+  display: block;
+  background: var(--panel);
 }
 /* One block per task. Criterion ids restart at C-001 on every task, so the
    heading is load bearing, not decoration — without it the rows below are
    ambiguous the moment a run covers more than one task. */
-.m-criteria-task {
-  display: grid;
-  gap: 6px;
-}
-.m-criteria-task + .m-criteria-task {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
 .m-criteria-task-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 4px 12px;
+  padding: 8px var(--s3);
+  background: var(--inset);
+  border-bottom: 1px solid var(--line-soft);
+}
+.m-criteria-task + .m-criteria-task .m-criteria-task-head {
+  border-top: 1px solid var(--line);
+}
+.m-criteria-task-head .m-id {
+  color: var(--text-2);
+  font-size: var(--t-label);
 }
 .m-criteria-task-tally {
   color: var(--text-3);
@@ -746,26 +757,32 @@
   color: var(--fail);
 }
 .m-criterion {
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--text-4);
-  background: var(--panel);
+  border-top: 1px solid var(--line-soft);
 }
-.m-criterion.pass {
-  border-left-color: var(--pass);
+.m-criteria-task-head + .m-criterion {
+  border-top: 0;
 }
+/* A spine, not a card border. Only the rows you have to act on carry one, so
+   the failures are findable by shape as well as by colour. */
 .m-criterion.fail,
 .m-criterion.error {
-  border-left-color: var(--fail);
+  box-shadow: inset 3px 0 0 var(--fail);
+}
+.m-criterion.error {
+  box-shadow: inset 3px 0 0 var(--warn);
 }
 .m-criterion summary {
   display: grid;
-  grid-template-columns: 42px 52px minmax(0, 1fr);
+  grid-template-columns: 42px 52px minmax(0, 1fr) auto;
   align-items: baseline;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 9px var(--s3);
   color: var(--text-1);
   cursor: pointer;
   list-style: none;
+}
+.m-criterion summary:hover {
+  background: var(--wash);
 }
 .m-criterion summary::-webkit-details-marker {
   display: none;
@@ -796,19 +813,66 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* The open/closed glyph the default marker cannot provide in a fixed column. */
+.m-criterion-chev {
+  color: var(--text-4);
+  font: var(--t-micro) / 1 var(--mono);
+}
+.m-criterion-chev::before {
+  content: '+';
+}
+.m-criterion[open] .m-criterion-chev {
+  color: var(--text-2);
+}
+.m-criterion[open] .m-criterion-chev::before {
+  content: '\2212';
+}
+/* Indent to the title column, not to an arbitrary number: the reasoning is
+   about the criterion it hangs under, so it starts where that title starts.
+   12 (row padding) + 42 (verdict) + 52 (id) + two 10px gaps. */
 .m-criterion-body {
-  padding: 0 12px 12px 104px;
+  padding: 0 var(--s3) var(--s3) 126px;
 }
 .m-criterion-reasoning {
+  max-width: 96ch;
   margin: 0;
-  color: var(--text-3);
+  color: var(--text-2);
   font-size: var(--t-label);
-  line-height: 1.55;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.m-failure-meta {
+  display: grid;
+  gap: 4px;
+  max-width: 96ch;
+  margin-top: 10px;
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.5 var(--mono);
   overflow-wrap: anywhere;
 }
 .m-criterion-body > button {
-  margin-top: 12px;
+  margin-top: 10px;
 }
+
+/* Failed-only filter ------------------------------------------------------
+   A view of the same list, not a different one: the rows are still rendered,
+   so toggling the filter back restores the disclosure state you left behind.
+   Ungraded rows stay visible — a criterion the judge could not grade is one
+   you still have to look at. */
+/* Right-hand end of the caption, beside the count it filters — a control
+   floating mid-caption reads as a third heading. */
+.m-cap .m-criteria-filter {
+  margin-left: auto;
+}
+.m-criteria-filter[aria-pressed='true'] {
+  color: var(--text-1);
+  background: var(--wash-2);
+}
+.m-criteria-box[data-filter='unpassed'] .m-criterion.pass,
+.m-criteria-box[data-filter='unpassed'] .m-criteria-task[data-unpassed='0'] {
+  display: none;
+}
+
 
 /* Criterion dialog --------------------------------------------------------
    Native <dialog>, so focus trapping, Esc and the backdrop come from the
@@ -958,6 +1022,18 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--s2);
+}
+.m-actions form {
+  display: contents;
+}
+.m-analysis-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.5 var(--mono);
+  overflow-wrap: anywhere;
 }
 
 /* Settings --------------------------------------------------------------- */
@@ -1446,7 +1522,6 @@
   }
   .m-appearance-grid,
   .m-settings-grid,
-  .m-run-picker,
   .m-config-layout,
   .m-config-body,
   .m-config-fields,
@@ -1454,11 +1529,13 @@
   .m-run-actions {
     grid-template-columns: 1fr;
   }
-  .m-run-picker label {
-    padding-bottom: 0;
+  .m-run-picker {
+    width: 100%;
   }
   .m-run-picker select {
     width: 100%;
+    min-width: 0;
+    flex: 1;
   }
   .m-api-result {
     grid-template-columns: 1fr auto;

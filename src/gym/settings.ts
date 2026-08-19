@@ -68,6 +68,13 @@ export type ApiTestResult = {
   detail: string;
 };
 
+/** Credentials for one internal provider call. Never send this shape to a browser. */
+export type ProviderConfig = {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+};
+
 /**
  * A top-level `key: value` line, which is all of this file we claim to
  * understand. Anchored with no leading whitespace on purpose: an indented line
@@ -137,6 +144,16 @@ function publicSettings(values: SavedSettings): PublicSettings {
 
 export async function read(): Promise<PublicSettings> {
   return publicSettings(await readSaved());
+}
+
+/** Resolve the failure analyst, with the judge as the documented fallback. */
+export async function analysisProvider(modelOverride = ''): Promise<ProviderConfig> {
+  const saved = await readSaved();
+  return {
+    baseUrl: pick(saved, saved, 'analysis_base_url', 'judge_base_url') || 'https://openrouter.ai/api/v1',
+    apiKey: pick(saved, saved, 'analysis_api_key', 'judge_api_key'),
+    model: modelOverride.trim() || pick(saved, saved, 'analysis_model_name', 'judge_model_name'),
+  };
 }
 
 /**

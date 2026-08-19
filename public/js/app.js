@@ -318,6 +318,23 @@
   document.addEventListener('htmx:afterSwap', startThinkingOrbs);
   startThinkingOrbs();
 
+  /* Failed-only filter ----------------------------------------------------
+     A CSS view over the rows already on the page: nothing is removed, so the
+     rows you had open are still open when the filter comes back off. Delegated
+     like the rest, so it survives HTMX swapping the results region. */
+
+  document.addEventListener('click', function (event) {
+    var toggle = event.target.closest('[data-criteria-filter]');
+    if (!toggle) return;
+    var box = toggle.closest('.m-criteria-box');
+    if (!box) return;
+    var on = box.dataset.filter !== 'unpassed';
+    if (on) box.dataset.filter = 'unpassed';
+    else delete box.dataset.filter;
+    toggle.setAttribute('aria-pressed', String(on));
+    toggle.textContent = on ? 'Show all criteria' : 'Show failed only';
+  });
+
   /* Criterion dialogs -----------------------------------------------------
      Native <dialog>: `showModal` brings focus trapping, Esc, and the backdrop
      without a library. Delegated like everything else here so the buttons keep
