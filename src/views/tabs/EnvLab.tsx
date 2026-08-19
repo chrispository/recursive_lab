@@ -12,7 +12,7 @@ import { Cap } from '../ui/Cap.tsx';
 import { Id } from '../ui/Id.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
-import { EnvCard } from './env-lab/EnvCard.tsx';
+import { EnvironmentInbox } from './env-lab/EnvironmentInbox.tsx';
 import { ProofReport } from './env-lab/ProofReport.tsx';
 import { EnvLabStages } from './env-lab/Stages.tsx';
 import { Handoff } from '../layout/Handoff.tsx';
@@ -124,11 +124,7 @@ export function EnvLabBody({
             { value: (validation?.meanReward ?? rlTest?.meanReward ?? null)?.toFixed(3) ?? '—', label: 'mean reward' },
           ]} />
         </Cap>
-        {environments.length ? (
-          <div class="m-env-grid">{environments.map((environment) => <EnvCard environment={environment} />)}</div>
-        ) : (
-          <div class="m-empty">No environments yet — package this run's approved documents below.</div>
-        )}
+        <EnvironmentInbox environments={environments} buildJob={buildJob} evalJob={evalJob} />
       </TableBox>
 
       <ProveLocally

@@ -13,6 +13,8 @@ export type JobRow = {
   error: string;
   /** Safe, user-facing launch parameters; secrets are never stored here. */
   params: Record<string, unknown>;
+  /** Incremental or terminal result for a long-running job. */
+  result: Record<string, unknown>;
   /** When the job opened. Scopes what a live run may claim as its own work. */
   startedAt: string;
 };

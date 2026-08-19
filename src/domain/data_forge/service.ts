@@ -1,5 +1,7 @@
 import { resolve } from 'node:path';
 import { code, parse } from '../../db/ids.ts';
+import { benchmarkRunDir, config } from '../../config.ts';
+import { fetchTextWithDiagnostic, providerHost, recordError, startDiagnostic, type Diagnostic } from '../../gym/diagnostics.ts';
 import * as audit from '../audit/service.ts';
 import * as jobRows from '../jobs/service.ts';
 import { isLive } from '../jobs/model.ts';
@@ -8,7 +10,6 @@ import * as prompts from '../prompts/service.ts';
 import * as settings from '../../gym/settings.ts';
 import * as dataDesigner from '../../gym/data_designer.ts';
 import { fingerprintOf } from '../../lib/fingerprint.ts';
-import { config } from '../../config.ts';
 import * as repo from './repo.ts';
 import type { DataForgeStart, ForgeTopicInput } from './model.ts';
 
@@ -134,10 +135,23 @@ export async function start(input: {
       requestedDocuments: remaining.reduce((sum, topic) => sum + topic.remaining, 0),
     },
   });
+  const diagnostic = await startDiagnostic({
+    directory: resolve(benchmarkRunDir(code('benchmark_runs', input.benchmarkRunId)), 'diagnostics'),
+    name: `${trace.jobCode}-data-forge`,
+    metadata: {
+      kind: 'data_forge',
+      benchmark_run: code('benchmark_runs', input.benchmarkRunId),
+      backend,
+      model: provider.model,
+      provider_host: providerHost(provider.baseUrl),
+      timeout_ms: 180_000,
+    },
+  });
   await trace.log(`topics to address     ${remaining.length}`);
   await trace.log(`documents requested    ${remaining.reduce((sum, topic) => sum + topic.remaining, 0)}`);
   await trace.log(`prompt revision        REV-${String(prompt.promptRevisionId).padStart(5, '0')}`);
   await trace.log(`generator model        ${provider.model}`);
+  await trace.log(`diagnostics           ${diagnostic.path}`);
 
   void execute({
     benchmarkRunId: input.benchmarkRunId,
@@ -150,8 +164,10 @@ export async function start(input: {
     noveltyThreshold,
     autoApprove,
     trace,
+    diagnostic,
   }).catch(async (error) => {
     try {
+      await recordError(diagnostic, 'data-forge job', error);
       await trace.fail(error);
     } catch (closeError) {
       console.error(closeError);
@@ -179,6 +195,7 @@ async function execute(input: {
   noveltyThreshold: number;
   autoApprove: boolean;
   trace: jobTrace.Trace;
+  diagnostic: Diagnostic;
 }): Promise<void> {
   const { trace } = input;
   await trace.step('asking the document generator', 0.18);
@@ -188,8 +205,9 @@ async function execute(input: {
         prompt: input.prompt.body,
         topics: input.topics,
         artifactPath: resolve(config.gym.root, 'results/lab/data-forge', code('data_forge_runs', input.dataForgeRunId)),
+        diagnostic: input.diagnostic,
       })
-    : await complete(input.provider, input.prompt.body, input.topics);
+    : await complete(input.provider, input.prompt.body, input.topics, input.diagnostic);
   await trace.log(`provider response      ${completion.content.length} characters`);
   if (input.backend === 'data_designer' && typeof completion.usage.attempts === 'number') {
     await trace.log(`data designer attempts ${completion.usage.attempts}`);
@@ -259,41 +277,52 @@ async function complete(
   provider: settings.ProviderConfig,
   prompt: string,
   topics: ForgeTopicInput[],
+  diagnostic: Diagnostic,
 ): Promise<{ content: string; usage: Record<string, unknown> }> {
-  const response = await fetch(`${provider.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: provider.model,
-      messages: [
-        { role: 'system', content: prompt },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            topics: topics.map((topic) => ({
-              name: topic.name,
-              description: topic.description,
-              verifier_strategy: topic.verifierStrategy,
-              requested_count: topic.remaining,
-            })),
-          }),
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: MAX_OUTPUT_TOKENS,
-    }),
-    signal: AbortSignal.timeout(180_000),
+  const response = await fetchTextWithDiagnostic({
+    diagnostic,
+    label: 'data-forge generation',
+    url: `${provider.baseUrl.replace(/\/$/, '')}/chat/completions`,
+    timeoutMs: 180_000,
+    init: {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: provider.model,
+        messages: [
+          { role: 'system', content: prompt },
+          {
+            role: 'user',
+            content: JSON.stringify({
+              topics: topics.map((topic) => ({
+                name: topic.name,
+                description: topic.description,
+                verifier_strategy: topic.verifierStrategy,
+                requested_count: topic.remaining,
+              })),
+            }),
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: MAX_OUTPUT_TOKENS,
+      }),
+      signal: AbortSignal.timeout(180_000),
+    },
   });
-  const text = await response.text();
-  if (!response.ok) throw new DataForgeError(`Generation provider returned HTTP ${response.status}.`);
+  const text = response.text;
+  if (!response.ok) throw new DataForgeError(`Generation provider returned HTTP ${response.status}. Diagnostics: ${diagnostic.path}.`);
   let envelope: CompletionEnvelope;
   try {
     envelope = JSON.parse(text) as CompletionEnvelope;
   } catch {
-    throw new DataForgeError('Generation provider returned invalid JSON.');
+    await recordError(diagnostic, 'data-forge invalid JSON', new Error('Generation provider returned invalid JSON.'));
+    throw new DataForgeError(`Generation provider returned invalid JSON. Diagnostics: ${diagnostic.path}.`);
   }
   const content = contentOf(envelope.choices?.[0]?.message?.content);
-  if (!content) throw new DataForgeError('Generation provider returned no completion content.');
+  if (!content) {
+    await recordError(diagnostic, 'data-forge empty completion', new Error('Generation provider returned no completion content.'));
+    throw new DataForgeError(`Generation provider returned no completion content. Diagnostics: ${diagnostic.path}.`);
+  }
   return { content, usage: envelope.usage ?? {} };
 }
 

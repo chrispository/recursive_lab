@@ -13,6 +13,7 @@ type JobDb = Row & {
   exit_code: number | null;
   error: string | null;
   params_json: string;
+  result_json: string;
   started_at: string | null;
 };
 
@@ -28,12 +29,13 @@ function asJob(row: JobDb): JobRow {
     exitCode: row.exit_code,
     error: row.error ?? '',
     params: json<Record<string, unknown>>(row.params_json, {}),
+    result: json<Record<string, unknown>>(row.result_json, {}),
     startedAt: row.started_at ?? '',
   };
 }
 
 const JOB_COLS = `j.id, j.kind, j.subject_type, j.subject_id, j.status, j.step,
-            j.progress, j.exit_code, j.error, j.params_json, j.started_at`;
+            j.progress, j.exit_code, j.error, j.params_json, j.result_json, j.started_at`;
 
 export async function get(id: number): Promise<JobRow | null> {
   const row = await one<JobDb>(`SELECT ${JOB_COLS} FROM jobs j WHERE j.id = ?`, [id]);

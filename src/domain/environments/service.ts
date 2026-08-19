@@ -321,6 +321,7 @@ async function executeEval(input: {
       });
       await trace.step(`${index + 1} of ${input.environments.length} environments complete`, (index + 1) / input.environments.length);
     }
+    await trace.setResult({ kind: input.kind, environments: entries });
   }
 
   const ok = entries.filter((entry) => !entry.error);

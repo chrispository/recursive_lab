@@ -12,6 +12,7 @@ import * as settings from '../../gym/settings.ts';
 import { piInstalled } from '../../gym/pi.ts';
 import { Badge } from '../../views/ui/Badge.tsx';
 import { EnvLabBody, EnvLabStatus, type EnvLabSettings } from '../../views/tabs/EnvLab.tsx';
+import { EnvironmentInbox } from '../../views/tabs/env-lab/EnvironmentInbox.tsx';
 import { JobLog } from '../../views/jobs/Log.tsx';
 import { benchmarkRunIdOf, errorMessage, recordBody } from '../request.ts';
 
@@ -42,6 +43,14 @@ async function statusResponse(runId: number, refreshWhenReady = false, includeLo
     <>
       <EnvLabStatus runId={runId} refreshWhenReady={refreshWhenReady} rlTest={rlTest} validation={validation} {...latest} />
       {includeLog ? <JobLog job={job} lines={job ? await jobRows.linesAfter(job.jobId, 0) : []} oob /> : null}
+      {job && job.kind === 'env_eval' && jobRows.isLive(job) ? (
+        <EnvironmentInbox
+          environments={await environments.listByBenchmarkRun(runId)}
+          buildJob={latest.buildJob}
+          evalJob={latest.evalJob}
+          oob
+        />
+      ) : null}
     </>
   );
 }

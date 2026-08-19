@@ -36,6 +36,8 @@ export type Trace = {
   log: (line: string, stream?: 'out' | 'err') => Promise<void>;
   /** Update the human-readable phase and 0..1 progress. */
   step: (step: string, progress?: number) => Promise<void>;
+  /** Publish an incremental result while the job is still running. */
+  setResult: (result: unknown) => Promise<void>;
   /** Close the job as succeeded, storing whatever the caller wants to keep. */
   succeed: (result?: unknown, step?: string) => Promise<void>;
   /** Close the job as failed, recording the error text. */
@@ -100,6 +102,9 @@ export async function start(
     log,
     step: async (step, progress = 0) => {
       await run(`UPDATE jobs SET step = ?, progress = ? WHERE id = ?`, [step, progress, jobId]);
+    },
+    setResult: async (result) => {
+      await run(`UPDATE jobs SET result_json = ? WHERE id = ?`, [JSON.stringify(result ?? {}), jobId]);
     },
     succeed: async (result, step = DONE) => {
       await close('succeeded', step, 'exit_code = 0, result_json = ?', [JSON.stringify(result ?? {})]);

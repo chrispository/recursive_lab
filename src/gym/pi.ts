@@ -10,13 +10,9 @@
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { startPrimeProcessDiagnostic } from './process-diagnostics.ts';
+import { providerHost, recordError } from './diagnostics.ts';
 import { readOutcome, savedResultPaths } from './pi-results.ts';
-
-const SETSID = '/usr/bin/setsid';
-// TEMP PRIME SUBPROCESS DIAGNOSTICS: remove with process-diagnostics.ts once resolved.
-const DIAGNOSTIC_DRAIN_GRACE_MS = 2_000;
-const DIAGNOSTIC_LINGER_MS = 500;
+import { runPrimeProcess } from './prime-process.ts';
 
 export function piBin(): string {
   return process.env.PRIME_BIN ?? Bun.which('prime') ?? '/usr/local/bin/prime';
@@ -304,7 +300,6 @@ export async function runEval(request: PiEvalRequest, hooks: PiEvalHooks = {}): 
   const args = [
     'eval', 'run', request.envId,
     '--plain',
-    // TEMP PRIME SUBPROCESS DIAGNOSTICS: make uncaught eval errors visible in pipes.
     '--disable-tui',
     '--provider', 'openai',
     '--api-base-url', request.baseUrl,
@@ -317,126 +312,40 @@ export async function runEval(request: PiEvalRequest, hooks: PiEvalHooks = {}): 
     '--output-dir', request.outputDir,
   ];
   if (request.split) args.push('--env-args', JSON.stringify({ split: request.split }));
-  // TEMP PRIME SUBPROCESS DIAGNOSTICS: this sidecar is safe to remove later;
-  // it records no secret values, only provider host, command metadata, and output.
-  const command = [SETSID, piBin(), ...args];
-  const diagnostic = await startPrimeProcessDiagnostic({
-    outputDir: request.outputDir,
-    envId: request.envId,
-    model: request.model,
-    baseUrl: request.baseUrl,
-    apiKeyVar: request.apiKeyVar,
-    split: request.split,
-    command,
+  const prime = await runPrimeProcess({
+    command: [piBin(), ...args],
+    cwd: request.envDir,
+    env: {
+      PYTHONUNBUFFERED: '1',
+      PRIME_DISABLE_VERSION_CHECK: '1',
+      PYTHONPATH: request.envDir,
+      [request.apiKeyVar]: request.apiKey,
+      LAB_JUDGE_BASE_URL: request.judge.baseUrl,
+      LAB_JUDGE_API_KEY: request.judge.apiKey,
+      LAB_JUDGE_MODEL: request.judge.model,
+    },
+    timeoutMs: request.timeoutMs,
+    diagnostic: {
+      directory: resolve(request.outputDir, 'diagnostics'),
+      name: `${request.envId}-${request.split ?? 'default'}-prime`,
+      metadata: {
+        kind: 'prime_eval',
+        env_id: request.envId,
+        model: request.model,
+        provider_host: providerHost(request.baseUrl),
+        api_key_var: request.apiKeyVar,
+        split: request.split,
+        timeout_ms: request.timeoutMs,
+      },
+    },
+    onLine: hooks.onLine,
+    onSpawn: hooks.onSpawn,
   });
-  await diagnostic.record(`command=${command.join(' ')}`);
-  let proc: ReturnType<typeof Bun.spawn>;
   try {
-    proc = Bun.spawn(command, {
-      cwd: request.envDir,
-      env: {
-        ...process.env,
-        PYTHONUNBUFFERED: '1',
-        PRIME_DISABLE_VERSION_CHECK: '1',
-        PYTHONPATH: request.envDir,
-        [request.apiKeyVar]: request.apiKey,
-        LAB_JUDGE_BASE_URL: request.judge.baseUrl,
-        LAB_JUDGE_API_KEY: request.judge.apiKey,
-        LAB_JUDGE_MODEL: request.judge.model,
-      } as Record<string, string>,
-      stdin: 'ignore',
-      stdout: 'pipe',
-      stderr: 'pipe',
-    });
+    return await readOutcome(request, previousResults);
   } catch (error) {
-    await diagnostic.record(`spawn failed: ${error instanceof Error ? error.message : String(error)}`);
-    throw error;
-  }
-  const pid = proc.pid;
-  if (!pid) throw new Error('prime eval started without a pid.');
-  await diagnostic.record(`spawned pid=${pid}`);
-  await hooks.onSpawn?.(pid);
-
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    void diagnostic.record(`timeout reached after ${request.timeoutMs}ms; sending SIGTERM to process group ${pid}`);
-    try {
-      process.kill(-pid, 'SIGTERM');
-    } catch {
-      // Already gone.
-    }
-  }, request.timeoutMs);
-
-  const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
-  const pump = async (stream: ReadableStream<Uint8Array>, name: 'out' | 'err') => {
-    const reader = stream.getReader();
-    readers.push(reader);
-    const decoder = new TextDecoder();
-    let buffer = '';
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        if (line.length) {
-          await diagnostic.record(`[${name}] ${line}`);
-          await hooks.onLine?.(line, name);
-        }
-      }
-    }
-    if (buffer.length) {
-      await diagnostic.record(`[${name}] ${buffer}`);
-      await hooks.onLine?.(buffer, name);
-    }
-  };
-
-  // TEMP PRIME SUBPROCESS DIAGNOSTICS: a dead Prime process can leave inherited
-  // pipe handles open in env workers. Give output a moment to drain, then cancel
-  // those readers so the app can surface the exit instead of leaving a live job.
-  const startedAt = Date.now();
-  const exitPromise = proc.exited.then(async (exitCode) => {
-    await diagnostic.record(`process exited code=${exitCode} elapsed_ms=${Date.now() - startedAt}`);
-    return exitCode;
-  });
-  const stdout = proc.stdout as ReadableStream<Uint8Array>;
-  const stderr = proc.stderr as ReadableStream<Uint8Array>;
-  const pumps = Promise.all([pump(stdout, 'out'), pump(stderr, 'err')]);
-  try {
-    const streamsDrained = await Promise.race([
-      pumps.then(() => true),
-      exitPromise.then(() => delay(DIAGNOSTIC_DRAIN_GRACE_MS).then(() => false)),
-    ]);
-    const exitCode = await exitPromise;
-    if (!streamsDrained) {
-      await diagnostic.record('output streams did not close after process exit; cancelling readers');
-      await Promise.all(readers.map((reader) => reader.cancel().catch(() => undefined)));
-      await Promise.race([pumps.catch(() => undefined), delay(DIAGNOSTIC_LINGER_MS)]);
-      void pumps.catch(() => undefined);
-    } else {
-      await pumps;
-    }
-    await diagnostic.record(`finished timed_out=${timedOut} diagnostic=${diagnostic.path}`);
-    if (exitCode !== 0) {
-      const tail = diagnostic.tail();
-      const output = tail.length ? `\nLast Prime output:\n${tail.join('\n')}` : '';
-      throw new Error(
-        `prime eval exited with code ${exitCode} for ${request.envId}. ` +
-        `Prime diagnostics: ${diagnostic.path}.${output}`,
-      );
-    }
-    try {
-      return await readOutcome(request, previousResults);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      await diagnostic.record(`result parsing failed: ${message}`);
-      throw new Error(`${message} Prime diagnostics: ${diagnostic.path}.`);
-    }
-  } finally {
-    clearTimeout(timer);
+    await recordError(prime.diagnostic, 'result parsing', error);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${message} Prime diagnostics: ${prime.diagnostic.path}.`);
   }
 }
-
-const delay = (milliseconds: number) => new Promise<void>((resolveDelay) => setTimeout(resolveDelay, milliseconds));

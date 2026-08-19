@@ -1,4 +1,7 @@
+import { resolve } from 'node:path';
+import { benchmarkRunDir } from '../../config.ts';
 import { code } from '../../db/ids.ts';
+import { fetchTextWithDiagnostic, providerHost, recordError, startDiagnostic, type Diagnostic } from '../../gym/diagnostics.ts';
 import * as settings from '../../gym/settings.ts';
 import * as audit from '../audit/service.ts';
 import * as jobRows from '../jobs/service.ts';
@@ -68,9 +71,21 @@ export async function start(input: {
       providerModel: provider.model,
     },
   });
+  const diagnostic = await startDiagnostic({
+    directory: resolve(benchmarkRunDir(code('benchmark_runs', input.benchmarkRunId)), 'diagnostics'),
+    name: `${trace.jobCode}-failure-map`,
+    metadata: {
+      kind: 'failure_map',
+      benchmark_run: code('benchmark_runs', input.benchmarkRunId),
+      model: provider.model,
+      provider_host: providerHost(provider.baseUrl),
+      timeout_ms: 120_000,
+    },
+  });
   await trace.log(`failed criteria       ${candidates.length}`);
   await trace.log(`prompt revision       REV-${String(prompt.promptRevisionId).padStart(5, '0')}`);
   await trace.log(`analyst model         ${provider.model}`);
+  await trace.log(`diagnostics           ${diagnostic.path}`);
 
   void execute({
     benchmarkRunId: input.benchmarkRunId,
@@ -79,9 +94,11 @@ export async function start(input: {
     prompt,
     provider,
     trace,
+    diagnostic,
     existingFailureMapId: existing?.failure_map_id ?? null,
   }).catch(async (error) => {
     try {
+      await recordError(diagnostic, 'failure-map job', error);
       await trace.fail(error);
     } catch (closeError) {
       console.error(closeError);
@@ -104,11 +121,12 @@ async function execute(input: {
   prompt: { promptRevisionId: number; body: string };
   provider: settings.ProviderConfig;
   trace: jobTrace.Trace;
+  diagnostic: Diagnostic;
   existingFailureMapId?: number | null;
 }): Promise<void> {
   const { trace } = input;
   await trace.step('asking the failure analyst', 0.18);
-  const completion = await complete(input.provider, input.prompt.body, input.candidates);
+  const completion = await complete(input.provider, input.prompt.body, input.candidates, input.diagnostic);
   await trace.log(`provider response     ${completion.content.length} characters`);
 
   await trace.step('validating topic coverage', 0.72);
@@ -150,32 +168,43 @@ async function complete(
   provider: settings.ProviderConfig,
   prompt: string,
   candidates: FailureCandidate[],
+  diagnostic: Diagnostic,
 ): Promise<{ content: string; usage: Record<string, unknown> }> {
-  const response = await fetch(`${provider.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: provider.model,
-      messages: [
-        { role: 'system', content: prompt },
-        { role: 'user', content: JSON.stringify({ failures: candidates.map(analysisInput) }) },
-      ],
-      temperature: 0,
-      max_tokens: MAX_OUTPUT_TOKENS,
-    }),
-    signal: AbortSignal.timeout(120_000),
+  const response = await fetchTextWithDiagnostic({
+    diagnostic,
+    label: 'failure-map analysis',
+    url: `${provider.baseUrl.replace(/\/$/, '')}/chat/completions`,
+    timeoutMs: 120_000,
+    init: {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: provider.model,
+        messages: [
+          { role: 'system', content: prompt },
+          { role: 'user', content: JSON.stringify({ failures: candidates.map(analysisInput) }) },
+        ],
+        temperature: 0,
+        max_tokens: MAX_OUTPUT_TOKENS,
+      }),
+      signal: AbortSignal.timeout(120_000),
+    },
   });
-  const text = await response.text();
-  if (!response.ok) throw new FailureMapError(`Analysis provider returned HTTP ${response.status}.`);
+  const text = response.text;
+  if (!response.ok) throw new FailureMapError(`Analysis provider returned HTTP ${response.status}. Diagnostics: ${diagnostic.path}.`);
 
   let envelope: CompletionEnvelope;
   try {
     envelope = JSON.parse(text) as CompletionEnvelope;
   } catch {
-    throw new FailureMapError('Analysis provider returned invalid JSON.');
+    await recordError(diagnostic, 'failure-map invalid JSON', new Error('Analysis provider returned invalid JSON.'));
+    throw new FailureMapError(`Analysis provider returned invalid JSON. Diagnostics: ${diagnostic.path}.`);
   }
   const content = contentOf(envelope.choices?.[0]?.message?.content);
-  if (!content) throw new FailureMapError('Analysis provider returned no completion content.');
+  if (!content) {
+    await recordError(diagnostic, 'failure-map empty completion', new Error('Analysis provider returned no completion content.'));
+    throw new FailureMapError(`Analysis provider returned no completion content. Diagnostics: ${diagnostic.path}.`);
+  }
   return { content, usage: envelope.usage ?? {} };
 }
 

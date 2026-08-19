@@ -52,7 +52,7 @@
     });
     var visible = [];
     inbox.querySelectorAll('[data-review-queue-row]').forEach(function (row) {
-      var match = row.dataset.reviewStatus === filter && (topic === 'all' || row.dataset.reviewTopic === topic);
+      var match = (filter === 'all' || row.dataset.reviewStatus === filter) && (topic === 'all' || row.dataset.reviewTopic === topic);
       row.hidden = !match;
       if (match) visible.push(row);
     });
