@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Typography & Header Font Mockup · 02 Results & 03 Failure Map</title>
+  
+  <!-- Web Fonts for typography comparisons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Fira+Code:wght@500;600;700&family=Geist+Mono:wght@400;500;600;700&family=Geist:wght@400;500;600;700;800&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       THEME TOKENS (LIGHT / DARK)
+       ========================================================================== */
+    :root, :root[data-theme='light'] {
+      color-scheme: light;
+      --text-1: #101314;
+      --text-2: #3f4749;
+      --text-3: #636c6e;
+      --text-4: #868f91;
+      --line-soft: #dfe3e2;
+      --line: #cfd5d3;
+      --edge: #7f8886;
+      --black: #eff2f0;
+      --deeper: #e3e8e5;
+      --deep: #eaeeec;
+      --panel: #fafbfa;
+      --raised: #e6ebe8;
+      --raised-2: #dbe1de;
+      --code-bg: #dfe5e2;
+      --focus-bg: #fdfffe;
+      --brand: #c8452a;
+      --brand-ink: #9b3520;
+      --brand-press: #a8371f;
+      --btn-ink: #fdf7f5;
+      --pass: #26654a;
+      --fail: #9c3126;
+      --run: #1c6178;
+      --warn: #7f5610;
+      --good: #1b2122;
+      --bad: #8c2a1f;
+      --wash: rgba(16, 19, 20, 0.045);
+      --wash-2: rgba(16, 19, 20, 0.08);
+      --shadow: rgba(25, 45, 40, 0.18);
+      --toolbar-bg: #ffffff;
+      --toolbar-border: #cfd5d3;
+    }
+
+    :root[data-theme='dark'] {
+      color-scheme: dark;
+      --text-1: #f2f2ee;
+      --text-2: #dcdcd6;
+      --text-3: #b0b0a8;
+      --text-4: #7e7e77;
+      --line-soft: #1d1d1b;
+      --line: #2e2e2a;
+      --edge: #4a4a44;
+      --black: #000000;
+      --deeper: #050505;
+      --deep: #080808;
+      --panel: #0a0a0a;
+      --raised: #101010;
+      --raised-2: #151515;
+      --code-bg: #060606;
+      --focus-bg: #0c0c0c;
+      --brand: #ff5c35;
+      --brand-ink: #ff5c35;
+      --brand-press: #d9481f;
+      --btn-ink: #160a05;
+      --pass: #4fa76f;
+      --fail: #e46452;
+      --run: #5aa9d6;
+      --warn: #d9a441;
+      --good: #e8e8e4;
+      --bad: #ffffff;
+      --wash: rgba(255, 255, 255, 0.04);
+      --wash-2: rgba(255, 255, 255, 0.07);
+      --shadow: rgba(0, 0, 0, 0.5);
+      --toolbar-bg: #111111;
+      --toolbar-border: #2a2a26;
+    }
+
+    /* Scales */
+    :root {
+      --mono: 'IBM Plex Mono', ui-monospace, monospace;
+      --sans: 'Manrope', 'Inter', system-ui, sans-serif;
+      --s1: 4px;
+      --s2: 8px;
+      --s3: 12px;
+      --s4: 16px;
+      --s5: 24px;
+      --s6: 32px;
+      --t-micro: 10px;
+      --t-label: 11px;
+      --t-body: 12.5px;
+      --t-data: 13px;
+      --t-sub: 17px;
+      --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--black);
+      color: var(--text-1);
+      font-family: var(--sans);
+      font-size: var(--t-body);
+      line-height: 1.5;
+      padding-bottom: 120px;
+    }
+
+    /* ==========================================================================
+       INTERACTIVE FONT PLAYGROUND TOOLBAR
+       ========================================================================== */
+    .playground-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--toolbar-border);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      padding: 12px 20px;
+    }
+    .playground-row-1 {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .playground-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .playground-title h1 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--brand);
+      letter-spacing: -0.01em;
+      text-transform: uppercase;
+    }
+    .playground-title span {
+      font-size: 11px;
+      color: var(--text-3);
+      font-family: var(--mono);
+    }
+    .view-switcher {
+      display: flex;
+      gap: 4px;
+      background: var(--raised);
+      padding: 3px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+    }
+    .view-btn {
+      padding: 5px 12px;
+      background: transparent;
+      border: 0;
+      color: var(--text-3);
+      font: 600 11px/1 var(--sans);
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.15s;
+    }
+    .view-btn.active {
+      background: var(--panel);
+      color: var(--text-1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .theme-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      color: var(--text-2);
+      font: 600 11px/1 var(--sans);
+      cursor: pointer;
+      border-radius: 3px;
+    }
+
+    /* Preset Buttons Bar */
+    .presets-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .presets-label {
+      font: 700 10px/1 var(--mono);
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 4px;
+    }
+    .preset-pill {
+      padding: 4px 10px;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      color: var(--text-2);
+      font: 500 11px/1 var(--sans);
+      cursor: pointer;
+      border-radius: 12px;
+      transition: all 0.15s;
+    }
+    .preset-pill:hover {
+      border-color: var(--brand);
+      color: var(--text-1);
+      background: var(--wash);
+    }
+    .preset-pill.active {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: var(--btn-ink);
+      font-weight: 700;
+    }
+
+    /* Controls Grid */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      align-items: center;
+    }
+    .control-item {
+      display: grid;
+      gap: 4px;
+    }
+    .control-item label {
+      font: 600 10px/1 var(--mono);
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      display: flex;
+      justify-content: space-between;
+    }
+    .control-item label span.val {
+      color: var(--brand);
+    }
+    .control-item select, .control-item input {
+      width: 100%;
+      padding: 5px 8px;
+      font-size: 11px;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      color: var(--text-1);
+      border-radius: 3px;
+    }
+
+    /* ==========================================================================
+       TARGET TYPOGRAPHY CLASSES (DYNAMICALLY CONTROLLED VIA JS)
+       ========================================================================== */
+    /* Table Cap Title — "Selected run", "Topics extracted from failed criteria" */
+    .m-cap h3 {
+      /* Defaults controlled dynamically */
+      transition: font 0.1s ease;
+    }
+
+    /* Table Column Header — <th> */
+    .m-table th {
+      /* Defaults controlled dynamically */
+      transition: font 0.1s ease;
+    }
+
+    /* Accent Bars for Cap Headers */
+    .cap-style-default { border-left: none; }
+    .cap-style-left-accent { border-left: 3px solid var(--brand) !important; }
+    .cap-style-left-text { border-left: 3px solid var(--text-1) !important; }
+    .cap-style-tag-pill h3 {
+      background: var(--wash-2);
+      padding: 2px 8px;
+      border-radius: 3px;
+      border: 1px solid var(--line-soft);
+    }
+
+    /* ==========================================================================
+       APP LAYOUT & COMPONENTS
+       ========================================================================== */
+    .lab-container {
+      max-width: 1240px;
+      margin: 24px auto;
+      padding: 0 20px;
+    }
+    .dual-view-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 1000px) {
+      .dual-view-container { grid-template-columns: 1fr; }
+    }
+
+    .m-title {
+      margin-bottom: 20px;
+    }
+    .m-title h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-1);
+      letter-spacing: -0.02em;
+    }
+    .m-title p {
+      color: var(--text-3);
+      font-size: var(--t-data);
+      margin-top: 4px;
+    }
+
+    /* Run Context */
+    .m-context {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      border: 1px solid var(--line);
+      background: var(--raised);
+    }
+    .m-context-copy {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .m-context-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font: 500 var(--t-label)/1 var(--mono);
+      color: var(--text-3);
+    }
+
+    /* Tablebox & Caps */
+    .m-tablebox {
+      margin-top: 16px;
+      margin-bottom: 20px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .m-cap {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--deep);
+    }
+    .m-cap h3 {
+      color: var(--text-1);
+    }
+    .m-code {
+      color: var(--text-3);
+      font-family: var(--mono);
+      font-size: var(--t-micro);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 2px;
+    }
+    .m-id {
+      color: var(--text-3);
+      font: 500 var(--t-micro)/1 var(--mono);
+      letter-spacing: 0.08em;
+    }
+
+    /* Table */
+    .m-tablewrap { overflow-x: auto; }
+    .m-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--t-body);
+    }
+    .m-table th {
+      padding: 8px 12px;
+      color: var(--text-3);
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+      background: var(--deeper);
+    }
+    .m-table td {
+      padding: 9px 12px;
+      color: var(--text-2);
+      border-bottom: 1px solid var(--line-soft);
+      vertical-align: middle;
+    }
+    .m-table tbody tr:last-child td { border-bottom: 0; }
+    .m-table tbody tr:hover td { background: var(--wash); }
+    .m-table tr.selected td { background: var(--wash-2); }
+    .m-table td.n { text-align: right; font-family: var(--mono); font-weight: 500; }
+    .m-table th.n { text-align: right; }
+    .m-table .nm { color: var(--text-1); font-weight: 600; text-decoration: none; }
+    .m-table .sub { display: block; margin-top: 2px; color: var(--text-4); font-size: var(--t-micro); }
+
+    /* Badges & Outcomes */
+    .badge-pass { color: var(--pass); font-family: var(--mono); font-weight: 600; font-size: 11px; }
+    .badge-fail { color: var(--fail); font-family: var(--mono); font-weight: 600; font-size: 11px; }
+    .status-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      font: 600 var(--t-micro)/1.3 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-radius: 2px;
+    }
+    .status-badge.pass { background: rgba(79, 167, 111, 0.15); color: var(--pass); }
+    .status-badge.fail { background: rgba(228, 100, 82, 0.15); color: var(--fail); }
+
+    /* 03 Failure Map 2-Card Layout */
+    .m-forge-layout {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--s4);
+      margin-bottom: var(--s4);
+    }
+    @media (max-width: 768px) {
+      .m-forge-layout { grid-template-columns: 1fr; }
+    }
+    .m-forge-card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+    }
+    .m-forge-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--deep);
+    }
+    .m-forge-card-head h3 {
+      font-size: 13px;
+      color: var(--text-1);
+      font-weight: 650;
+      margin-bottom: 2px;
+    }
+    .m-forge-card-head p {
+      font-size: var(--t-label);
+      color: var(--text-3);
+    }
+    .m-forge-form {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .m-forge-field { display: grid; gap: 4px; }
+    .m-forge-field.full { grid-column: 1 / -1; }
+    .m-forge-field label {
+      font: 600 var(--t-micro)/1 var(--mono);
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .m-input {
+      padding: 7px 10px;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      color: var(--text-1);
+      font-size: var(--t-label);
+    }
+    .m-forge-actions.full {
+      grid-column: 1 / -1;
+      margin-top: 6px;
+    }
+    .primary-btn {
+      background: var(--brand);
+      border: 1px solid var(--brand);
+      color: var(--btn-ink);
+      padding: 8px 16px;
+      font: 600 12px/1 var(--sans);
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    /* Collapsible Details */
+    details.m-evidence {
+      border: 1px solid var(--line);
+      background: var(--raised);
+      margin-top: 16px;
+    }
+    details.m-evidence summary {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font: 650 var(--t-label)/1.2 var(--sans);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-1);
+    }
+
+    /* CSS Export Drawer */
+    .css-drawer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--toolbar-bg);
+      border-top: 1px solid var(--toolbar-border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+      z-index: 99;
+    }
+    .css-code-display {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-2);
+      background: var(--deeper);
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      flex: 1;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+    .copy-btn {
+      padding: 7px 16px;
+      background: var(--brand);
+      border: 1px solid var(--brand);
+      color: var(--btn-ink);
+      font: 700 11px/1 var(--mono);
+      cursor: pointer;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       INTERACTIVE FONT PLAYGROUND TOOLBAR
+       ========================================================================== -->
+  <header class="playground-toolbar">
+    <div class="playground-row-1">
+      <div class="playground-title">
+        <h1>Header Typography Lab</h1>
+        <span>Live Font Preview for Table Headers & Section Caps</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="view-switcher">
+          <button type="button" class="view-btn active" onclick="switchView('both')">Side-by-Side (02 + 03)</button>
+          <button type="button" class="view-btn" onclick="switchView('02')">02 Results Only</button>
+          <button type="button" class="view-btn" onclick="switchView('03')">03 Failure Map Only</button>
+        </div>
+        <button type="button" class="theme-toggle-btn" onclick="toggleTheme()">
+          🌓 Toggle Theme
+        </button>
+      </div>
+    </div>
+
+    <!-- 1-Click Curated Presets -->
+    <div class="presets-bar">
+      <span class="presets-label">Style Presets:</span>
+      <button type="button" class="preset-pill active" onclick="applyPreset('ibm-mono-caps')">1. IBM Plex Mono (Tracked Uppercase)</button>
+      <button type="button" class="preset-pill" onclick="applyPreset('space-grotesk-bold')">2. Space Grotesk (Tech Heavy)</button>
+      <button type="button" class="preset-pill" onclick="applyPreset('jetbrains-compact')">3. JetBrains Mono (Dev Tool Stamp)</button>
+      <button type="button" class="preset-pill" onclick="applyPreset('inter-small-caps')">4. Inter (Refined Small-Caps)</button>
+      <button type="button" class="preset-pill" onclick="applyPreset('geist-sans-sharp')">5. Geist Sans (Vercel Precision)</button>
+      <button type="button" class="preset-pill" onclick="applyPreset('archivo-condensed')">6. Archivo (Industrial Heavy)</button>
+      <button type="button" class="preset-pill" onclick="applyPreset('plus-jakarta')">7. Plus Jakarta (Modern Editorial)</button>
+      <button type="button" class="preset-pill" onclick="applyPreset('current-default')">8. Current Default (Manrope 500)</button>
+    </div>
+
+    <!-- Detailed Controls -->
+    <div class="controls-grid">
+      <!-- Font Family -->
+      <div class="control-item">
+        <label>Font Family</label>
+        <select id="fontFamilySelect" onchange="updateCustomStyles()">
+          <optgroup label="Monospace (Engineered / Instrument)">
+            <option value="'IBM Plex Mono', monospace" selected>IBM Plex Mono</option>
+            <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+            <option value="'Geist Mono', monospace">Geist Mono</option>
+            <option value="'Space Mono', monospace">Space Mono</option>
+            <option value="'Fira Code', monospace">Fira Code</option>
+          </optgroup>
+          <optgroup label="Geometric / Tech Sans">
+            <option value="'Space Grotesk', sans-serif">Space Grotesk</option>
+            <option value="'Geist', sans-serif">Geist Sans</option>
+            <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans</option>
+            <option value="'Archivo', sans-serif">Archivo</option>
+            <option value="'Syne', sans-serif">Syne</option>
+          </optgroup>
+          <optgroup label="Neutral UI Sans">
+            <option value="'Inter', sans-serif">Inter</option>
+            <option value="'Manrope', sans-serif">Manrope</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Font Weight -->
+      <div class="control-item">
+        <label>Weight <span class="val" id="weightVal">600</span></label>
+        <select id="fontWeightSelect" onchange="updateCustomStyles()">
+          <option value="400">400 (Regular)</option>
+          <option value="500">500 (Medium)</option>
+          <option value="600" selected>600 (SemiBold)</option>
+          <option value="700">700 (Bold)</option>
+          <option value="800">800 (ExtraBold)</option>
+        </select>
+      </div>
+
+      <!-- Font Size -->
+      <div class="control-item">
+        <label>Size <span class="val" id="sizeVal">11.5px</span></label>
+        <select id="fontSizeSelect" onchange="updateCustomStyles()">
+          <option value="10px">10px (Compact Micro)</option>
+          <option value="10.5px">10.5px (Original Token)</option>
+          <option value="11px">11px (Balanced Label)</option>
+          <option value="11.5px" selected>11.5px (Sharp Readable)</option>
+          <option value="12px">12px (Prominent)</option>
+          <option value="13px">13px (Subheading)</option>
+        </select>
+      </div>
+
+      <!-- Letter Spacing -->
+      <div class="control-item">
+        <label>Letter Spacing <span class="val" id="trackingVal">0.08em</span></label>
+        <select id="letterSpacingSelect" onchange="updateCustomStyles()">
+          <option value="-0.02em">-0.02em (Tight Grotesk)</option>
+          <option value="0em">0em (Normal)</option>
+          <option value="0.04em">0.04em (Subtle)</option>
+          <option value="0.08em" selected>0.08em (Mono Tracked)</option>
+          <option value="0.12em">0.12em (Wide Technical)</option>
+          <option value="0.16em">0.16em (Heavy Stamp)</option>
+        </select>
+      </div>
+
+      <!-- Text Transform -->
+      <div class="control-item">
+        <label>Case Transform</label>
+        <select id="textTransformSelect" onchange="updateCustomStyles()">
+          <option value="uppercase" selected>UPPERCASE</option>
+          <option value="none">Normal / Title Case</option>
+          <option value="capitalize">Capitalize Words</option>
+        </select>
+      </div>
+
+      <!-- Cap Bar Style Accent -->
+      <div class="control-item">
+        <label>Cap Accent</label>
+        <select id="capAccentSelect" onchange="updateCustomStyles()">
+          <option value="cap-style-left-accent" selected>Orange Left Stripe</option>
+          <option value="cap-style-left-text">Dark Left Stripe</option>
+          <option value="cap-style-default">Standard Bar</option>
+          <option value="cap-style-tag-pill">Pill Tag Badge</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       MAIN MOCKUP VIEWPORT (02 RESULTS & 03 FAILURE MAP)
+       ========================================================================== -->
+  <main class="lab-container">
+    <div id="viewContainer" class="dual-view-container">
+
+      <!-- ====================================================================
+           COLUMN 1: 02 RESULTS PAGE MOCKUP
+           ==================================================================== -->
+      <section id="panel02" class="page-panel">
+        <div class="m-title">
+          <h2>02 · Inspect Benchmark Results</h2>
+          <p>Task results, graded verdicts, and judge reasoning.</p>
+        </div>
+
+        <!-- Run Context Header -->
+        <div class="m-context">
+          <div class="m-context-copy">
+            <span class="m-id" style="color: var(--brand-ink); font-weight:700;">BR-00011</span>
+            <strong>Harvey Labs</strong>
+            <span class="m-id">glm-5.2</span>
+          </div>
+          <div class="m-context-meta">
+            <span><b>17/23</b> Criteria</span>
+            <span><b>0/1</b> Tasks</span>
+            <span style="color: var(--brand); cursor: pointer;">Switch</span>
+          </div>
+        </div>
+
+        <!-- Tablebox 1: Benchmark runs -->
+        <div class="m-tablebox target-cap-box">
+          <div class="m-cap">
+            <h3 class="sample-target">Benchmark runs</h3>
+            <span class="m-code">3 available</span>
+          </div>
+          <div class="m-tablewrap">
+            <table class="m-table">
+              <thead>
+                <tr>
+                  <th class="sample-th">Run / Label</th>
+                  <th class="sample-th">Model</th>
+                  <th class="sample-th n">Tasks</th>
+                  <th class="sample-th n">Criteria</th>
+                  <th class="sample-th">Outcome</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="selected">
+                  <td>
+                    <a class="nm" href="#">Harvey Labs Validation</a>
+                    <span class="sub">BR-00011 · harvey-v3</span>
+                  </td>
+                  <td><span class="m-id">glm-5.2</span></td>
+                  <td class="n">0 / 1</td>
+                  <td class="n"><span class="badge-fail">17 / 23 (73.9%)</span></td>
+                  <td><span class="status-badge fail">FAILED</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <a class="nm" href="#">Contract Analysis Suite</a>
+                    <span class="sub">BR-00010 · legal-cuad</span>
+                  </td>
+                  <td><span class="m-id">deepseek-v4</span></td>
+                  <td class="n">4 / 4</td>
+                  <td class="n"><span class="badge-pass">42 / 42 (100%)</span></td>
+                  <td><span class="status-badge pass">PASSED</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tablebox 2: Selected run -->
+        <div class="m-tablebox target-cap-box">
+          <div class="m-cap">
+            <h3 class="sample-target">Selected run</h3>
+            <span class="m-code">BR-00011</span>
+          </div>
+          <div class="m-tablewrap">
+            <table class="m-table">
+              <thead>
+                <tr>
+                  <th class="sample-th">Dataset</th>
+                  <th class="sample-th">Agent</th>
+                  <th class="sample-th n">Rollouts</th>
+                  <th class="sample-th n">Tokens</th>
+                  <th class="sample-th">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>validation</td>
+                  <td>harvey_agent</td>
+                  <td class="n">1</td>
+                  <td class="n">14,290</td>
+                  <td><span class="status-badge fail">CRITERIA FAILED</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tablebox 3: Task results · contract-review-04 -->
+        <div class="m-tablebox target-cap-box">
+          <div class="m-cap">
+            <h3 class="sample-target">Task results · contract-review-04</h3>
+            <span class="m-code">17/23 criteria passed</span>
+          </div>
+          <div class="m-tablewrap">
+            <table class="m-table">
+              <thead>
+                <tr>
+                  <th class="sample-th">Criterion</th>
+                  <th class="sample-th">Rule / Match Target</th>
+                  <th class="sample-th">Verdict</th>
+                  <th class="sample-th">Judge Reasoning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <span class="m-id">CR-00041</span>
+                    <strong style="display:block; font-size:12px; margin-top:2px;">Indemnity Cap Exceptions</strong>
+                  </td>
+                  <td style="font-size:11.5px; color:var(--text-3);">Gross negligence must be uncapped</td>
+                  <td><span class="status-badge fail">FAIL</span></td>
+                  <td style="font-size:11.5px;">Agent failed to identify willful misconduct carveout clause.</td>
+                </tr>
+                <tr>
+                  <td>
+                    <span class="m-id">CR-00042</span>
+                    <strong style="display:block; font-size:12px; margin-top:2px;">Governing Law Jurisdiction</strong>
+                  </td>
+                  <td style="font-size:11.5px; color:var(--text-3);">Delaware Chancery court venue</td>
+                  <td><span class="status-badge pass">PASS</span></td>
+                  <td style="font-size:11.5px;">Venue identified accurately in section 14.2.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           COLUMN 2: 03 FAILURE MAP PAGE MOCKUP
+           ==================================================================== -->
+      <section id="panel03" class="page-panel">
+        <div class="m-title">
+          <h2>03 · Turn Misses into Capability Topics</h2>
+          <p>Synthesize durable training targets from benchmark failure signals.</p>
+        </div>
+
+        <!-- Run Context Header -->
+        <div class="m-context">
+          <div class="m-context-copy">
+            <span class="m-id" style="color: var(--brand-ink); font-weight:700;">BR-00011</span>
+            <strong>Harvey Labs</strong>
+            <span class="m-id">glm-5.2</span>
+          </div>
+          <div class="m-context-meta">
+            <span><b>6</b> Failed Criteria</span>
+            <span><b>3</b> Topics</span>
+          </div>
+        </div>
+
+        <!-- Tablebox: Selected run summary -->
+        <div class="m-tablebox target-cap-box">
+          <div class="m-cap">
+            <h3 class="sample-target">Selected run summary</h3>
+            <span class="m-code">BR-00011</span>
+          </div>
+          <div class="m-tablewrap">
+            <table class="m-table">
+              <thead>
+                <tr>
+                  <th class="sample-th">Benchmark</th>
+                  <th class="sample-th">Evaluated Model</th>
+                  <th class="sample-th n">Failed Criteria</th>
+                  <th class="sample-th">Handoff Readiness</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Harvey Labs</strong></td>
+                  <td><span class="m-id">glm-5.2</span></td>
+                  <td class="n"><span class="badge-fail">6 criteria</span></td>
+                  <td><span class="status-badge pass">READY FOR ANALYSIS</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 2-Card Forge Grid Layout -->
+        <div class="m-forge-layout">
+          <!-- Left Card: Failure Analysis Run -->
+          <div class="m-forge-card target-cap-box">
+            <div class="m-forge-card-head m-cap">
+              <div>
+                <h3 class="sample-target">Failure analysis run</h3>
+                <p>Frontier analyst extracts capability taxonomy.</p>
+              </div>
+              <span class="m-code">FM-00001</span>
+            </div>
+            <div class="m-forge-form">
+              <div class="m-forge-field full">
+                <label>Analyst Model</label>
+                <div class="m-input">deepseek-v4-flash</div>
+              </div>
+              <div class="m-forge-field full">
+                <label>Criteria Input</label>
+                <div class="m-input">6 failed criteria</div>
+              </div>
+              <div class="m-forge-actions full">
+                <button type="button" class="primary-btn" style="width:100%;">Regenerate failure map</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Card: Failure Analysis Prompt -->
+          <div class="m-forge-card target-cap-box">
+            <div class="m-forge-card-head m-cap">
+              <div>
+                <h3 class="sample-target">Failure analysis prompt</h3>
+                <p>Select or create immutable revision.</p>
+              </div>
+              <span class="m-code">REV-00001</span>
+            </div>
+            <div style="padding: 12px; display: grid; gap: 8px;">
+              <textarea readonly style="width:100%; height:110px; font-size:11px; background:var(--raised); border:1px solid var(--line); color:var(--text-2); padding:8px; resize:none;">You are a benchmark capability analyst. Group criterion-level failures into durable, trainable capability topics.</textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tablebox: Topics extracted from failed criteria -->
+        <div class="m-tablebox target-cap-box">
+          <div class="m-cap">
+            <h3 class="sample-target">Topics extracted from failed criteria</h3>
+            <span class="m-code">FM-00001 · 3 topics</span>
+          </div>
+          <div class="m-tablewrap">
+            <table class="m-table">
+              <thead>
+                <tr>
+                  <th class="sample-th">Capability Topic</th>
+                  <th class="sample-th">Verifier Strategy</th>
+                  <th class="sample-th n">Assigned Failures</th>
+                  <th class="sample-th">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <strong style="color:var(--text-1);">Cross-Border Indemnity Scope</strong>
+                    <span class="sub">TP-00001 · indemnification-scope</span>
+                  </td>
+                  <td style="font-size:11.5px;">Check uncapped gross negligence exceptions against multijurisdictional limits.</td>
+                  <td class="n"><span class="m-code">3 misses</span></td>
+                  <td><span class="status-badge pass">ACTIVE</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong style="color:var(--text-1);">Force Majeure Timelines</strong>
+                    <span class="sub">TP-00002 · notice-window</span>
+                  </td>
+                  <td style="font-size:11.5px;">Verify 14-day prompt written notice trigger rules.</td>
+                  <td class="n"><span class="m-code">2 misses</span></td>
+                  <td><span class="status-badge pass">ACTIVE</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong style="color:var(--text-1);">Liability Cap Carveouts</strong>
+                    <span class="sub">TP-00003 · consequential-damages</span>
+                  </td>
+                  <td style="font-size:11.5px;">Verify IP infringement indemnification carveouts.</td>
+                  <td class="n"><span class="m-code">1 miss</span></td>
+                  <td><span class="status-badge pass">ACTIVE</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Failure Inventory Accordion -->
+        <details class="m-evidence">
+          <summary>
+            <span class="sample-target">Failure inventory</span>
+            <span class="m-code">6 source criteria</span>
+          </summary>
+          <div style="padding: 12px; font-size: 11.5px; color: var(--text-3);">
+            Expandable raw criteria definitions and judge audit logs.
+          </div>
+        </details>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ==========================================================================
+       LIVE CSS EXPORT DRAWER
+       ========================================================================== -->
+  <footer class="css-drawer">
+    <span style="font: 700 11px/1 var(--mono); color: var(--text-3); text-transform: uppercase;">Active CSS:</span>
+    <div id="cssSnippet" class="css-code-display">
+      .m-cap h3 { font: 600 11.5px/1.3 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+    </div>
+    <button type="button" class="copy-btn" onclick="copyCss()">📋 Copy CSS</button>
+  </footer>
+
+  <!-- ==========================================================================
+       CLIENT SCRIPT
+       ========================================================================== -->
+  <script>
+    const PRESETS = {
+      'ibm-mono-caps': {
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontWeight: '600',
+        fontSize: '11.5px',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        capAccent: 'cap-style-left-accent'
+      },
+      'space-grotesk-bold': {
+        fontFamily: "'Space Grotesk', sans-serif",
+        fontWeight: '700',
+        fontSize: '12px',
+        letterSpacing: '-0.02em',
+        textTransform: 'none',
+        capAccent: 'cap-style-left-text'
+      },
+      'jetbrains-compact': {
+        fontFamily: "'JetBrains Mono', monospace",
+        fontWeight: '700',
+        fontSize: '11px',
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        capAccent: 'cap-style-left-accent'
+      },
+      'inter-small-caps': {
+        fontFamily: "'Inter', sans-serif",
+        fontWeight: '600',
+        fontSize: '10.5px',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        capAccent: 'cap-style-left-accent'
+      },
+
+      'geist-sans-sharp': {
+        fontFamily: "'Geist', sans-serif",
+        fontWeight: '600',
+        fontSize: '12px',
+        letterSpacing: '-0.01em',
+        textTransform: 'none',
+        capAccent: 'cap-style-left-accent'
+      },
+      'archivo-condensed': {
+        fontFamily: "'Archivo', sans-serif",
+        fontWeight: '800',
+        fontSize: '12px',
+        letterSpacing: '-0.02em',
+        textTransform: 'uppercase',
+        capAccent: 'cap-style-left-text'
+      },
+      'plus-jakarta': {
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
+        fontWeight: '700',
+        fontSize: '12px',
+        letterSpacing: '0.01em',
+        textTransform: 'none',
+        capAccent: 'cap-style-default'
+      },
+      'current-default': {
+        fontFamily: "'Manrope', sans-serif",
+        fontWeight: '500',
+        fontSize: '10.5px',
+        letterSpacing: '0.012em',
+        textTransform: 'none',
+        capAccent: 'cap-style-default'
+      }
+    };
+
+    function applyPreset(presetId) {
+      document.querySelectorAll('.preset-pill').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      const config = PRESETS[presetId];
+      if (!config) return;
+
+      document.getElementById('fontFamilySelect').value = config.fontFamily;
+      document.getElementById('fontWeightSelect').value = config.fontWeight;
+      document.getElementById('fontSizeSelect').value = config.fontSize;
+      document.getElementById('letterSpacingSelect').value = config.letterSpacing;
+      document.getElementById('textTransformSelect').value = config.textTransform;
+      document.getElementById('capAccentSelect').value = config.capAccent;
+
+      updateCustomStyles();
+    }
+
+    function updateCustomStyles() {
+      const family = document.getElementById('fontFamilySelect').value;
+      const weight = document.getElementById('fontWeightSelect').value;
+      const size = document.getElementById('fontSizeSelect').value;
+      const tracking = document.getElementById('letterSpacingSelect').value;
+      const transform = document.getElementById('textTransformSelect').value;
+      const accent = document.getElementById('capAccentSelect').value;
+
+      document.getElementById('weightVal').textContent = weight;
+      document.getElementById('sizeVal').textContent = size;
+      document.getElementById('trackingVal').textContent = tracking;
+
+      // Apply to all Cap Headers (.sample-target)
+      const targets = document.querySelectorAll('.sample-target');
+      targets.forEach(el => {
+        el.style.fontFamily = family;
+        el.style.fontWeight = weight;
+        el.style.fontSize = size;
+        el.style.letterSpacing = tracking;
+        el.style.textTransform = transform;
+      });
+
+      // Apply to all Table Column Headers (<th>)
+      const ths = document.querySelectorAll('.sample-th');
+      ths.forEach(el => {
+        el.style.fontFamily = family;
+        el.style.fontWeight = weight;
+        el.style.fontSize = size === '13px' ? '11px' : size;
+        el.style.letterSpacing = tracking;
+        el.style.textTransform = transform;
+      });
+
+      // Apply Cap Accent Styles
+      const boxes = document.querySelectorAll('.target-cap-box, .m-cap');
+      boxes.forEach(b => {
+        b.classList.remove('cap-style-default', 'cap-style-left-accent', 'cap-style-left-text', 'cap-style-tag-pill');
+        b.classList.add(accent);
+      });
+
+      // Update Live CSS code block
+      const cssString = `.m-cap h3 {\n  font-family: ${family};\n  font-weight: ${weight};\n  font-size: ${size};\n  letter-spacing: ${tracking};\n  text-transform: ${transform};\n}`;
+      document.getElementById('cssSnippet').textContent = cssString.replace(/\n/g, ' ');
+    }
+
+    function switchView(mode) {
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const container = document.getElementById('viewContainer');
+      const p02 = document.getElementById('panel02');
+      const p03 = document.getElementById('panel03');
+
+      if (mode === 'both') {
+        container.style.gridTemplateColumns = '1fr 1fr';
+        p02.style.display = 'block';
+        p03.style.display = 'block';
+      } else if (mode === '02') {
+        container.style.gridTemplateColumns = '1fr';
+        p02.style.display = 'block';
+        p03.style.display = 'none';
+      } else {
+        container.style.gridTemplateColumns = '1fr';
+        p02.style.display = 'none';
+        p03.style.display = 'block';
+      }
+    }
+
+    function toggleTheme() {
+      const root = document.documentElement;
+      const cur = root.getAttribute('data-theme') || 'dark';
+      root.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+    }
+
+    function copyCss() {
+      const text = document.getElementById('cssSnippet').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => btn.textContent = orig, 1800);
+      });
+    }
+
+    // Initialize with first preset
+    updateCustomStyles();
+  </script>
+</body>
+</html>

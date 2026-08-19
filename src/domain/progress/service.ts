@@ -22,10 +22,9 @@ export const list = repo.listAll;
 
 /** Projects progress into what the rail draws. */
 export function railState(progress: BenchmarkRunProgress | null): RailState {
-  if (!progress) return { benchmarkRunId: null, benchmarkRunCode: null, model: null, passRate: null, gates: 0 };
+  if (!progress) return { benchmarkRunId: null, model: null, passRate: null, gates: 0 };
   return {
     benchmarkRunId: progress.benchmarkRunId,
-    benchmarkRunCode: progress.benchmarkRunCode,
     model: progress.model,
     passRate: progress.passRate,
     gates: gatesOf(progress),

@@ -1,3 +1,4 @@
+import type { PromptRevision } from '../../domain/prompts/model.ts';
 import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { isLive, type JobRow } from '../../domain/jobs/model.ts';
 import type {
@@ -10,6 +11,7 @@ import { tally, type TopicTally } from '../../domain/topics/service.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Cap } from '../ui/Cap.tsx';
 import { Id } from '../ui/Id.tsx';
+import { PromptCard } from '../ui/PromptCard.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
@@ -27,6 +29,10 @@ type FailuresProps = {
   tasks: BenchmarkTaskCriteria[];
   topics: TopicRow[];
   uncategorised: number;
+  prompt: PromptRevision | null;
+  promptRevisions: PromptRevision[];
+  analystModel: string;
+  hasApiKey: boolean;
 };
 
 function failureCounts(tasks: BenchmarkTaskCriteria[]) {
@@ -47,6 +53,10 @@ export function Failures({
   tasks,
   topics,
   uncategorised,
+  prompt,
+  promptRevisions,
+  analystModel,
+  hasApiKey,
 }: FailuresProps) {
   const counts = failureCounts(tasks);
   const summary = tally(topics, uncategorised);
@@ -59,7 +69,11 @@ export function Failures({
           Inspect one benchmark run and carry only its failure signal into topic generation.
         </p>
       </div>
-      <RunContext benchmarkRun={benchmarkRun} availableRuns={availableRuns} />
+      <RunContext
+        benchmarkRun={benchmarkRun}
+        availableRuns={availableRuns}
+        failureTopics={progress?.failureMap.entity ? progress.topicCount : undefined}
+      />
 
       <SelectedRunSummary
         benchmarkRun={benchmarkRun}
@@ -67,11 +81,36 @@ export function Failures({
         failed={counts.failed}
       />
 
-      <FailureAnalysisHandoff
-        benchmarkRun={benchmarkRun}
+      <div class="m-forge-layout">
+        <FailureAnalysisConfig
+          benchmarkRun={benchmarkRun}
+          progress={progress}
+          analysisJob={analysisJob}
+          failed={counts.failed}
+          promptRevisionId={prompt?.promptRevisionId ?? null}
+          analystModel={analystModel}
+          hasApiKey={hasApiKey}
+          hasDataForge={Boolean(progress?.dataForgeRun.entity)}
+        />
+        <PromptCard
+          prompt={prompt}
+          revisions={promptRevisions}
+          benchmarkRunId={benchmarkRun?.benchmarkRunId ?? null}
+          promptRevisionLocked={Boolean(progress?.dataForgeRun.entity)}
+          promptKey="failure-analysis"
+          title="Failure analysis prompt"
+          dialogId="failure-analysis-prompt-editor"
+          cardId="failure-prompt-card"
+          targetInputId="failure-prompt-revision"
+          promptUrl="/ui/failures/prompt"
+          revisionsUrl="/ui/failures/prompt/revisions"
+        />
+      </div>
+
+      <FailureAnalysisStatus
+        runId={benchmarkRun?.benchmarkRunId ?? null}
+        job={analysisJob}
         progress={progress}
-        analysisJob={analysisJob}
-        failed={counts.failed}
       />
 
       <TopicTable
@@ -96,48 +135,82 @@ export function Failures({
   );
 }
 
-function FailureAnalysisHandoff({
+function FailureAnalysisConfig({
   benchmarkRun,
   progress,
   analysisJob,
   failed,
+  promptRevisionId,
+  analystModel,
+  hasApiKey,
+  hasDataForge,
 }: {
   benchmarkRun: BenchmarkRunSummary | null;
   progress: BenchmarkRunProgress | null;
   analysisJob: JobRow | null;
   failed: number;
+  promptRevisionId: number | null;
+  analystModel: string;
+  hasApiKey: boolean;
+  hasDataForge: boolean;
 }) {
+  const running = isLive(analysisJob);
+  const hasMap = Boolean(progress?.failureMap.entity);
+  const canStart = Boolean(
+    benchmarkRun && progress?.benchmarkResult.entity && failed > 0 && hasApiKey && Boolean(analystModel) && !running && !hasDataForge,
+  );
+
   return (
-    <section class="m-analysis-handoff">
-      <div class="m-analysis-handoff-copy">
-        <h3>Turn these misses into capability topics</h3>
-        <p>The frontier analyst will inspect each failed criterion and group the signal into a failure map.</p>
-        <div class="m-analysis-meta">
-          <span><b>{failed}</b> failed criteria</span>
-          <span><b>{progress?.topicCount ?? 0}</b> topics</span>
+    <section class="m-forge-card">
+      <div class="m-forge-card-head">
+        <div>
+          <h3>Failure analysis run</h3>
+          <p>The frontier analyst will inspect each failed criterion and group the signal into a failure map.</p>
         </div>
+        <span class="m-code">{progress?.failureMap.entity ?? 'next step · 03'}</span>
+
       </div>
-      <div class="m-analysis-action">
-        <small>next step · 03</small>
-        <form
-          hx-post="/ui/failures/map"
-          hx-target="#failure-analysis-status"
-          hx-swap="outerHTML"
-          hx-disabled-elt="find button"
-        >
-          <input type="hidden" name="benchmark_run_id" value={benchmarkRun ? String(benchmarkRun.benchmarkRunId) : ''} />
-          <button
-            type="submit"
-            disabled={!benchmarkRun || !progress?.benchmarkResult.entity || !failed || Boolean(progress.failureMap.entity) || isLive(analysisJob)}
-          >
-            {isLive(analysisJob) ? 'Analysis running…' : progress?.failureMap.entity ? 'Failure map created' : 'Create failure map + topics'}
+      <form
+        class="m-forge-form"
+        hx-post="/ui/failures/map"
+        hx-target="#failure-analysis-status"
+        hx-swap="outerHTML"
+        hx-disabled-elt="find button"
+      >
+        <input type="hidden" name="benchmark_run_id" value={benchmarkRun ? String(benchmarkRun.benchmarkRunId) : ''} />
+        <input id="failure-prompt-revision" type="hidden" name="prompt_revision_id" value={promptRevisionId ? String(promptRevisionId) : ''} />
+
+        <div class="m-forge-field full">
+          <label>Selected benchmark run</label>
+          <div class="m-input">{benchmarkRun ? `${benchmarkRun.benchmarkRunCode} · ${benchmarkRun.benchmarkName}` : 'No benchmark run selected'}</div>
+        </div>
+
+        <div class="m-forge-field">
+          <label for="failure-model">Analyst model</label>
+          <input id="failure-model" value={analystModel || 'deepseek-v4-flash'} disabled />
+        </div>
+
+        <div class="m-forge-field">
+          <label>Failed criteria</label>
+          <div class="m-input">{failed} {failed === 1 ? 'criterion' : 'criteria'}</div>
+        </div>
+
+        <div class="m-forge-actions full">
+          <button type="submit" disabled={!canStart}>
+            {running
+              ? 'Analysis running…'
+              : hasMap
+                ? 'Regenerate failure map'
+                : 'Create failure map + topics'}
           </button>
-        </form>
-      </div>
-      <FailureAnalysisStatus runId={benchmarkRun?.benchmarkRunId ?? null} job={analysisJob} progress={progress} />
+          {!hasApiKey ? <span class="m-field-note">Configure an analysis or judge API key in Settings first.</span> : null}
+          {hasDataForge ? <span class="m-field-note">Locked: Data forge run has already started for this failure map.</span> : null}
+        </div>
+      </form>
     </section>
   );
 }
+
 
 export function FailureAnalysisStatus({
   runId,

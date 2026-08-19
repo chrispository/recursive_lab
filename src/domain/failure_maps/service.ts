@@ -23,13 +23,22 @@ const MAX_OUTPUT_TOKENS = 8192;
 export const byBenchmarkRun = repo.findByRun;
 
 /** Open the ledger job; the provider call and all writes happen in the background. */
-export async function start(input: { benchmarkRunId: number; providerModel?: string }): Promise<FailureMapStart> {
+export async function start(input: {
+  benchmarkRunId: number;
+  providerModel?: string;
+  promptRevisionId?: number;
+}): Promise<FailureMapStart> {
   if (!Number.isInteger(input.benchmarkRunId) || input.benchmarkRunId < 1) {
     throw new FailureMapError('Select a benchmark run.');
   }
 
   const existing = await repo.findByRun(input.benchmarkRunId);
-  if (existing) throw new FailureMapError('This benchmark run already has a failure map.');
+  if (existing) {
+    const hasForge = await repo.hasDataForge(existing.failure_map_id);
+    if (hasForge) {
+      throw new FailureMapError('Cannot regenerate failure map: Data forge run already exists for this benchmark run.');
+    }
+  }
 
   const running = (await jobRows.listByBenchmarkRun(input.benchmarkRunId))
     .find((job) => job.kind === 'failure_map' && isLive(job));
@@ -41,8 +50,10 @@ export async function start(input: { benchmarkRunId: number; providerModel?: str
   const candidates = await repo.listCandidates(input.benchmarkRunId);
   if (!candidates.length) throw new FailureMapError('This benchmark run has no failed criteria to analyse.');
 
-  const prompt = await prompts.active(ANALYSIS_PROMPT);
-  if (!prompt) throw new FailureMapError('The active failure-analysis prompt is missing.');
+  const prompt = input.promptRevisionId
+    ? await prompts.byId(ANALYSIS_PROMPT, input.promptRevisionId)
+    : await prompts.active(ANALYSIS_PROMPT);
+  if (!prompt) throw new FailureMapError('The failure-analysis prompt is missing.');
 
   const provider = await settings.analysisProvider(input.providerModel ?? '');
   if (!provider.apiKey) throw new FailureMapError('Configure an analysis or judge API key in Settings.');
@@ -68,6 +79,7 @@ export async function start(input: { benchmarkRunId: number; providerModel?: str
     prompt,
     provider,
     trace,
+    existingFailureMapId: existing?.failure_map_id ?? null,
   }).catch(async (error) => {
     try {
       await trace.fail(error);
@@ -84,6 +96,7 @@ export async function start(input: { benchmarkRunId: number; providerModel?: str
   };
 }
 
+
 async function execute(input: {
   benchmarkRunId: number;
   benchmarkResultId: number;
@@ -91,6 +104,7 @@ async function execute(input: {
   prompt: { promptRevisionId: number; body: string };
   provider: settings.ProviderConfig;
   trace: jobTrace.Trace;
+  existingFailureMapId?: number | null;
 }): Promise<void> {
   const { trace } = input;
   await trace.step('asking the failure analyst', 0.18);
@@ -111,7 +125,9 @@ async function execute(input: {
     rawOutput: { content: completion.content, parsed: output },
     candidates: input.candidates,
     output,
+    replaceExistingFailureMapId: input.existingFailureMapId,
   });
+
   await audit.audit('failure_maps', saved.failureMapId, 'create', {
     benchmarkResultId: input.benchmarkResultId,
     benchmarkRunId: input.benchmarkRunId,

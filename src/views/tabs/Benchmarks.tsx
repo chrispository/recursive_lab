@@ -156,7 +156,7 @@ export function Benchmarks({
 
           <div class="m-run-actions">
             <div class="m-run-card m-run-card-manual">
-              <div><span class="m-run-kicker">MANUAL RUN</span><strong>Run one benchmark</strong><span>Benchmark → Harbor → LAB verifier</span></div>
+              <div><span class="m-run-kicker">MANUAL RUN</span></div>
               <button
                 type="button"
                 hx-post="/ui/benchmarks/run"
@@ -167,10 +167,11 @@ export function Benchmarks({
               >Manually Benchmark</button>
             </div>
             <div class="m-run-card m-run-card-full">
-              <div><span class="m-run-kicker">FULL PROCESS</span><label for="recurse-count">RUN <input id="recurse-count" type="number" min="1" max="99" value="1" disabled /> ×</label><span>Benchmark → Tune → Benchmark</span></div>
+              <div><span class="m-run-kicker">FULL PROCESS</span><label for="recurse-count">RUN <input id="recurse-count" type="number" min="1" max="99" value="1" disabled /> ×</label></div>
               <button class="m-recurse-button" type="button" disabled title="The full-process workflow is not wired yet."><Icon name="spark" /> Recurse</button>
             </div>
           </div>
+
           <div id="benchmark-config-status" class="m-config-status" role="status" aria-live="polite"></div>
         </details>
 

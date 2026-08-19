@@ -1,5 +1,4 @@
 /* Panels ------------------------------------------------------------------- */
-
 /* Data forge --------------------------------------------------------------
    The forge has two kinds of work: configuring the next batch and reviewing
    the artifacts it produced. Both stay in the ledger language — hairlines,
@@ -199,87 +198,216 @@
 .m-prompt-card > .m-field-note {
   padding: 0 var(--s4) var(--s4);
 }
-.m-document-queue {
-  margin-top: var(--s4);
-  border: 1px solid var(--line);
-  background: var(--panel);
+/* Focused review inbox ----------------------------------------------------- */
+.m-review-inbox {
+  min-width: 0; margin-top: var(--s4); border: 1px solid var(--line); background: var(--panel); box-shadow: inset 0 0 0 1px var(--inset);
 }
-.m-document-grid {
+.m-review-inbox-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s4); padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--deep);
+}
+.m-review-inbox-head h3 { color: var(--text-1); font-size: var(--t-data); }
+.m-review-inbox-head p { margin-top: 5px; font-size: var(--t-label); }
+.m-review-recommended,
+.m-review-badge {
+  display: inline-flex; align-items: center; min-height: 20px; padding: 2px 6px; color: var(--text-3); border: 1px solid currentColor; font: 600 var(--t-micro) / 1.2 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
+}
+.m-review-recommended { color: var(--run); }
+.m-review-badge.pending { color: var(--warn); } .m-review-badge.approved { color: var(--pass); } .m-review-badge.blocked { color: var(--fail); }
+.m-review-decision-bar {
+  display: grid; grid-template-columns: minmax(220px, 1fr) minmax(210px, 0.75fr) auto; gap: var(--s4); align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); border-top: 3px solid var(--brand); background: var(--panel);
+}
+.m-review-decision-copy strong { color: var(--text-1); font-size: var(--t-data); }
+.m-review-decision-copy p { margin-top: 4px; font-size: var(--t-label); }
+.m-review-auto {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--text-2); font-size: var(--t-label);
+}
+.m-review-auto input { width: 14px; height: 14px; margin-top: 2px; accent-color: var(--brand); }
+.m-review-auto span,
+.m-review-auto small { display: block; }
+.m-review-auto small { margin-top: 3px; color: var(--text-3); line-height: 1.4; }
+.m-review-decision-actions {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2);
+}
+.m-review-decision-actions button { min-width: 0; }
+.m-review-send {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 0 12px; color: var(--btn-ink); background: var(--brand); border: 1px solid var(--brand); font: 600 11.5px / 1 var(--sans);
+}
+.m-review-send:hover { color: var(--btn-ink); background: var(--brand-press); border-color: var(--brand-press); }
+.m-review-split {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px;
-  background: var(--line-soft);
+  grid-template-columns: minmax(270px, 0.72fr) minmax(430px, 1.45fr);
+  min-height: 540px;
 }
-.m-document-card {
-  min-width: 0;
-  padding: var(--s4);
-  border-left: 3px solid var(--line);
-  background: var(--raised);
+.m-review-queue {
+  min-width: 0; border-right: 1px solid var(--line);
 }
-.m-document-card[data-review='approved'] { border-left-color: var(--pass); }
-.m-document-card[data-review='rejected'] { border-left-color: var(--fail); }
-.m-document-card[data-review='pending'] { border-left-color: var(--warn); }
-.m-document-card > header {
+.m-review-queue-tools {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--s3);
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 8px;
+  border-bottom: 1px solid var(--line-soft);
 }
-.m-document-card h4 {
+.m-review-filter {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 8px;
+  color: var(--text-3);
+  background: transparent;
+  border-color: var(--line);
+  font-size: var(--t-label);
+}
+.m-review-filter:hover,
+.m-review-filter.is-active {
+  color: var(--brand-ink);
+  background: var(--wash);
+  border-color: var(--brand);
+}
+.m-review-queue-list { min-width: 0; }
+.m-review-queue-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: start;
+  min-height: 0;
+  padding: 12px;
+  color: var(--text-2);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: 0;
+  font-weight: 400;
+}
+.m-review-queue-row:hover,
+.m-review-queue-row.is-selected {
+  color: inherit;
+  background: var(--wash);
+  border-color: var(--line-soft);
+}
+.m-review-queue-row.is-selected { box-shadow: inset 3px 0 var(--brand); }
+.m-review-queue-row strong {
+  display: block;
+  overflow-wrap: anywhere;
   color: var(--text-1);
-  font-size: var(--t-data);
+  line-height: 1.4;
+}
+.m-review-queue-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.45 var(--mono);
+}
+.m-review-dot {
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+.m-review-dot.approved { background: var(--pass); }
+.m-review-dot.blocked { background: var(--fail); }
+.m-review-details {
+  min-width: 0; background: var(--panel);
+}
+.m-review-detail {
+  min-height: 540px;
+  display: flex;
+  flex-direction: column;
+  padding: var(--s5) var(--s6) 72px;
+}
+.m-review-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+.m-review-detail-head h4 {
+  max-width: 760px;
+  color: var(--text-1);
+  font-size: 18px;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
-.m-document-card .sub {
-  display: block;
-  margin-top: 5px;
-}
-.m-document-card details {
-  margin-top: var(--s3);
-  border-top: 1px solid var(--line-soft);
-}
-.m-document-card details > summary {
-  padding-top: var(--s3);
-  color: var(--text-2);
-  cursor: pointer;
-  font: 650 var(--t-label) / 1.3 var(--sans);
-}
-.m-document-content {
-  display: grid;
-  gap: 5px;
-  padding-top: var(--s3);
-  color: var(--text-2);
-  font-size: var(--t-label);
-  line-height: 1.55;
-}
-.m-document-content b {
-  color: var(--text-3);
-  font: 650 var(--t-micro) / 1.2 var(--sans);
-  letter-spacing: 0.08em;
+.m-review-eyebrow {
+  margin-bottom: 6px;
+  color: var(--brand-ink);
+  font: 600 var(--t-micro) / 1 var(--mono);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.m-document-content p + b {
-  margin-top: 7px;
-}
-.m-review-controls {
+.m-review-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s2);
-  margin-top: var(--s4);
-  padding-top: var(--s3);
-  border-top: 1px solid var(--line-soft);
+  gap: 8px 18px;
+  margin-top: 11px;
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.2 var(--mono);
 }
-.m-review-controls .m-field-note {
-  margin-right: auto;
+.m-review-tabs {
+  display: flex;
+  gap: 0;
+  margin-top: 22px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
 }
-.m-review-controls button {
-  min-height: 28px;
-  padding: 0 9px;
+.m-review-tabs button {
+  min-width: max-content;
+  min-height: 32px;
+  padding: 0 10px;
+  color: var(--text-3);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   font-size: var(--t-label);
 }
-
+.m-review-tabs button:hover,
+.m-review-tabs button.is-active {
+  color: var(--brand-ink);
+  background: transparent;
+  border-bottom-color: var(--brand);
+}
+.m-review-reading {
+  max-width: 86ch;
+  padding-top: 18px;
+  color: var(--text-2);
+  font-size: var(--t-body);
+  line-height: 1.75;
+}
+.m-review-reading h5 {
+  margin-bottom: 6px;
+  color: var(--text-1);
+  font-size: var(--t-label);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.m-review-reading ul {
+  display: grid;
+  gap: var(--s2);
+  padding-left: 18px;
+}
+.m-review-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: auto;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+.m-review-actions > span { margin-right: auto; }
+.m-review-actions button { min-width: 0; }
+.m-review-empty {
+  padding: var(--s5);
+  color: var(--text-3);
+  font-size: var(--t-label);
+}
+.m-review-empty-detail {
+  min-height: 540px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
 .m-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -306,7 +434,6 @@
   display: grid;
   gap: var(--s3);
 }
-
 /* Failure analysis handoff -----------------------------------------------
    The selected-run table already carries the run identity. This compact
    surface keeps only the reason for the next step, its useful counts, and the
@@ -369,4 +496,3 @@
   padding-top: var(--s3);
   border-top: 1px solid var(--line-soft);
 }
-

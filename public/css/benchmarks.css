@@ -333,7 +333,7 @@
 }
 .m-run-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--s4);
   min-width: 0;
@@ -341,6 +341,9 @@
   border: 1px solid var(--line);
   border-left: 3px solid var(--text-1);
   background: var(--raised);
+}
+.m-run-card > button {
+  align-self: center;
 }
 .m-run-card-full {
   border-left-color: var(--brand);

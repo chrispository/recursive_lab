@@ -166,7 +166,7 @@
 :root {
   /* Reading UI is sans. Mono is a stamp: ids, numerals, code, prompts. */
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: 'Avenir Next', 'Segoe UI', Inter, 'Adwaita Sans', 'Noto Sans', system-ui, sans-serif;
+  --sans: 'Manrope', 'Inter', ui-sans-serif, system-ui, sans-serif;
 
   /* 4px rhythm. */
   --s1: 4px;

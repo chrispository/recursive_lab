@@ -668,8 +668,8 @@
             <div class="m-forge-field">
               <label>Documents per failure topic</label>
               <input type="number" value="1" />
-              <span class="m-field-note">Each topic receives this many novel-document slots.</span>
             </div>
+
 
             <div class="m-forge-field">
               <label>Max source similarity</label>
@@ -748,34 +748,76 @@ Anti-benchmax rules:
         </div>
       </div>
 
-      <!-- Failure Analysis Handoff Card -->
-      <section class="m-analysis-handoff">
-        <div class="m-analysis-handoff-copy">
-          <h3>Turn these misses into capability topics</h3>
-          <p>The frontier analyst will inspect each failed criterion and group the signal into a failure map.</p>
-          <div class="m-analysis-meta">
-            <span><b>17</b> failed criteria</span>
-            <span><b>0</b> topics</span>
+      <!-- Failure Analysis Split Grid Layout -->
+      <div class="m-forge-layout">
+        <!-- Left Column: Failure Analysis Run Form Card -->
+        <section class="m-forge-card">
+          <div class="m-forge-card-head">
+            <div>
+              <h3>Failure analysis run</h3>
+              <p>The frontier analyst will inspect each failed criterion and group the signal into a failure map.</p>
+            </div>
+            <span class="m-code">next step · 03</span>
           </div>
-        </div>
-        <div class="m-analysis-action">
-          <small>next step · 03</small>
-          <button class="primary" id="failureActionBtn" disabled style="min-width: 190px;">
-            Analysis running…
-          </button>
-        </div>
 
-        <!-- Failure Map Progress Area -->
-        <div id="failure-analysis-status" class="m-analysis-progress" role="status" aria-live="polite">
-          <div class="m-analysis-progress-label">
-            <span class="m-analysis-progress-step" id="failureStepText">extracting failure patterns</span>
-            <span class="m-id" id="failureJobCode">JOB-00018</span>
+          <form class="m-forge-form" onsubmit="event.preventDefault();">
+            <div class="m-forge-field full">
+              <label>Selected benchmark run</label>
+              <div class="m-input">BR-00011 · Harvey Labs</div>
+            </div>
+
+            <div class="m-forge-field">
+              <label>Analyst model</label>
+              <input value="deepseek-v4-flash" disabled />
+            </div>
+
+            <div class="m-forge-field">
+              <label>Failed criteria</label>
+              <div class="m-input">17 criteria</div>
+            </div>
+
+            <div class="m-forge-actions full">
+              <button type="submit" id="failureActionBtn" class="primary" disabled>
+                Analysis running…
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Right Column: Failure Analysis Prompt Card -->
+        <section class="m-forge-card">
+          <div class="m-forge-card-head">
+            <div>
+              <h3>Failure analysis prompt</h3>
+              <p>Choose a revision to inspect or use for the next analysis run.</p>
+            </div>
+            <span class="m-badge">REV-00001</span>
           </div>
-          <div class="m-analysis-progress-track" id="failureTrack" role="progressbar" aria-label="Analysis in progress">
-            <span class="m-analysis-progress-fill" aria-hidden="true"></span>
+          <div style="padding: 16px; display: grid; gap: 12px;">
+            <textarea readonly style="width: 100%; height: 140px; font-family: var(--sans); font-size: 11.5px; line-height: 1.5; color: var(--text-2); background: var(--raised); border: 1px solid var(--line); resize: none; padding: 10px;">You are a benchmark capability analyst. Group criterion-level failures into durable, trainable capability topics.
+
+Rules:
+- Describe the general capability gap, never the benchmark answer.
+- Remove matter-specific names, dates, amounts, quotations, and document titles.
+- Split failures when they need meaningfully different training examples or verifiers.
+- Each failure_id must appear exactly once.
+- verifier_strategy must describe an observable success condition, not an answer key.</textarea>
+            <span class="m-field-note">Saving creates a new immutable revision and makes it active. Existing runs stay pinned to their original revision.</span>
           </div>
+        </section>
+      </div>
+
+      <!-- Failure Map Progress Area -->
+      <div id="failure-analysis-status" class="m-analysis-progress" role="status" aria-live="polite">
+        <div class="m-analysis-progress-label">
+          <span class="m-analysis-progress-step" id="failureStepText">extracting failure patterns</span>
+          <span class="m-id" id="failureJobCode">JOB-00018</span>
         </div>
-      </section>
+        <div class="m-analysis-progress-track" id="failureTrack" role="progressbar" aria-label="Analysis in progress">
+          <span class="m-analysis-progress-fill" aria-hidden="true"></span>
+        </div>
+      </div>
+
 
       <!-- Topic Table Mockup Placeholder -->
       <div style="border: 1px solid var(--line); background: var(--panel); padding: 16px; margin-top: 16px;">

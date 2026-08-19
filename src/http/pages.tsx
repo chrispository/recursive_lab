@@ -11,7 +11,9 @@ import { isTab, TABS } from '../views/layout/tabs.ts';
 import * as progress from '../domain/progress/service.ts';
 import * as topics from '../domain/topics/service.ts';
 import * as runs from '../domain/runs/service.ts';
+import * as failureMaps from '../domain/failure_maps/service.ts';
 import * as dataForge from '../domain/data_forge/service.ts';
+
 import * as prompts from '../domain/prompts/service.ts';
 import * as environments from '../domain/environments/service.ts';
 import * as benchmarks from '../domain/benchmarks/service.ts';
@@ -84,6 +86,15 @@ export const pages = new Elysia({ name: 'pages' })
         const failureMapId = failureProgress?.failureMapId;
         const failureJobs = failureRun ? await jobs.listByBenchmarkRun(failureRun.benchmarkRunId) : [];
         const analysisJob = [...failureJobs].reverse().find((job) => job.kind === 'failure_map') ?? null;
+        const analysisSettings = await settings.read();
+        const requestedPromptRevisionId = Number(new URL(request.url).searchParams.get('prompt_revision_id'));
+        const promptRevisions = await prompts.list('failure-analysis');
+        const existingMap = failureRun ? await failureMaps.byBenchmarkRun(failureRun.benchmarkRunId) : null;
+        const selectedPromptRevisionId = existingMap?.prompt_revision_id
+          ?? (Number.isInteger(requestedPromptRevisionId) && requestedPromptRevisionId > 0 ? requestedPromptRevisionId : undefined);
+        const prompt = selectedPromptRevisionId
+          ? await prompts.byId('failure-analysis', selectedPromptRevisionId)
+          : await prompts.active('failure-analysis');
         body = (
           <Failures
             progress={failureProgress}
@@ -93,10 +104,15 @@ export const pages = new Elysia({ name: 'pages' })
             tasks={failureRun ? await runs.criteriaByTask(failureRun.benchmarkRunId) : []}
             topics={failureMapId ? await topics.listByFailureMap(failureMapId) : []}
             uncategorised={failureMapId ? await topics.countUncategorised(failureMapId) : 0}
+            prompt={prompt}
+            promptRevisions={promptRevisions}
+            analystModel={analysisSettings.analysis_model_name || analysisSettings.judge_model_name}
+            hasApiKey={analysisSettings.has_analysis_key || analysisSettings.has_judge_key}
           />
         );
         break;
       }
+
       case 'forge': {
         const availableRuns = await runs.list();
         const dataForgeRun = selectedProgress ? await dataForge.byBenchmarkRun(selectedProgress.benchmarkRunId) : null;

@@ -12,7 +12,12 @@ type CandidateDb = Row & {
   source_json: string;
 };
 
-type MapDb = Row & { failure_map_id: number; benchmark_result_id: number };
+export type MapDb = Row & {
+  failure_map_id: number;
+  benchmark_result_id: number;
+  prompt_revision_id: number;
+  provider_model: string;
+};
 
 export async function benchmarkResultIdForRun(benchmarkRunId: number): Promise<number | null> {
   const row = await one<Row & { benchmark_result_id: number }>(
@@ -50,12 +55,20 @@ export async function listCandidates(benchmarkRunId: number): Promise<FailureCan
 
 export async function findByRun(benchmarkRunId: number): Promise<MapDb | null> {
   return one<MapDb>(
-    `SELECT fm.id AS failure_map_id, fm.benchmark_result_id
+    `SELECT fm.id AS failure_map_id, fm.benchmark_result_id, fm.prompt_revision_id, fm.provider_model
        FROM failure_maps fm
        JOIN benchmark_results r ON r.id = fm.benchmark_result_id
       WHERE r.benchmark_run_id = ?`,
     [benchmarkRunId],
   );
+}
+
+export async function hasDataForge(failureMapId: number): Promise<boolean> {
+  const row = await one<Row & { count: number }>(
+    `SELECT COUNT(*) AS count FROM data_forge_runs WHERE failure_map_id = ?`,
+    [failureMapId],
+  );
+  return (row?.count ?? 0) > 0;
 }
 
 export async function saveAnalysis(input: {
@@ -66,9 +79,16 @@ export async function saveAnalysis(input: {
   rawOutput: Record<string, unknown>;
   candidates: FailureCandidate[];
   output: FailureMapOutput;
+  replaceExistingFailureMapId?: number | null;
 }): Promise<{ failureMapId: number; topicIds: Map<string, number> }> {
   const tx = await db.transaction('write');
   try {
+    if (input.replaceExistingFailureMapId) {
+      await tx.execute({
+        sql: `DELETE FROM failure_maps WHERE id = ?`,
+        args: [input.replaceExistingFailureMapId],
+      });
+    }
     const at = new Date().toISOString();
     const mapResult = await tx.execute({
       sql: `INSERT INTO failure_maps
@@ -78,6 +98,7 @@ export async function saveAnalysis(input: {
         input.benchmarkResultId,
         input.promptRevisionId,
         input.providerModel,
+
         JSON.stringify(input.usage),
         JSON.stringify(input.rawOutput),
         at,

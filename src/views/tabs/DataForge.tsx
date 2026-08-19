@@ -4,17 +4,18 @@ import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
 import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { isLive, type JobRow } from '../../domain/jobs/model.ts';
 import { Badge } from '../ui/Badge.tsx';
-import { Bar } from '../ui/Bar.tsx';
 import { Cap } from '../ui/Cap.tsx';
 import { Field } from '../ui/Field.tsx';
-import { Id } from '../ui/Id.tsx';
 import { Panel } from '../ui/Panel.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
+import { FocusedReviewInbox } from '../ui/FocusedReviewInbox.tsx';
 import { Icon } from '../ui/Icon.tsx';
+import { PromptCard } from '../ui/PromptCard.tsx';
 import { Handoff } from '../layout/Handoff.tsx';
 import { RunContext } from '../layout/RunContext.tsx';
+
 
 function Help({ text }: { text: string }) {
   return <span class="m-help" title={text}><Icon name="help" label={text} /></span>;
@@ -57,7 +58,11 @@ export function DataForge({
         <h2>Data forge novel training documents</h2>
         <p>Generation receives abstract capability specs only. Every artifact is fingerprinted against its benchmark lineage.</p>
       </div>
-      <RunContext benchmarkRun={benchmarkRun} availableRuns={availableRuns} />
+      <RunContext
+        benchmarkRun={benchmarkRun}
+        availableRuns={availableRuns}
+        failureTopics={progress?.topicCount}
+      />
 
       <div class="m-forge-layout">
         <ForgeConfig
@@ -130,8 +135,6 @@ export function DataForge({
         </TableBox>
       ) : null}
 
-      <DocumentLedger dataForge={dataForge} documents={documents} />
-
       <div class="m-split">
         <Panel title="Generation boundary" code="anti-benchmax">
           <p class="m-note">The generator sees topic name, description, verifier strategy, and requested count. It does not receive the original task, criterion text, reference answer, names, dates, or figures.</p>
@@ -144,6 +147,8 @@ export function DataForge({
       </div>
 
       <Handoff stage="forge" benchmarkRun={benchmarkRun} progress={progress} />
+
+      <FocusedReviewInbox benchmarkRunId={benchmarkRun?.benchmarkRunId ?? null} dataForge={dataForge} documents={documents} />
     </>
   );
 }
@@ -204,8 +209,8 @@ function ForgeConfig({
             <Help text="Recommended value: 20. Each failure topic receives this many novel-document slots; higher values increase generation and review work." />
           </label>
           <input id="forge-docs" name="docs_per_topic" type="number" min="1" max="100" value={String(dataForge?.docsPerTopic ?? 3)} disabled={Boolean(dataForge)} />
-          <span class="m-field-note">Each topic receives this many novel-document slots.</span>
         </div>
+
         <div class="m-forge-field">
           <label for="forge-threshold">
             Max source similarity{' '}
@@ -231,191 +236,7 @@ function ForgeConfig({
   );
 }
 
-export function PromptCard({
-  prompt,
-  revisions,
-  benchmarkRunId,
-  promptRevisionLocked,
-  notice = '',
-  noticeKind = 'success',
-}: {
-  prompt: PromptRevision | null;
-  revisions: PromptRevision[];
-  benchmarkRunId: number | null;
-  promptRevisionLocked: boolean;
-  notice?: string;
-  noticeKind?: 'success' | 'error';
-}) {
-  return (
-    <section id="forge-prompt-card" class="m-forge-card m-prompt-card">
-      <div class="m-forge-card-head">
-        <div>
-          <h3>Document generation prompt</h3>
-          <p>{promptRevisionLocked ? 'This forge run is pinned to its original revision.' : 'Choose a revision to inspect or use for the next forge run.'}</p>
-        </div>
-        <div class="m-prompt-tools">
-          {revisions.length ? (
-            <form class="m-prompt-revision-picker">
-              <input type="hidden" name="benchmark_run_id" value={benchmarkRunId ? String(benchmarkRunId) : ''} />
-              <select
-                name="prompt_revision_id"
-                data-prompt-revision
-                aria-label="Document generation prompt revision"
-                disabled={promptRevisionLocked}
-                hx-get="/ui/data-forge/prompt"
-                hx-trigger="change"
-                hx-target="#forge-prompt-card"
-                hx-swap="outerHTML"
-                hx-include="closest form"
-              >
-                {revisions.map((revision) => (
-                  <option value={String(revision.promptRevisionId)} selected={revision.promptRevisionId === prompt?.promptRevisionId}>
-                    REV-{String(revision.revisionNumber).padStart(5, '0')}
-                  </option>
-                ))}
-              </select>
-            </form>
-          ) : <span class="m-code">missing</span>}
-          <button type="button" class="ghost compact m-prompt-settings" data-open-dialog="document-generation-prompt-editor" aria-label="Edit prompt" title="Edit prompt" disabled={!prompt}>
-            <Icon name="settings" />
-          </button>
-        </div>
-      </div>
-      {notice ? <p class={`m-prompt-notice ${noticeKind === 'error' ? 'is-error' : ''}`}>{notice}</p> : null}
-      {prompt ? <textarea class="m-ta m-prompt-editor" readonly>{prompt.body}</textarea> : <div class="m-empty">The document-generation prompt is missing.</div>}
-      <p class="m-field-note">Saving creates a new immutable revision and makes it active. Existing forge runs stay pinned to their original revision.</p>
-      {prompt ? (
-        <dialog id="document-generation-prompt-editor" class="m-dialog m-prompt-dialog">
-          <div class="m-dialog-head">
-            <div>
-              <span class="m-id">REV-{String(prompt.revisionNumber).padStart(5, '0')}</span>
-              <strong>Edit document generation prompt</strong>
-              <span class="m-dialog-sub">Save as a new revision; the current revision remains immutable.</span>
-            </div>
-            <button type="button" class="ghost compact" data-close-dialog aria-label="Close"><Icon name="close" /></button>
-          </div>
-          <form class="m-dialog-body m-prompt-form" hx-post="/ui/data-forge/prompt/revisions" hx-target="#forge-prompt-card" hx-swap="outerHTML" hx-disabled-elt="find button">
-            <input type="hidden" name="benchmark_run_id" value={benchmarkRunId ? String(benchmarkRunId) : ''} />
-            <input type="hidden" name="prompt_revision_id" value={String(prompt.promptRevisionId)} />
-            <input type="hidden" name="prompt_key" value="document-generation" />
-            <label class="m-prompt-label" for="document-generation-prompt-body">Prompt body</label>
-            <textarea id="document-generation-prompt-body" name="body" class="m-ta m-prompt-dialog-editor" required>{prompt.body}</textarea>
-            <label class="m-prompt-label" for="document-generation-model-hint">Model hint <span>(optional)</span></label>
-            <input id="document-generation-model-hint" name="model_hint" value={prompt.modelHint} />
-            <div class="m-dialog-actions">
-              <button type="button" class="ghost compact" data-close-dialog>Cancel</button>
-              <button type="submit" class="compact">Save as new revision</button>
-            </div>
-          </form>
-        </dialog>
-      ) : null}
-    </section>
-  );
-}
-
-function DocumentLedger({
-  dataForge,
-  documents,
-}: {
-  dataForge: DataForgeSummary | null;
-  documents: DocumentRow[];
-}) {
-  return (
-    <TableBox>
-      <Cap title="Document ledger & review queue" code={`${documents.length} artifacts`} />
-      {documents.length ? (
-        <div class="m-document-queue" style="margin-top:0; border:0; background:transparent;">
-          <Table>
-            <thead>
-              <tr>
-                <th>Document</th>
-                <th>Topic</th>
-                <th>Type</th>
-                <th class="n">Words</th>
-                <th class="n">Similarity</th>
-                <th>Novelty</th>
-                <th>Review status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map((document) => (
-                <tr data-state={document.noveltyStatus === 'passed' ? 'succeeded' : document.noveltyStatus === 'rejected' ? 'rejected' : 'pending'}>
-                  <td>
-                    <span class="nm">{document.title}</span>
-                    <span class="sub"><Id value={document.documentCode} /> · {document.role}</span>
-                  </td>
-                  <td>
-                    {document.topicName}
-                    <span class="sub"><Id value={document.topicCode} /></span>
-                  </td>
-                  <td>{document.documentType.replaceAll('_', ' ')}</td>
-                  <td class="n">{document.wordCount}</td>
-                  <td class="n">
-                    <Bar value={document.maxSimilarity} below={document.maxSimilarity >= (dataForge?.noveltyThreshold ?? 1)} />
-                  </td>
-                  <td>
-                    <Badge state={document.noveltyStatus === 'passed' ? 'passed' : document.noveltyStatus === 'rejected' ? 'rejected' : 'review'}>
-                      {document.noveltyStatus}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge state={document.reviewStatus}>{document.reviewStatus}</Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-
-          <div class="m-document-grid" style="margin-top: var(--s4); border-top: 1px solid var(--line);">
-            {documents.map((document) => (
-              <article class="m-document-card" data-review={document.reviewStatus}>
-                <header>
-                  <div>
-                    <h4>{document.title}</h4>
-                    <span class="sub">{document.topicName} / {document.documentType.replaceAll('_', ' ')}</span>
-                  </div>
-                  <Badge state={document.noveltyStatus === 'passed' ? 'passed' : document.noveltyStatus === 'rejected' ? 'rejected' : 'review'}>
-                    {document.noveltyStatus}
-                  </Badge>
-                </header>
-                <details>
-                  <summary>Inspect generated task</summary>
-                  <div class="m-document-content">
-                    <b>Source document</b>
-                    <p>{document.content}</p>
-                    <b>Task</b>
-                    <p>{document.taskInstruction}</p>
-                    <b>Hidden reference</b>
-                    <p>{document.referenceAnswer}</p>
-                    <b>Verifier targets</b>
-                    <p>{document.verifierTargets.join(' · ')}</p>
-                  </div>
-                </details>
-                <div class="m-review-controls">
-                  <span class="m-field-note"><Id value={document.documentCode} /> · {document.wordCount} words</span>
-                  <button
-                    type="button"
-                    data-document-review="approved"
-                    data-document-code={document.documentCode}
-                    disabled={document.noveltyStatus !== 'passed' || document.reviewStatus === 'approved'}
-                  >Approve</button>
-                  <button
-                    type="button"
-                    data-document-review="rejected"
-                    data-document-code={document.documentCode}
-                    disabled={document.noveltyStatus === 'rejected' || document.reviewStatus === 'rejected'}
-                  >Reject</button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div class="m-empty">No data-forged documents yet. Configure the generation card above to begin.</div>
-      )}
-    </TableBox>
-  );
-}
+export { PromptCard } from '../ui/PromptCard.tsx';
 
 export function DataForgeStatus({
   runId,

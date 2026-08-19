@@ -21,8 +21,24 @@
   }
   .m-forge-layout,
   .m-forge-form,
-  .m-document-grid {
+  .m-review-decision-bar {
     grid-template-columns: 1fr;
+  }
+  .m-review-split {
+    grid-template-columns: 1fr;
+  }
+  .m-review-queue {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    max-height: 360px;
+    overflow: auto;
+  }
+  .m-review-detail,
+  .m-review-empty-detail {
+    min-height: 560px;
+  }
+  .m-review-decision-actions {
+    justify-content: flex-start;
   }
   .m-analysis-handoff {
     grid-template-columns: 1fr;
@@ -86,8 +102,7 @@
     align-items: stretch;
     flex-direction: column;
   }
-  .m-railfoot,
-  .m-railhead small {
+  .m-railfoot {
     display: none;
   }
 }

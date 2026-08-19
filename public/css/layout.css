@@ -55,15 +55,6 @@
   -webkit-text-stroke: 0.55px currentColor;
   paint-order: stroke fill;
 }
-.m-railhead small {
-  display: block;
-  margin-top: 7px;
-  color: var(--text-4);
-  font: 500 9px/1 var(--mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
 .m-rail > a {
   display: grid;
   grid-template-columns: 22px 1fr;

@@ -4,7 +4,9 @@ import * as jobs from '../../domain/jobs/service.ts';
 import * as progress from '../../domain/progress/service.ts';
 import * as prompts from '../../domain/prompts/service.ts';
 import { Badge } from '../../views/ui/Badge.tsx';
-import { DataForgeStatus, PromptCard } from '../../views/tabs/DataForge.tsx';
+import { PromptCard } from '../../views/ui/PromptCard.tsx';
+import { DataForgeStatus } from '../../views/tabs/DataForge.tsx';
+
 import { benchmarkRunIdOf, dataForgeInput, errorMessage, recordBody } from '../request.ts';
 
 function errorStatus(text: string) {

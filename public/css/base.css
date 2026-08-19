@@ -43,7 +43,9 @@ body {
   background-size: 32px 32px;
   font: var(--t-body) / 1.6 var(--sans);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* Faint CRT overlay. Purely decorative, never intercepts pointer events. */

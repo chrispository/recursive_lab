@@ -38,7 +38,11 @@ export function EnvLab({
         <h2>Prove environments locally, then hand them to the cluster</h2>
         <p>Prime runs the local package and model evaluation here. A passing local validation unlocks the immutable training handoff; publishing to Prime is optional.</p>
       </div>
-      <RunContext benchmarkRun={benchmarkRun} availableRuns={availableRuns} />
+      <RunContext
+        benchmarkRun={benchmarkRun}
+        availableRuns={availableRuns}
+        failureTopics={progress?.topicCount}
+      />
 
       <TableBox>
         <Cap title="Environment readiness">
