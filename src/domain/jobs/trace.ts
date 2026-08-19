@@ -88,7 +88,8 @@ export async function start(
   const close = async (status: JobStatus, step: string, patch: string, args: unknown[]) => {
     const progress = status === 'succeeded' ? ', progress = 1' : '';
     await run(
-      `UPDATE jobs SET status = ?, step = ?${progress}, finished_at = ?, ${patch} WHERE id = ?`,
+      `UPDATE jobs SET status = ?, step = ?${progress}, finished_at = ?, ${patch}
+        WHERE id = ? AND status IN ('running', 'queued')`,
       [status, step, now(), ...(args as never[]), jobId],
     );
   };

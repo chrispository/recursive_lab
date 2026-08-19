@@ -61,6 +61,7 @@ export async function listByBenchmarkRun(benchmarkRunId: number): Promise<Enviro
     const heldout = Number(row.heldout);
     return {
       environmentId: row.id,
+      environmentCode: code('environments', row.id),
       topicId: row.topic_id,
       topicName: row.topic_name,
       topicCode: code('topics', row.topic_id),
@@ -88,8 +89,8 @@ async function measuresByBenchmarkRun(benchmarkRunId: number) {
     validation: new Map(),
   };
   for (const kind of ['rl_test', 'validation'] as const) {
-    const evaluation = await one<Row & { metrics_json: string }>(
-      `SELECT metrics_json FROM environment_evaluations
+    const evaluation = await one<Row & { metrics_json: string; rollouts_per_example: number }>(
+      `SELECT metrics_json, rollouts_per_example FROM environment_evaluations
        WHERE benchmark_run_id = ? AND kind = ?
        ORDER BY created_at DESC, id DESC LIMIT 1`,
       [benchmarkRunId, kind],
@@ -98,12 +99,13 @@ async function measuresByBenchmarkRun(benchmarkRunId: number) {
     const metrics = json<EvaluationMetrics>(evaluation.metrics_json, {});
     for (const entry of metrics.environments ?? []) {
       result[kind].set(entry.environment_id, {
-        meanReward: entry.mean_reward,
+        meanReward: entry.error ? null : entry.mean_reward,
         passRate: entry.pass_rate,
         withinTaskStd: entry.within_task_std,
         saturatedFraction: entry.saturated_fraction,
         tasksScored: entry.tasks_scored,
-        rolloutsPerExample: 0,
+        rolloutsPerExample: evaluation.rollouts_per_example,
+        error: entry.error ?? null,
       });
     }
   }
@@ -130,11 +132,12 @@ async function evaluationOf(
     kind: EvaluationSummary['kind'];
     model: string;
     endpoint_label: string;
+    created_at: string;
     rollouts_per_example: number;
     max_concurrent: number;
     metrics_json: string;
   }>(
-    `SELECT id, kind, model, endpoint_label, rollouts_per_example, max_concurrent, metrics_json
+    `SELECT id, kind, model, endpoint_label, rollouts_per_example, max_concurrent, metrics_json, created_at
        FROM environment_evaluations
       WHERE benchmark_run_id = ? ${kind ? 'AND kind = ?' : ''}
       ORDER BY created_at DESC, id DESC LIMIT 1`,
@@ -142,20 +145,24 @@ async function evaluationOf(
   );
   if (!row) return null;
   const metrics = json<EvaluationMetrics>(row.metrics_json, {});
+  const hasScoredTasks = (metrics.tasks_scored ?? 0) > 0;
   return {
     evaluationId: row.id,
     evaluationCode: code('environment_evaluations', row.id),
     kind: row.kind,
     model: row.model,
     endpointLabel: row.endpoint_label,
+    createdAt: row.created_at,
     rolloutsPerExample: row.rollouts_per_example,
     maxConcurrent: row.max_concurrent,
-    meanReward: metrics.mean_reward ?? null,
+    meanReward: hasScoredTasks ? metrics.mean_reward ?? null : null,
     aboveThreshold: metrics.above_threshold ?? 0,
     tasksScored: metrics.tasks_scored ?? 0,
-    withinTaskStd: metrics.within_task_std ?? null,
-    saturatedFraction: metrics.saturated_fraction ?? null,
+    withinTaskStd: hasScoredTasks ? metrics.within_task_std ?? null : null,
+    saturatedFraction: hasScoredTasks ? metrics.saturated_fraction ?? null : null,
     trainableSignal: metrics.trainable_signal ?? null,
+    evaluatedEnvironments: metrics.evaluated_environments ?? metrics.environments?.filter((entry) => !entry.error).length ?? 0,
+    erroredEnvironments: metrics.errored_environments ?? metrics.environments?.filter((entry) => Boolean(entry.error)).length ?? 0,
   };
 }
 
@@ -223,13 +230,14 @@ export async function buildInputs(benchmarkRunId: number): Promise<BuildInput[]>
 
 /** The run's display code and model, for package paths and lineage. */
 export async function runContext(benchmarkRunId: number): Promise<{ benchmarkRunCode: string; model: string } | null> {
-  const row = await one<Row & { code: string; model: string }>(
-    `SELECT code, model FROM benchmark_runs WHERE id = ?`,
+  const row = await one<Row & { id: number; model: string }>(
+    `SELECT id, model FROM benchmark_runs WHERE id = ?`,
     [benchmarkRunId],
   );
   if (!row) return null;
-  return { benchmarkRunCode: row.code, model: row.model };
+  return { benchmarkRunCode: code('benchmark_runs', row.id), model: row.model };
 }
+
 
 export async function verifierIdByTopic(topicId: number, name: string): Promise<number | null> {
   const row = await one<Row & { id: number }>(

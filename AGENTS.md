@@ -35,6 +35,10 @@ a new reader should know a file's job from its path.
 - Only `src/gym/` invokes Python. Use `GYM_ROOT`, `GYM_HEAD_URL`, and Gym's
   `/server_instances` discovery—never child ports/paths or benchmark-specific
   server names. Run Gym commands with `cwd: GYM_ROOT`.
+- Env lab packages are Prime Intellect `verifiers` environments, written and run
+  by `src/gym/pi.ts` (`prime eval run` with the policy endpoint for rollouts
+  and `LAB_JUDGE_*` env vars for judge scoring). Judge/policy keys go to the
+  child's environment only, never to logs or the browser.
 - Gym startup can take minutes on a cold cache while resources download/prepare.
   Spawn detached and cancel its process group. Never expose `env.yaml` secrets.
 
@@ -52,8 +56,8 @@ a new reader should know a file's job from its path.
 ## Frontend assets
 
 - CSS is split across `public/css/{tokens,base,layout,benchmarks,results,forge,
-  components,responsive,settings}.css`, loaded in that order in `Document.tsx`
-  — cascade order is load-bearing, keep it stable.
+  environments,components,responsive,settings}.css`, loaded in that order in
+  `Document.tsx` — cascade order is load-bearing, keep it stable.
 - Browser script is split across `public/js/{prefs,settings-form,tasks,orb,
   results,config,review}.js`, each a self-contained IIFE with delegated
   `document` listeners (so they survive HTMX swaps).

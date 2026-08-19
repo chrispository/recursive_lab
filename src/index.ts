@@ -11,6 +11,8 @@ import { config, ROOT } from './config.ts';
 import { benchmarksApi } from './http/api/benchmarks.ts';
 import { failureMapsApi } from './http/api/failure_maps.ts';
 import { dataForgeApi } from './http/api/data_forge.ts';
+import { environmentsApi } from './http/api/environments.ts';
+import { jobsApi } from './http/api/jobs.ts';
 import { gymApi } from './http/api/gym.ts';
 import { settingsApi } from './http/api/settings.ts';
 import { pages } from './http/pages.tsx';
@@ -18,6 +20,7 @@ import { benchmarksUi } from './http/ui/benchmarks.tsx';
 import { jobsUi } from './http/ui/jobs.tsx';
 import { failuresUi } from './http/ui/failures.tsx';
 import { dataForgeUi } from './http/ui/data_forge.tsx';
+import { environmentsUi } from './http/ui/environments.tsx';
 import { settingsUi } from './http/ui/settings.tsx';
 import { schemaDocument } from './http/schema.ts';
 import { acquireServerLock, autostartGym, autostopGym } from './boot.ts';
@@ -43,9 +46,13 @@ const app = new Elysia()
   .use(benchmarksApi)
   .use(failureMapsApi)
   .use(dataForgeApi)
+  .use(environmentsApi)
+  .use(jobsApi)
   .use(benchmarksUi)
+
   .use(failuresUi)
   .use(dataForgeUi)
+  .use(environmentsUi)
   .use(jobsUi)
   .use(settingsUi)
   .use(pages)

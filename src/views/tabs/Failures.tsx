@@ -64,7 +64,7 @@ export function Failures({
   return (
     <>
       <div class="m-title">
-        <h2>Turn misses into capability topics</h2>
+        <h2>Failure map</h2>
         <p>
           Inspect one benchmark run and carry only its failure signal into topic generation.
         </p>

@@ -1,4 +1,4 @@
-import { all, one, type Row } from '../../db/client.ts';
+import { all, json, now, one, run, type Row } from '../../db/client.ts';
 import { code, type Entity } from '../../db/ids.ts';
 import type { JobLogLine, JobRow } from './model.ts';
 
@@ -12,6 +12,7 @@ type JobDb = Row & {
   progress: number;
   exit_code: number | null;
   error: string | null;
+  params_json: string;
   started_at: string | null;
 };
 
@@ -26,16 +27,35 @@ function asJob(row: JobDb): JobRow {
     progress: row.progress,
     exitCode: row.exit_code,
     error: row.error ?? '',
+    params: json<Record<string, unknown>>(row.params_json, {}),
     startedAt: row.started_at ?? '',
   };
 }
 
 const JOB_COLS = `j.id, j.kind, j.subject_type, j.subject_id, j.status, j.step,
-            j.progress, j.exit_code, j.error, j.started_at`;
+            j.progress, j.exit_code, j.error, j.params_json, j.started_at`;
 
 export async function get(id: number): Promise<JobRow | null> {
   const row = await one<JobDb>(`SELECT ${JOB_COLS} FROM jobs j WHERE j.id = ?`, [id]);
   return row ? asJob(row) : null;
+}
+
+type JobControl = Row & { status: JobRow['status']; pgid: number | null };
+
+/** Cancel a live job and return the process group that the service must stop. */
+export async function cancel(id: number): Promise<{ changed: boolean; status: JobRow['status']; pgid: number | null } | null> {
+  const row = await one<JobControl>(`SELECT status, pgid FROM jobs WHERE id = ?`, [id]);
+  if (!row) return null;
+  if (row.status !== 'running' && row.status !== 'queued') {
+    return { changed: false, status: row.status, pgid: row.pgid === null ? null : Number(row.pgid) };
+  }
+  const changed = await run(
+    `UPDATE jobs
+        SET status = 'cancelled', step = 'Cancelled', error = ?, finished_at = ?
+      WHERE id = ? AND status IN ('running', 'queued')`,
+    ['Cancelled by user.', now(), id],
+  );
+  return { changed: changed > 0, status: changed > 0 ? 'cancelled' : row.status, pgid: row.pgid === null ? null : Number(row.pgid) };
 }
 
 export async function listByBenchmarkRun(benchmarkRunId: number): Promise<JobRow[]> {

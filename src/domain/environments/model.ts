@@ -32,7 +32,7 @@ export type EnvironmentRow = {
 
 /** One environment's result in one evaluation. */
 export type EnvironmentMeasure = {
-  meanReward: number;
+  meanReward: number | null;
   /** Fraction of examples whose rollouts all clear the pass threshold. */
   passRate: number;
   /** Mean within-task std — reward spread across an example's rollouts. */
@@ -41,6 +41,8 @@ export type EnvironmentMeasure = {
   saturatedFraction: number;
   tasksScored: number;
   rolloutsPerExample: number;
+  /** A failed subprocess is distinct from a genuine zero-reward result. */
+  error: string | null;
 };
 
 export type EvaluationSummary = {
@@ -49,6 +51,7 @@ export type EvaluationSummary = {
   kind: 'rl_test' | 'validation';
   model: string;
   endpointLabel: string;
+  createdAt: string;
   rolloutsPerExample: number;
   maxConcurrent: number;
   meanReward: number | null;
@@ -57,16 +60,20 @@ export type EvaluationSummary = {
   withinTaskStd: number | null;
   saturatedFraction: number | null;
   trainableSignal: number | null;
+  evaluatedEnvironments: number;
+  erroredEnvironments: number;
 };
 
 /** Stored metrics envelope, as written to environment_evaluations.metrics_json. */
 export type EvaluationMetrics = {
-  mean_reward?: number;
+  mean_reward?: number | null;
   above_threshold?: number;
   tasks_scored?: number;
-  within_task_std?: number;
-  saturated_fraction?: number;
+  within_task_std?: number | null;
+  saturated_fraction?: number | null;
   trainable_signal?: number;
+  evaluated_environments?: number;
+  errored_environments?: number;
   environments?: Array<{
     environment_id: number;
     mean_reward: number;

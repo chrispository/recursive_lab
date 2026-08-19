@@ -8,11 +8,11 @@
  */
 
 export const STAGES = [
-  { tab: 'benchmarks', label: 'Benchmarks', title: 'Run the model through NeMo Gym' },
-  { tab: 'results', label: 'Results', title: 'Verified benchmark results' },
-  { tab: 'failures', label: 'Failure map', title: 'Turn misses into capability topics' },
-  { tab: 'forge', label: 'Data forge', title: 'Data forge novel training documents' },
-  { tab: 'env-lab', label: 'Env lab', title: 'Prove environments locally' },
+  { tab: 'benchmarks', label: 'Benchmarks', title: 'Run benchmarks' },
+  { tab: 'results', label: 'Results', title: 'Benchmark results' },
+  { tab: 'failures', label: 'Failure map', title: 'Failure map' },
+  { tab: 'forge', label: 'Data forge', title: 'Forge training documents' },
+  { tab: 'env-lab', label: 'Env lab', title: 'Environment lab' },
 ] as const;
 
 export type Stage = (typeof STAGES)[number];
@@ -28,7 +28,7 @@ export const stageNumber = (index: number) => String(index + 1).padStart(2, '0')
 /** Page <title> and the h2 at the top of each tab. */
 export const titleOf = (tab: Tab) =>
   tab === 'settings'
-    ? 'Settings, and what everything here means'
+    ? 'Settings'
     : (STAGES.find((s) => s.tab === tab)?.title ?? '');
 
 export const labelOf = (tab: Tab) =>

@@ -56,7 +56,7 @@ export function DataForge({
   return (
     <>
       <div class="m-title">
-        <h2>Data forge novel training documents</h2>
+        <h2>Forge training documents</h2>
         <p>Generation receives abstract capability specs only. Every artifact is fingerprinted against its benchmark lineage.</p>
       </div>
       <RunContext

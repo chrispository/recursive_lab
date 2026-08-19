@@ -1,0 +1,738 @@
+/* Env lab --------------------------------------------------------------------
+   Six topic-verifier cards, the local proof panel, and the cluster handoff.
+   Same ledger language as the forge: hairlines, quiet ids, one state colour
+   per verdict. The meter carries the reward story — fill is mean reward, the
+   notch is the verifier's pass floor. */
+
+/* Card grid ---------------------------------------------------------------- */
+.m-env-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--s3);
+  padding: var(--s4);
+}
+.m-env-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--line);
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--inset);
+}
+.m-env-card[data-state='ready'] {
+  border-left-color: var(--pass);
+}
+.m-env-card[data-state='failed'] {
+  border-left-color: var(--fail);
+}
+.m-env-card[data-state='error'] {
+  border-left-color: var(--warn);
+}
+.m-env-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.m-env-card-head h4 {
+  color: var(--text-1);
+  font: 650 var(--t-data) / 1.35 var(--sans);
+}
+.m-env-card-sub {
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: var(--t-label);
+}
+
+/* Verifier block ------------------------------------------------------------ */
+.m-env-verifier {
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--deep);
+}
+.m-env-verifier-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  color: var(--text-2);
+  font-size: var(--t-label);
+}
+.m-env-verifier-line b {
+  color: var(--text-1);
+  font-weight: 650;
+}
+.m-env-verifier-mode {
+  color: var(--violet);
+  font: 650 11px / 1.4 var(--sans);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: help;
+}
+.m-env-verifier-strategy {
+  margin: 8px 0 0;
+  color: var(--text-3);
+  font-size: var(--t-micro);
+  line-height: 1.55;
+}
+
+/* Spec counts --------------------------------------------------------------- */
+.m-env-spec {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s2);
+}
+.m-env-spec > div {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+}
+.m-env-spec small {
+  color: var(--text-4);
+  font: 650 10px / 1.2 var(--sans);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.m-env-spec strong {
+  color: var(--text-1);
+  font: 650 var(--t-data) / 1.2 var(--mono);
+}
+
+/* Measures + meter ---------------------------------------------------------- */
+.m-env-measures {
+  display: grid;
+  gap: 8px;
+}
+.m-env-measure-row {
+  display: grid;
+  grid-template-columns: 74px minmax(60px, 1fr) 48px auto;
+  align-items: center;
+  gap: 10px;
+}
+.m-env-measure-label {
+  color: var(--text-2);
+  font-size: var(--t-label);
+}
+.m-env-measure-value {
+  color: var(--text-1);
+  font: 600 var(--t-label) / 1.2 var(--mono);
+  text-align: right;
+}
+.m-meter {
+  position: relative;
+  display: block;
+  height: 8px;
+  background: var(--raised-2);
+}
+.m-meter > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--value);
+  background: var(--pass);
+}
+.m-meter > b {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: var(--threshold);
+  width: 1px;
+  background: var(--text-1);
+}
+.m-meter[data-state='fail'] > i {
+  background: var(--fail);
+}
+.m-meter[data-state='none'] > i {
+  background: var(--raised-2);
+}
+.m-meter[data-state='error'] > i {
+  background: var(--warn);
+}
+.m-env-measure-note {
+  color: var(--text-4);
+  font-size: var(--t-micro);
+}
+.m-env-signal {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: 6px 10px;
+  border-left: 2px solid var(--line);
+  font-size: var(--t-label);
+}
+.m-env-signal.is-strong {
+  border-left-color: var(--pass);
+}
+.m-env-signal.is-weak {
+  border-left-color: var(--warn);
+}
+.m-env-signal em {
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.3 var(--mono);
+  font-style: normal;
+}
+
+/* Proof ticks --------------------------------------------------------------- */
+.m-env-proof {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+.m-ticks {
+  display: inline-flex;
+  gap: 4px;
+}
+.m-ticks i {
+  width: 18px;
+  height: 4px;
+  background: var(--raised-2);
+}
+.m-ticks i.done {
+  background: var(--pass);
+}
+.m-ticks i.now {
+  background: var(--brand);
+}
+.m-env-proof-copy {
+  color: var(--text-3);
+  font-size: var(--t-micro);
+}
+
+/* Prove locally ------------------------------------------------------------- */
+.m-env-prove {
+  margin-top: var(--s4);
+}
+.m-env-run-form {
+  display: block;
+}
+.m-env-stages {
+  align-items: stretch;
+}
+.m-env-stages .m-subway-stop {
+  min-height: 138px;
+}
+.m-env-stages .m-subway-stop button {
+  width: 100%;
+  margin-top: auto;
+}
+.m-subway-stop[data-state='active'] {
+  border-color: var(--line);
+  border-left: 2px solid var(--brand);
+  background: var(--focus-bg);
+}
+.m-subway-stop[data-state='error'] {
+  border-color: var(--line);
+  border-left: 2px solid var(--warn);
+}
+.m-subway-stop[data-state='error'] .m-subway-name {
+  color: var(--text-1);
+}
+.m-env-stage-progress {
+  display: grid;
+  gap: 5px;
+  margin-top: 5px;
+}
+.m-env-stage-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.2 var(--mono);
+}
+.m-env-stage-progress-meta b {
+  color: var(--text-3);
+  font-weight: 650;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.m-env-stage-progress-meta b[data-state='done'] { color: var(--pass); }
+.m-env-stage-progress-meta b[data-state='active'] { color: var(--brand-ink); }
+.m-env-stage-progress-meta b[data-state='error'] { color: var(--warn); }
+.m-env-stage-track {
+  position: relative;
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  background: var(--raised-2);
+}
+.m-env-stage-track > i {
+  display: block;
+  height: 100%;
+  background: var(--pass);
+}
+.m-env-stage-track[data-state='active'] > i {
+  min-width: 6px;
+  background: var(--brand);
+  box-shadow: 0 0 8px var(--brand);
+}
+.m-env-stage-track[data-state='active']::after {
+  position: absolute;
+  inset: 0 auto 0 -35%;
+  width: 35%;
+  background: var(--brand);
+  content: '';
+  animation: m-env-stage-sweep 1.4s linear infinite;
+}
+.m-env-stage-track[data-state='error'] > i {
+  min-width: 6px;
+  background: var(--warn);
+}
+.m-env-stage-deferred {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  margin-top: auto;
+  color: var(--text-4);
+  font: 500 var(--t-micro) / 1.3 var(--mono);
+}
+@keyframes m-env-stage-sweep {
+  from { transform: translateX(0); }
+  to { transform: translateX(385%); }
+}
+.m-env-run-settings {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.3fr) minmax(130px, .7fr) minmax(130px, .7fr) minmax(260px, 1.6fr);
+  gap: var(--s3);
+  align-items: end;
+  margin: 0 var(--s4) var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+.m-env-run-settings > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.m-env-run-settings small,
+.m-env-cost span {
+  color: var(--text-4);
+  font: 650 10px / 1.2 var(--sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.m-env-run-settings strong {
+  overflow: hidden;
+  color: var(--text-1);
+  font: 600 var(--t-label) / 1.3 var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-env-cost strong {
+  color: var(--text-2);
+  font: 600 var(--t-label) / 1.3 var(--mono);
+}
+.m-env-cost span {
+  display: block;
+  margin-top: 2px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.m-env-settings-note {
+  padding: 0 var(--s4) var(--s3);
+}
+.m-env-cancel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-top: var(--s2);
+  padding: 9px 10px;
+  border: 1px solid var(--fail);
+  border-left-width: 3px;
+  background: var(--wash);
+}
+.m-env-cancel-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.m-env-cancel-copy strong {
+  color: var(--fail);
+  font: 700 var(--t-micro) / 1.2 var(--mono);
+  letter-spacing: .08em;
+}
+.m-env-cancel-copy span {
+  color: var(--text-3);
+  font-size: var(--t-micro);
+}
+.m-env-cancel button.danger {
+  flex: 0 0 auto;
+  min-width: 148px;
+  color: var(--btn-ink);
+  background: var(--fail);
+  border-color: var(--fail);
+}
+.m-env-cancel button.danger:hover {
+  background: color-mix(in srgb, var(--fail) 82%, var(--text-1));
+  border-color: color-mix(in srgb, var(--fail) 82%, var(--text-1));
+}
+.m-env-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--s4);
+  padding: var(--s4);
+}
+.m-env-build,
+.m-env-eval {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.m-env-settings-copy {
+  color: var(--text-2);
+  font-size: var(--t-label);
+  line-height: 1.55;
+}
+.m-env-settings-copy p {
+  margin: 0;
+}
+.m-env-eval-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+}
+.m-env-field {
+  display: grid;
+  gap: 6px;
+}
+.m-env-field span {
+  color: var(--text-2);
+  font: 650 var(--t-micro) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-env-field input {
+  width: 100%;
+}
+.m-env-eval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Readiness band ------------------------------------------------------------ */
+.m-env-readiness {
+  margin: 0 var(--s4) var(--s4);
+  padding: 12px 16px;
+  border: 1px solid var(--line-soft);
+  border-left: 2px solid var(--line);
+  background: var(--deep);
+}
+.m-env-readiness[data-thin='1'] {
+  border-left-color: var(--warn);
+}
+.m-env-readiness-headline {
+  margin: 0 0 10px;
+  color: var(--text-2);
+  font-size: var(--t-label);
+}
+.m-env-readiness-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4) var(--s5);
+  align-items: flex-start;
+}
+.m-env-readiness-detail small {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-4);
+  font: 650 10px / 1.2 var(--sans);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.m-env-chain-steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: var(--t-label);
+}
+.m-env-chain-steps b {
+  color: var(--text-1);
+}
+.m-env-chain-steps i {
+  color: var(--text-4);
+}
+.m-env-split-table {
+  border-collapse: collapse;
+  font-size: var(--t-label);
+}
+.m-env-split-table th,
+.m-env-split-table td {
+  padding: 3px 12px 3px 0;
+  text-align: left;
+}
+.m-env-split-table td,
+.m-env-split-table tfoot th {
+  font-family: var(--mono);
+  text-align: right;
+}
+.m-env-split-table thead th {
+  color: var(--text-3);
+  font: 650 10px / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-env-split-table tbody th {
+  max-width: 30ch;
+  overflow: hidden;
+  color: var(--text-2);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-env-split-table tfoot th {
+  color: var(--text-1);
+}
+
+/* Proof report -------------------------------------------------------------- */
+.m-env-report {
+  margin-top: var(--s4);
+}
+.m-env-report-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 0 var(--s4) var(--s3);
+  color: var(--text-3);
+  font-size: var(--t-label);
+}
+.m-env-report-status strong {
+  color: var(--warn);
+  font-weight: 600;
+}
+.m-subway {
+  display: flex;
+  gap: var(--s2);
+  padding: var(--s4);
+}
+.m-subway-stop {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+}
+.m-subway-stop[data-state='done'] {
+  border-color: var(--line);
+  border-left: 2px solid var(--pass);
+}
+.m-subway-stop[data-state='todo'] {
+  border-left: 2px solid var(--line-soft);
+}
+.m-subway-name {
+  color: var(--text-1);
+  font: 650 var(--t-label) / 1.2 var(--sans);
+}
+.m-subway-stop[data-state='todo'] .m-subway-name {
+  color: var(--text-3);
+}
+.m-subway-state {
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.3 var(--mono);
+}
+.m-env-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--s2);
+  padding: 0 var(--s4) var(--s4);
+}
+.m-env-tiles > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+}
+.m-env-tiles small {
+  color: var(--text-4);
+  font: 650 10px / 1.2 var(--sans);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.m-env-tiles strong {
+  color: var(--text-1);
+  font: 650 var(--t-data) / 1.2 var(--mono);
+}
+.m-env-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--s4);
+  padding: 0 var(--s4) var(--s4);
+}
+.m-env-chart {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.m-env-chart-head h4 {
+  color: var(--text-1);
+  font: 650 var(--t-label) / 1.3 var(--sans);
+}
+.m-env-chart-head span {
+  display: block;
+  color: var(--text-3);
+  font-size: var(--t-micro);
+}
+.m-env-chart-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.1fr) minmax(80px, 1fr) 48px;
+  align-items: center;
+  gap: 10px;
+}
+.m-env-chart-name {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: var(--t-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-env-chart-value {
+  color: var(--text-1);
+  font: 600 var(--t-label) / 1.2 var(--mono);
+  text-align: right;
+}
+
+/* Cluster handoff ----------------------------------------------------------- */
+.m-env-cluster {
+  padding: var(--s4);
+}
+.m-env-cluster-note {
+  margin: 0 0 var(--s3);
+  color: var(--text-2);
+  font-size: var(--t-label);
+  line-height: 1.55;
+}
+.m-env-ledger {
+  display: grid;
+  gap: var(--s2);
+}
+.m-env-ledger-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: 8px 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+}
+.m-env-ledger-row[data-ready='1'] {
+  border-left: 2px solid var(--pass);
+}
+.m-env-ledger-title {
+  color: var(--text-1);
+  font-size: var(--t-data);
+}
+.m-env-ledger-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 2px;
+  color: var(--text-3);
+  font: 500 var(--t-micro) / 1.4 var(--mono);
+}
+.m-env-ledger-main {
+  min-width: 0;
+}
+.m-env-cluster-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Paired proof and per-environment gate tables ---------------------------- */
+.m-env-comparison,
+.m-env-gate {
+  display: grid;
+  gap: var(--s3);
+  padding: 0 var(--s4) var(--s4);
+}
+.m-env-results-table,
+.m-env-gate-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-label);
+}
+.m-env-results-table th,
+.m-env-results-table td,
+.m-env-gate-table th,
+.m-env-gate-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: middle;
+}
+.m-env-results-table thead th,
+.m-env-gate-table thead th {
+  color: var(--text-3);
+  font: 650 10px / 1.2 var(--sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.m-env-results-table tbody th,
+.m-env-gate-table tbody th {
+  color: var(--text-2);
+  font-weight: 500;
+}
+.m-env-result-cell,
+.m-env-gate-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 130px;
+}
+.m-env-result-cell .m-meter {
+  flex: 1;
+  min-width: 64px;
+}
+.m-env-result-cell > span,
+.m-env-gate-cell > span,
+.m-env-delta {
+  color: var(--text-1);
+  font: 600 var(--t-label) / 1.2 var(--mono);
+  white-space: nowrap;
+}
+.m-env-gate-cell {
+  min-width: 112px;
+  justify-content: space-between;
+}
+
+@media (max-width: 1100px) {
+  .m-env-stages {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .m-env-run-settings {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .m-env-run-settings {
+    grid-template-columns: 1fr;
+  }
+  .m-env-results-table,
+  .m-env-gate-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

@@ -149,13 +149,29 @@ export const pages = new Elysia({ name: 'pages' })
       }
       case 'env-lab': {
         const availableRuns = await runs.list();
+        const envJobs = selectedProgress ? await jobs.listByBenchmarkRun(selectedProgress.benchmarkRunId) : [];
+        const envBuildJob = [...envJobs].reverse().find((job) => job.kind === 'env_build') ?? null;
+        const envEvalJob = [...envJobs].reverse().find((job) => job.kind === 'env_eval') ?? null;
+        const envLogJob = jobs.isLive(envEvalJob) ? envEvalJob : jobs.isLive(envBuildJob) ? envBuildJob : envEvalJob ?? envBuildJob;
+        const savedSettings = await settings.read();
         body = (
           <EnvLab
             benchmarkRun={benchmarkRun}
             progress={selectedProgress}
             availableRuns={availableRuns}
             environments={selectedProgress ? await environments.listByBenchmarkRun(selectedProgress.benchmarkRunId) : []}
-            evaluation={selectedProgress ? await environments.latestEvaluation(selectedProgress.benchmarkRunId) : null}
+            rlTest={selectedProgress ? await environments.latestEvaluationOfKind(selectedProgress.benchmarkRunId, 'rl_test') : null}
+            validation={selectedProgress ? await environments.latestEvaluationOfKind(selectedProgress.benchmarkRunId, 'validation') : null}
+            buildJob={envBuildJob}
+            evalJob={envEvalJob}
+            jobLog={{ job: envLogJob, lines: envLogJob ? await jobs.linesAfter(envLogJob.jobId, 0) : [] }}
+            settings={{
+              policyModel: savedSettings.policy_model_name,
+              policyConfigured: savedSettings.has_policy_key && Boolean(savedSettings.policy_model_name),
+              judgeModel: savedSettings.judge_model_name,
+              judgeConfigured: savedSettings.has_judge_key && Boolean(savedSettings.judge_model_name),
+              primeInstalled: savedSettings.status.prime_cli === 'ready',
+            }}
           />
         );
         break;

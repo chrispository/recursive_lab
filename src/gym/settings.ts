@@ -132,7 +132,7 @@ function publicSettings(values: SavedSettings): PublicSettings {
       env_file: existsSync(ENV_PATH) ? 'ready' : 'missing',
       gym_cli: existsSync(gymBin()) ? 'ready' : 'missing',
       data_designer: existsSync(DATA_DESIGNER_PYTHON) ? 'ready' : 'missing',
-      prime_cli: ['/usr/local/bin/prime', '/usr/bin/prime'].some(existsSync)
+      prime_cli: Bun.which('prime') || existsSync('/usr/local/bin/prime') || existsSync('/usr/bin/prime')
         ? 'ready'
         : 'not installed',
     },

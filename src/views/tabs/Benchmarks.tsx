@@ -63,7 +63,7 @@ export function Benchmarks({
   return (
     <>
       <div class="m-title">
-        <h2>Run the model through NeMo Gym + Harbor</h2>
+        <h2>Run benchmarks</h2>
         <p>
           NeMo Gym orchestrates the rollout; Harbor executes the task, records the trajectory, and
           scores every criterion. Failed criteria become the input to the failure map.

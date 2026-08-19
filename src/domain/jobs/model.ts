@@ -11,6 +11,8 @@ export type JobRow = {
   exitCode: number | null;
   /** Why the job failed, or '' while it is running or once it succeeded. */
   error: string;
+  /** Safe, user-facing launch parameters; secrets are never stored here. */
+  params: Record<string, unknown>;
   /** When the job opened. Scopes what a live run may claim as its own work. */
   startedAt: string;
 };

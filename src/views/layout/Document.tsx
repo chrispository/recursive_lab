@@ -46,6 +46,7 @@ export function Document({ tab, title, rail, children }: DocumentProps) {
           <link rel="stylesheet" href="/css/benchmarks.css" />
           <link rel="stylesheet" href="/css/results.css" />
           <link rel="stylesheet" href="/css/forge.css" />
+          <link rel="stylesheet" href="/css/environments.css" />
           <link rel="stylesheet" href="/css/components.css" />
           <link rel="stylesheet" href="/css/responsive.css" />
           <link rel="stylesheet" href="/css/settings.css" />

@@ -336,7 +336,18 @@
           { method: 'POST', path: '/api/v1/documents/:code/review', note: 'Set one document to approved or rejected. Novelty-rejected documents are permanently ineligible for approval. Body: status=approved|rejected.' },
         ],
       },
+      {
+        name: '/api/v1/environments',
+        note: 'src/http/api/environments.ts — packages topic verifiers and approved forge documents into Prime Intellect environments, executes local proof evaluations, and writes immutable cluster handoffs.',
+        routes: [
+          { method: 'GET', path: '/api/v1/environments', query: 'benchmark_run_id', note: 'Every built environment for one benchmark run, with task split counts and proof metrics.' },
+          { method: 'POST', path: '/api/v1/environments/build', note: 'Package topic verifiers and approved documents into Prime environments. Body: benchmark_run_id. 202 with a job receipt.' },
+          { method: 'POST', path: '/api/v1/environments/eval', note: 'Start local RL test or validation proof run with prime eval. Body: benchmark_run_id, kind (rl_test|validation), optional model, rollouts_per_example, max_concurrent. 202 with a job receipt.' },
+          { method: 'POST', path: '/api/v1/environments/prepare-cluster', note: 'Write immutable cluster.toml training specs for scale-ready environments that passed local validation. Body: benchmark_run_id, optional environment_code.' },
+        ],
+      },
     ];
+
     const totalRoutes = apiGroups.reduce((sum, group) => sum + group.routes.length, 0);
     const apiView = document.querySelector('#api-view');
     apiView.querySelector('#api-groups').innerHTML = apiGroups.map(group => `

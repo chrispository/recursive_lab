@@ -8,10 +8,15 @@
  * passed to the child only, never logged.
  */
 import { existsSync } from 'node:fs';
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { startPrimeProcessDiagnostic } from './process-diagnostics.ts';
+import { readOutcome, savedResultPaths } from './pi-results.ts';
 
 const SETSID = '/usr/bin/setsid';
+// TEMP PRIME SUBPROCESS DIAGNOSTICS: remove with process-diagnostics.ts once resolved.
+const DIAGNOSTIC_DRAIN_GRACE_MS = 2_000;
+const DIAGNOSTIC_LINGER_MS = 500;
 
 export function piBin(): string {
   return process.env.PRIME_BIN ?? Bun.which('prime') ?? '/usr/local/bin/prime';
@@ -61,24 +66,24 @@ import verifiers as vf
 TASKSET_DIR = Path(__file__).parent / "taskset"
 JUDGE_PROMPT = """\\
 Task given to the assistant:
-```
+<question>
 {question}
-```
+</question>
 
 Reference answer:
-```
+<reference>
 {answer}
-```
+</reference>
 
 Verifier target that a correct answer must satisfy:
-```
+<target>
 {target}
-```
+</target>
 
 Assistant response:
-```
+<response>
 {response}
-```
+</response>
 
 Does the response satisfy the verifier target? Reply with exactly VERDICT: PASS or VERDICT: FAIL.
 """
@@ -151,10 +156,12 @@ def _load_split(name: str) -> list[dict]:
 
 
 def load_environment(**kwargs):
-    train = _load_split("train")
-    eval_rows = _load_split("canary") + _load_split("heldout")
-    dataset = datasets.Dataset.from_list(train)
-    eval_dataset = datasets.Dataset.from_list(eval_rows) if eval_rows else None
+    split = str(kwargs.pop("split", "train"))
+    if split not in {"train", "canary", "heldout"}:
+        raise ValueError(f"Unknown taskset split: {split}")
+    rows = _load_split(split)
+    dataset = datasets.Dataset.from_list(rows)
+    eval_dataset = None
     rubric = vf.Rubric(funcs=[judge_coverage], weights=[1.0])
     return vf.SingleTurnEnv(
         dataset=dataset,
@@ -271,6 +278,8 @@ export type PiEvalRequest = {
   /** Where `--output-dir` points; results land under `evals/` inside it. */
   outputDir: string;
   timeoutMs: number;
+  /** Selects which generated taskset split `load_environment` exposes. */
+  split?: 'train' | 'canary' | 'heldout';
 };
 
 export type PiRollout = { exampleId: number; reward: number; error: string | null };
@@ -291,9 +300,12 @@ export type PiEvalHooks = {
 /** Runs `prime eval run` and parses its saved results. Throws on non-zero exit. */
 export async function runEval(request: PiEvalRequest, hooks: PiEvalHooks = {}): Promise<PiEvalOutcome> {
   await mkdir(request.outputDir, { recursive: true });
+  const previousResults = new Set(await savedResultPaths(request));
   const args = [
     'eval', 'run', request.envId,
     '--plain',
+    // TEMP PRIME SUBPROCESS DIAGNOSTICS: make uncaught eval errors visible in pipes.
+    '--disable-tui',
     '--provider', 'openai',
     '--api-base-url', request.baseUrl,
     '--api-key-var', request.apiKeyVar,
@@ -304,27 +316,51 @@ export async function runEval(request: PiEvalRequest, hooks: PiEvalHooks = {}): 
     '--save-results',
     '--output-dir', request.outputDir,
   ];
-  const proc = Bun.spawn([SETSID, piBin(), ...args], {
-    cwd: request.envDir,
-    env: {
-      ...process.env,
-      PYTHONUNBUFFERED: '1',
-      PRIME_DISABLE_VERSION_CHECK: '1',
-      PYTHONPATH: request.envDir,
-      [request.apiKeyVar]: request.apiKey,
-      LAB_JUDGE_BASE_URL: request.judge.baseUrl,
-      LAB_JUDGE_API_KEY: request.judge.apiKey,
-      LAB_JUDGE_MODEL: request.judge.model,
-    } as Record<string, string>,
-    stdin: 'ignore',
-    stdout: 'pipe',
-    stderr: 'pipe',
+  if (request.split) args.push('--env-args', JSON.stringify({ split: request.split }));
+  // TEMP PRIME SUBPROCESS DIAGNOSTICS: this sidecar is safe to remove later;
+  // it records no secret values, only provider host, command metadata, and output.
+  const command = [SETSID, piBin(), ...args];
+  const diagnostic = await startPrimeProcessDiagnostic({
+    outputDir: request.outputDir,
+    envId: request.envId,
+    model: request.model,
+    baseUrl: request.baseUrl,
+    apiKeyVar: request.apiKeyVar,
+    split: request.split,
+    command,
   });
+  await diagnostic.record(`command=${command.join(' ')}`);
+  let proc: ReturnType<typeof Bun.spawn>;
+  try {
+    proc = Bun.spawn(command, {
+      cwd: request.envDir,
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: '1',
+        PRIME_DISABLE_VERSION_CHECK: '1',
+        PYTHONPATH: request.envDir,
+        [request.apiKeyVar]: request.apiKey,
+        LAB_JUDGE_BASE_URL: request.judge.baseUrl,
+        LAB_JUDGE_API_KEY: request.judge.apiKey,
+        LAB_JUDGE_MODEL: request.judge.model,
+      } as Record<string, string>,
+      stdin: 'ignore',
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+  } catch (error) {
+    await diagnostic.record(`spawn failed: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
+  }
   const pid = proc.pid;
   if (!pid) throw new Error('prime eval started without a pid.');
+  await diagnostic.record(`spawned pid=${pid}`);
   await hooks.onSpawn?.(pid);
 
+  let timedOut = false;
   const timer = setTimeout(() => {
+    timedOut = true;
+    void diagnostic.record(`timeout reached after ${request.timeoutMs}ms; sending SIGTERM to process group ${pid}`);
     try {
       process.kill(-pid, 'SIGTERM');
     } catch {
@@ -332,8 +368,10 @@ export async function runEval(request: PiEvalRequest, hooks: PiEvalHooks = {}): 
     }
   }, request.timeoutMs);
 
+  const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
   const pump = async (stream: ReadableStream<Uint8Array>, name: 'out' | 'err') => {
     const reader = stream.getReader();
+    readers.push(reader);
     const decoder = new TextDecoder();
     let buffer = '';
     for (;;) {
@@ -343,59 +381,62 @@ export async function runEval(request: PiEvalRequest, hooks: PiEvalHooks = {}): 
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
       for (const line of lines) {
-        if (line.length) await hooks.onLine?.(line, name);
+        if (line.length) {
+          await diagnostic.record(`[${name}] ${line}`);
+          await hooks.onLine?.(line, name);
+        }
       }
     }
-    if (buffer.length) await hooks.onLine?.(buffer, name);
+    if (buffer.length) {
+      await diagnostic.record(`[${name}] ${buffer}`);
+      await hooks.onLine?.(buffer, name);
+    }
   };
 
-  const [exitCode] = await Promise.all([
-    proc.exited,
-    pump(proc.stdout, 'out'),
-    pump(proc.stderr, 'err'),
-  ]);
-  clearTimeout(timer);
-  if (exitCode !== 0) {
-    throw new Error(`prime eval exited with code ${exitCode} for ${request.envId}.`);
+  // TEMP PRIME SUBPROCESS DIAGNOSTICS: a dead Prime process can leave inherited
+  // pipe handles open in env workers. Give output a moment to drain, then cancel
+  // those readers so the app can surface the exit instead of leaving a live job.
+  const startedAt = Date.now();
+  const exitPromise = proc.exited.then(async (exitCode) => {
+    await diagnostic.record(`process exited code=${exitCode} elapsed_ms=${Date.now() - startedAt}`);
+    return exitCode;
+  });
+  const stdout = proc.stdout as ReadableStream<Uint8Array>;
+  const stderr = proc.stderr as ReadableStream<Uint8Array>;
+  const pumps = Promise.all([pump(stdout, 'out'), pump(stderr, 'err')]);
+  try {
+    const streamsDrained = await Promise.race([
+      pumps.then(() => true),
+      exitPromise.then(() => delay(DIAGNOSTIC_DRAIN_GRACE_MS).then(() => false)),
+    ]);
+    const exitCode = await exitPromise;
+    if (!streamsDrained) {
+      await diagnostic.record('output streams did not close after process exit; cancelling readers');
+      await Promise.all(readers.map((reader) => reader.cancel().catch(() => undefined)));
+      await Promise.race([pumps.catch(() => undefined), delay(DIAGNOSTIC_LINGER_MS)]);
+      void pumps.catch(() => undefined);
+    } else {
+      await pumps;
+    }
+    await diagnostic.record(`finished timed_out=${timedOut} diagnostic=${diagnostic.path}`);
+    if (exitCode !== 0) {
+      const tail = diagnostic.tail();
+      const output = tail.length ? `\nLast Prime output:\n${tail.join('\n')}` : '';
+      throw new Error(
+        `prime eval exited with code ${exitCode} for ${request.envId}. ` +
+        `Prime diagnostics: ${diagnostic.path}.${output}`,
+      );
+    }
+    try {
+      return await readOutcome(request, previousResults);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await diagnostic.record(`result parsing failed: ${message}`);
+      throw new Error(`${message} Prime diagnostics: ${diagnostic.path}.`);
+    }
+  } finally {
+    clearTimeout(timer);
   }
-  return readOutcome(request);
 }
 
-async function readOutcome(request: PiEvalRequest): Promise<PiEvalOutcome> {
-  const evalsRoot = resolve(request.outputDir, 'evals');
-  const runs = await readdir(evalsRoot, { withFileTypes: true }).catch(() => []);
-  const prefix = `${request.envId}--`;
-  let newest: { dir: string; at: number } | null = null;
-  for (const entry of runs) {
-    if (!entry.isDirectory() || !entry.name.startsWith(prefix)) continue;
-    const dir = resolve(evalsRoot, entry.name);
-    const stamp = (await readdir(dir).catch(() => [])).filter((n) => /^[0-9a-f]+$/.test(n)).map(Number.parseInt)[0] ?? 0;
-    const at = Number.isNaN(stamp) ? 0 : stamp;
-    if (!newest || at > newest.at) newest = { dir, at };
-  }
-  if (!newest) throw new Error(`No saved results under ${evalsRoot} for ${request.envId}.`);
-  const resultsPath = resolve(newest.dir, 'results.jsonl');
-  const raw = await readFile(resultsPath, 'utf8');
-  const rollouts: PiRollout[] = [];
-  for (const line of raw.split('\n')) {
-    if (!line.trim()) continue;
-    const row = JSON.parse(line) as { example_id?: number; reward?: number; error?: string | null };
-    rollouts.push({
-      exampleId: Number(row.example_id ?? 0),
-      reward: Number(row.reward ?? 0),
-      error: typeof row.error === 'string' ? row.error : null,
-    });
-  }
-  if (!rollouts.length) throw new Error(`Results for ${request.envId} contained no rollouts.`);
-  const metadataRaw = await readFile(resolve(newest.dir, 'metadata.json'), 'utf8').catch(() => '{}');
-  const metadata = JSON.parse(metadataRaw) as { avg_reward?: number; pass_at_k?: Record<string, number>; time?: number };
-  return {
-    resultsPath,
-    rollouts,
-    avgReward: Number(metadata.avg_reward ?? mean(rollouts.map((r) => r.reward))),
-    passAtK: metadata.pass_at_k ?? {},
-    seconds: Number(metadata.time ?? 0),
-  };
-}
-
-const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
+const delay = (milliseconds: number) => new Promise<void>((resolveDelay) => setTimeout(resolveDelay, milliseconds));

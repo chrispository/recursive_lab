@@ -9,7 +9,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { benchmarkRunDir, config } from '../../config.ts';
+import { benchmarkRunDir } from '../../config.ts';
 import * as audit from '../audit/service.ts';
 import * as jobRows from '../jobs/service.ts';
 import { isLive } from '../jobs/model.ts';
@@ -23,7 +23,7 @@ import {
   type PiPackageSpec,
 } from '../../gym/pi.ts';
 import * as repo from './repo.ts';
-import { taskOf, type BuildTopic } from './model.ts';
+import { taskOf, type BuildTopic, type EnvironmentRow, type EvaluationMetrics } from './model.ts';
 
 export type { EnvironmentRow, EvaluationSummary } from './model.ts';
 export const listByBenchmarkRun = repo.listByBenchmarkRun;
@@ -92,6 +92,7 @@ async function executeBuild(input: {
   const dir = packagesDir(input.runCode);
   let built = 0;
   for (const entry of input.inputs) {
+    if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
     const slug = `${slugify(entry.topic.name) || 'topic'}-${entry.topic.topicCode.toLowerCase().replace('tp-', 'tp')}`;
     await trace.step(`packaging ${entry.topic.topicCode}`, built / input.inputs.length);
     const spec = packageSpec(slug, entry.topic, entry.documents);
@@ -125,6 +126,7 @@ async function executeBuild(input: {
     );
     built += 1;
   }
+  if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
   await audit.audit('environments', input.benchmarkRunId, 'build', {
     benchmarkRunId: input.benchmarkRunId,
     built,
@@ -181,7 +183,7 @@ export async function startEval(input: EvalStart): Promise<{ jobId: number; jobC
   const context = await repo.runContext(input.benchmarkRunId);
   if (!context) throw new EnvironmentError('Benchmark run not found.');
   const environments = await repo.listByBenchmarkRun(input.benchmarkRunId);
-  const built = environments.filter((environment) => environment.status !== 'draft');
+  const built = environments.filter((environment) => environment.status === 'built' || environment.status === 'ready');
   if (!built.length) throw new EnvironmentError('Build the environment packages first.');
 
   const liveJob = (await jobRows.listByBenchmarkRun(input.benchmarkRunId))
@@ -194,7 +196,9 @@ export async function startEval(input: EvalStart): Promise<{ jobId: number; jobC
   const judge = await settings.judgeProvider();
   if (!judge.apiKey || !judge.model) throw new EnvironmentError('Configure a judge API key and model in Settings first.');
 
-  const rollouts = bounded(input.rolloutsPerExample, input.kind === 'validation' ? CLUSTER_ROLLOUTS : DEFAULT_RL_TEST_ROLLOUTS, 1, 20);
+  const rollouts = input.kind === 'validation'
+    ? CLUSTER_ROLLOUTS
+    : bounded(input.rolloutsPerExample, DEFAULT_RL_TEST_ROLLOUTS, 1, 20);
   const maxConcurrent = bounded(input.maxConcurrent, 1, 1, 8);
 
   const trace = await jobTrace.start('env_eval', 'benchmark_runs', input.benchmarkRunId, {
@@ -237,7 +241,7 @@ async function executeEval(input: {
   benchmarkRunId: number;
   runCode: string;
   kind: 'rl_test' | 'validation';
-  environments: repo.EnvironmentRow[];
+  environments: EnvironmentRow[];
   policy: settings.ProviderConfig;
   judge: settings.ProviderConfig;
   rollouts: number;
@@ -245,54 +249,65 @@ async function executeEval(input: {
   trace: jobTrace.Trace;
 }): Promise<void> {
   const { trace } = input;
-  const outputDir = resolve(
-    packagesDir(input.runCode),
-    '..',
-    'pi-evals',
-    `${input.kind}-${new Date().toISOString().replace(/[:.]/g, '-')}`,
-  );
-  const entries: NonNullable<Parameters<typeof repo.insertEvaluation>[0]['metrics']['environments']> = [];
-  const resultPaths: Record<string, string> = [];
+  const outputDir = resolve(benchmarkRunDir(input.runCode), 'pi-evals', `${input.kind}-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+  const entries: NonNullable<EvaluationMetrics['environments']> = [];
+  const resultPaths: Record<string, string> = {};
 
   for (const [index, environment] of input.environments.entries()) {
-    await trace.step(`${environment.slug} · rolling out`, index / input.environments.length);
-    const numExamples = Math.max(1, environment.taskCounts.train);
+    if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
+    await trace.step(`${index} of ${input.environments.length} environments complete`, index / input.environments.length);
+    const splits = (['train', 'canary', 'heldout'] as const).filter((split) => environment.taskCounts[split] > 0);
+    const rollouts: Array<{ exampleId: number; reward: number }> = [];
     try {
-      const outcome = await runEval(
-        {
-          envId: environment.slug,
-          envDir: resolve(environment.localPath ?? '', '..'),
-          model: input.policy.model,
-          baseUrl: input.policy.baseUrl,
-          apiKeyVar: 'LAB_POLICY_API_KEY',
-          apiKey: input.policy.apiKey,
-          judge: { baseUrl: input.judge.baseUrl, apiKey: input.judge.apiKey, model: input.judge.model },
-          numExamples,
-          rolloutsPerExample: input.rollouts,
-          maxConcurrent: input.maxConcurrent,
-          outputDir,
-          timeoutMs: EVAL_TIMEOUT_MS,
-        },
-        {
-          onLine: (line, stream) => trace.log(line, stream),
-          onSpawn: (pgid) => trace.setPgid(pgid),
-        },
-      );
-      const measure = measureOf(outcome.rollouts.map((r) => ({ exampleId: r.exampleId, reward: r.reward })));
+      if (!splits.length) throw new Error('No taskset examples are available to score.');
+      for (const split of splits) {
+        if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
+        const outcome = await runEval(
+          {
+            envId: environment.slug,
+            envDir: environment.localPath ?? '',
+            model: input.policy.model,
+            baseUrl: input.policy.baseUrl,
+            apiKeyVar: 'LAB_POLICY_API_KEY',
+            apiKey: input.policy.apiKey,
+            judge: { baseUrl: input.judge.baseUrl, apiKey: input.judge.apiKey, model: input.judge.model },
+            numExamples: environment.taskCounts[split],
+            rolloutsPerExample: input.rollouts,
+            maxConcurrent: input.maxConcurrent,
+            outputDir,
+            timeoutMs: EVAL_TIMEOUT_MS,
+            split,
+          },
+          {
+            onLine: (line, stream) => trace.log(`[${split}] ${line}`, stream),
+            onSpawn: (pgid) => trace.setPgid(pgid),
+          },
+        );
+        const rolloutError = outcome.rollouts.find((rollout) => rollout.error);
+        if (rolloutError?.error) throw new Error(`${split} rollout ${rolloutError.exampleId} failed: ${rolloutError.error}`);
+        rollouts.push(...outcome.rollouts.map((rollout) => ({
+          exampleId: rollouts.length + rollout.exampleId,
+          reward: rollout.reward,
+        })));
+        resultPaths[`${environment.slug}:${split}`] = outcome.resultsPath;
+      }
+      const measure = measureOf(rollouts);
+      const avgReward = mean(rollouts.map((rollout) => rollout.reward));
       entries.push({
         environment_id: environment.environmentId,
-        mean_reward: round(outcome.avgReward),
+        mean_reward: round(avgReward),
         pass_rate: round(measure.passRate),
         within_task_std: round(measure.withinTaskStd),
         saturated_fraction: round(measure.saturatedFraction),
         tasks_scored: measure.tasksScored,
       });
-      resultPaths[environment.slug] = outcome.resultsPath;
       await trace.log(
-        `${environment.slug}  reward ${outcome.avgReward.toFixed(3)}  spread ${measure.withinTaskStd.toFixed(3)}  ${measure.passRate >= 1 ? 'above threshold' : 'below threshold'}`,
+        `${environment.slug}  reward ${avgReward.toFixed(3)}  spread ${measure.withinTaskStd.toFixed(3)}  ${measure.passRate >= 1 ? 'above threshold' : 'below threshold'}`,
       );
+      await trace.step(`${index + 1} of ${input.environments.length} environments complete`, (index + 1) / input.environments.length);
       await repo.updateInferenceModel(environment.environmentId, input.policy.model);
     } catch (error) {
+      if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
       const message = error instanceof Error ? error.message : String(error);
       await trace.log(`${environment.slug}  failed: ${message}`, 'err');
       entries.push({
@@ -304,17 +319,20 @@ async function executeEval(input: {
         tasks_scored: 0,
         error: message,
       });
+      await trace.step(`${index + 1} of ${input.environments.length} environments complete`, (index + 1) / input.environments.length);
     }
   }
 
   const ok = entries.filter((entry) => !entry.error);
   const metrics = {
-    mean_reward: round(ok.length ? ok.reduce((sum, entry) => sum + entry.mean_reward, 0) / ok.length : 0),
+    mean_reward: ok.length ? round(ok.reduce((sum, entry) => sum + entry.mean_reward, 0) / ok.length) : null,
     above_threshold: ok.filter((entry) => entry.mean_reward >= DEFAULT_THRESHOLD).length,
     tasks_scored: ok.reduce((sum, entry) => sum + entry.tasks_scored, 0),
-    within_task_std: round(ok.length ? ok.reduce((sum, entry) => sum + entry.within_task_std, 0) / ok.length : 0),
-    saturated_fraction: round(ok.length ? ok.reduce((sum, entry) => sum + entry.saturated_fraction, 0) / ok.length : 0),
+    within_task_std: ok.length ? round(ok.reduce((sum, entry) => sum + entry.within_task_std, 0) / ok.length) : null,
+    saturated_fraction: ok.length ? round(ok.reduce((sum, entry) => sum + entry.saturated_fraction, 0) / ok.length) : null,
     trainable_signal: ok.filter((entry) => entry.within_task_std >= MIN_WITHIN_TASK_STD).length,
+    evaluated_environments: ok.length,
+    errored_environments: entries.length - ok.length,
     environments: entries,
   };
   await repo.insertEvaluation({
@@ -351,7 +369,18 @@ async function executeEval(input: {
     }
     await trace.log(`learnability gate      ${unlocked} environment${unlocked === 1 ? '' : 's'} unlocked`);
   }
-  await trace.succeed({ environments: entries.length, meanReward: metrics.mean_reward }, 'Local proof complete');
+  const errorSuffix = metrics.errored_environments
+    ? ` with ${metrics.errored_environments} environment${metrics.errored_environments === 1 ? '' : 's'} errored`
+    : '';
+  await trace.succeed(
+    {
+      environments: entries.length,
+      evaluatedEnvironments: metrics.evaluated_environments,
+      erroredEnvironments: metrics.errored_environments,
+      meanReward: metrics.mean_reward,
+    },
+    `Local proof complete${errorSuffix}`,
+  );
 }
 
 /** Aggregates rollouts into the learnability measures. Pure — unit-tested. */
@@ -437,7 +466,7 @@ export async function prepareCluster(
 
 /** Rebuilds the package spec from stored state — the files are the artifact. */
 async function specFromEnvironment(
-  environment: repo.EnvironmentRow,
+  environment: EnvironmentRow,
   benchmarkRunId: number,
 ): Promise<PiPackageSpec> {
   const inputs = await repo.buildInputs(benchmarkRunId);
