@@ -1,0 +1,273 @@
+import { all, db, insert, now, one, run, value, type Row } from '../../db/client.ts';
+import { code } from '../../db/ids.ts';
+import { fingerprintOf } from '../../lib/fingerprint.ts';
+import type { BenchmarkCatalog, BenchmarkHeader, BenchmarkTask, TaskWrite } from './model.ts';
+
+/** libSQL is happiest with a few hundred statements per batch, not 100k. */
+const BATCH = 500;
+/** Everything from a URL import is one split until a source declares others. */
+export const DATASET = 'validation';
+
+/**
+ * An import is identified by source *and* revision.
+ *
+ * Importing the same repository at a newer commit is a new benchmark, not an
+ * update — the old rows stay pinned so past runs keep meaning what they meant.
+ */
+export async function findBySourceRevision(
+  identifier: string,
+  revision: string,
+): Promise<{ benchmarkId: number; benchmarkCode: string } | null> {
+  const row = await one<Row & { id: number }>(
+    `SELECT id FROM benchmarks WHERE source_identifier = ? AND revision = ? LIMIT 1`,
+    [identifier, revision],
+  );
+  return row ? { benchmarkId: row.id, benchmarkCode: code('benchmarks', row.id) } : null;
+}
+
+/**
+ * Opens a benchmark in `importing` and not runnable.
+ *
+ * It becomes `ready` once its tasks land, but stays `runnable = 0` until an
+ * adapter names the gym resources server that can execute it.
+ */
+export async function insertBenchmark(header: BenchmarkHeader): Promise<number> {
+  const at = now();
+  return insert(
+    `INSERT INTO benchmarks (name, lab, source_url, source_kind, source_identifier, revision,
+                             detected_format, adapter, status, runnable, snapshot_path,
+                             description, metadata_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'importing', 0, ?, ?, ?, ?, ?)`,
+    [
+      header.name, header.lab, header.url, header.kind, header.identifier, header.revision,
+      header.detectedFormat, header.adapter, header.snapshotPath, header.description,
+      JSON.stringify({ pinned_url: header.pinnedUrl }), at, at,
+    ],
+  );
+}
+
+/** Removes a benchmark and everything that cascades from it. */
+export async function deleteBenchmark(benchmarkId: number): Promise<void> {
+  await run(`DELETE FROM benchmarks WHERE id = ?`, [benchmarkId]);
+}
+
+/**
+ * Writes one page of tasks and their criteria.
+ *
+ * Criteria carry the composite task key rather than a task row id because
+ * `benchmark_tasks` is keyed by `(benchmark_id, dataset, task_id)` — the
+ * benchmark's own opaque ids, which every downstream artifact refers to.
+ */
+export async function insertTasks(benchmarkId: number, tasks: TaskWrite[]): Promise<number> {
+  const at = now();
+  const taskRows = tasks.map((task) => ({
+    sql: `INSERT INTO benchmark_tasks (benchmark_id, dataset, task_id, name, source_path,
+                                       position, metadata_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      benchmarkId, task.dataset, task.taskId, task.name, task.sourcePath, task.position,
+      JSON.stringify(task.metadata),
+    ],
+  }));
+  for (let start = 0; start < taskRows.length; start += BATCH) {
+    await db.batch(taskRows.slice(start, start + BATCH), 'write');
+  }
+
+  const criterionRows = tasks.flatMap((task) =>
+    task.criteria.map((criterion) => ({
+      sql: `INSERT INTO benchmark_task_criteria (benchmark_id, dataset, task_id, criterion_id,
+                                                 title, match_criteria, position, source_json,
+                                                 created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        benchmarkId, task.dataset, task.taskId, criterion.criterionId, criterion.title,
+        criterion.matchCriteria, criterion.position, JSON.stringify(criterion.source), at, at,
+      ],
+    })),
+  );
+  for (let start = 0; start < criterionRows.length; start += BATCH) {
+    await db.batch(criterionRows.slice(start, start + BATCH), 'write');
+  }
+
+  const sourceRows = tasks.map((task) => {
+    const fingerprint = fingerprintOf(task.sourceContent);
+    return {
+      sql: `INSERT INTO benchmark_sources (benchmark_id, task_id, relative_path, content_sha256,
+                                           normalized_sha256, word_count, shingles_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        benchmarkId, task.taskId, task.sourcePath, fingerprint.contentSha256,
+        fingerprint.normalizedSha256, fingerprint.wordCount, JSON.stringify(fingerprint.shingles), at,
+      ],
+    };
+  });
+  for (let start = 0; start < sourceRows.length; start += BATCH) {
+    await db.batch(sourceRows.slice(start, start + BATCH), 'write');
+  }
+  return criterionRows.length;
+}
+
+export async function markReady(benchmarkId: number, snapshotPath: string): Promise<void> {
+  await run(
+    `UPDATE benchmarks SET status = 'ready', snapshot_path = ?, updated_at = ? WHERE id = ?`,
+    [snapshotPath, now(), benchmarkId],
+  );
+}
+
+export async function markFailed(benchmarkId: number): Promise<void> {
+  await run(`UPDATE benchmarks SET status = 'failed', runnable = 0, updated_at = ? WHERE id = ?`, [now(), benchmarkId]);
+}
+
+export const countTasks = async (benchmarkId: number) =>
+  (await value<number>(`SELECT COUNT(*) FROM benchmark_tasks WHERE benchmark_id = ?`, [benchmarkId])) ?? 0;
+
+export const countCriteria = async (benchmarkId: number) =>
+  (await value<number>(`SELECT COUNT(*) FROM benchmark_task_criteria WHERE benchmark_id = ?`, [benchmarkId])) ?? 0;
+
+type CatalogDbRow = Row & {
+  benchmark_id: number;
+  benchmark_name: string;
+  lab: string;
+  source_url: string;
+  source_kind: BenchmarkCatalog['sourceKind'];
+  source_identifier: string;
+  revision: string;
+  detected_format: string;
+  adapter: string;
+  status: BenchmarkCatalog['status'];
+  runnable: number;
+  description: string;
+  snapshot_path: string | null;
+  task_count: number;
+  criterion_count: number;
+};
+
+/**
+ * The catalog headers: counts done in SQL, and **no task rows at all**.
+ *
+ * The previous version left-joined every task row and grouped in TypeScript,
+ * so rendering one count dragged a benchmark's entire task list across the
+ * boundary. Listing every catalog with its tasks attached rebuilds exactly
+ * that: the page renders one benchmark's picker, so loading the task lists of
+ * all the others is pure payload. A view that needs tasks asks for the one
+ * benchmark it is showing — see `withTasks` in the service.
+ */
+export async function listCatalogs(): Promise<BenchmarkCatalog[]> {
+  const rows = await all<CatalogDbRow>(`
+    SELECT b.id AS benchmark_id, b.name AS benchmark_name, b.lab, b.source_url,
+           b.source_kind, b.source_identifier, b.revision, b.detected_format,
+           b.adapter, b.status, b.runnable, b.description, b.snapshot_path,
+           (SELECT COUNT(*) FROM benchmark_tasks t WHERE t.benchmark_id = b.id) AS task_count,
+           (SELECT COUNT(*) FROM benchmark_task_criteria c WHERE c.benchmark_id = b.id) AS criterion_count
+      FROM benchmarks b
+     ORDER BY b.created_at DESC, b.id DESC
+  `);
+
+  return rows.map(toCatalog);
+}
+
+function toCatalog(row: CatalogDbRow): BenchmarkCatalog {
+  return {
+    benchmarkId: row.benchmark_id,
+    benchmarkCode: code('benchmarks', row.benchmark_id),
+    name: row.benchmark_name,
+    lab: row.lab,
+    sourceUrl: row.source_url,
+    sourceKind: row.source_kind,
+    sourceIdentifier: row.source_identifier,
+    revision: row.revision,
+    detectedFormat: row.detected_format,
+    adapter: row.adapter,
+    status: row.status,
+    runnable: row.runnable === 1,
+    description: row.description,
+    snapshotPath: row.snapshot_path,
+    taskCount: row.task_count,
+    criterionCount: row.criterion_count,
+    tasks: [],
+  };
+}
+
+/** A bounded page of tasks. A list view never receives a whole benchmark. */
+export async function listTasks(benchmarkId: number, limit = 50, offset = 0): Promise<BenchmarkTask[]> {
+  const rows = await all<Row & { dataset: string; task_id: string; name: string; source_path: string; position: number }>(
+    `SELECT dataset, task_id, name, source_path, position
+       FROM benchmark_tasks WHERE benchmark_id = ?
+      ORDER BY position ASC, task_id ASC LIMIT ? OFFSET ?`,
+    [benchmarkId, limit, offset],
+  );
+  return rows.map((row) => ({
+    dataset: row.dataset,
+    taskId: row.task_id,
+    name: row.name,
+    sourcePath: row.source_path,
+    position: row.position,
+  }));
+}
+
+export async function get(benchmarkId: number): Promise<BenchmarkCatalog | null> {
+  const rows = await all<CatalogDbRow>(`
+    SELECT b.id AS benchmark_id, b.name AS benchmark_name, b.lab, b.source_url,
+           b.source_kind, b.source_identifier, b.revision, b.detected_format,
+           b.adapter, b.status, b.runnable, b.description, b.snapshot_path,
+           (SELECT COUNT(*) FROM benchmark_tasks t WHERE t.benchmark_id = b.id) AS task_count,
+           (SELECT COUNT(*) FROM benchmark_task_criteria c WHERE c.benchmark_id = b.id) AS criterion_count
+      FROM benchmarks b WHERE b.id = ?
+  `, [benchmarkId]);
+  const row = rows[0];
+  return row ? toCatalog(row) : null;
+}
+
+/**
+ * Names the gym resources server that can execute this catalog.
+ *
+ * `runnable` is 1 only when an adapter is present. Health of that server is
+ * checked at run time, not stored — a gym restart must not require a write.
+ */
+export async function setAdapter(benchmarkId: number, adapter: string, runnable: boolean): Promise<void> {
+  await run(
+    `UPDATE benchmarks SET adapter = ?, runnable = ?, updated_at = ? WHERE id = ?`,
+    [adapter, runnable ? 1 : 0, now(), benchmarkId],
+  );
+}
+
+export type CriterionRef = {
+  id: number;
+  taskId: string;
+  criterionId: string;
+  title: string;
+  matchCriteria: string;
+};
+
+/** Catalog criteria for a set of tasks, keyed for result writes. */
+export async function listCriteriaFor(benchmarkId: number, taskIds: string[]): Promise<CriterionRef[]> {
+  if (taskIds.length === 0) return [];
+  const found: CriterionRef[] = [];
+  for (let start = 0; start < taskIds.length; start += BATCH) {
+    const page = taskIds.slice(start, start + BATCH);
+    const placeholders = page.map(() => '?').join(', ');
+    const rows = await all<Row & {
+      id: number;
+      task_id: string;
+      criterion_id: string;
+      title: string;
+      match_criteria: string;
+    }>(
+      `SELECT id, task_id, criterion_id, title, match_criteria
+         FROM benchmark_task_criteria
+        WHERE benchmark_id = ? AND task_id IN (${placeholders})
+        ORDER BY task_id, position`,
+      [benchmarkId, ...page],
+    );
+    for (const row of rows) {
+      found.push({
+        id: row.id,
+        taskId: row.task_id,
+        criterionId: row.criterion_id,
+        title: row.title,
+        matchCriteria: row.match_criteria,
+      });
+    }
+  }
+  return found;
+}

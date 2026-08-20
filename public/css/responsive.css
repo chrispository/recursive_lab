@@ -1,0 +1,125 @@
+/* Responsive ---------------------------------------------------------------
+   Below 900px the rail lies down across the top and drops its context lines. */
+
+@media (max-width: 900px) {
+  .ledger {
+    grid-template-columns: 1fr;
+  }
+  .m-rail {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .m-rail > a {
+    border-bottom: 0;
+  }
+  .m-split {
+    grid-template-columns: 1fr;
+  }
+  .m-forge-layout,
+  .m-forge-form,
+  .m-review-decision-bar {
+    grid-template-columns: 1fr;
+  }
+  .m-review-split {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .m-review-inbox {
+    max-height: none;
+    overflow: visible;
+  }
+  .m-review-queue {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    max-height: 360px;
+    overflow: auto;
+  }
+  .m-review-detail,
+  .m-review-empty-detail {
+    min-height: 560px;
+  }
+  .m-review-details {
+    overflow: visible;
+  }
+  .m-review-decision-actions {
+    justify-content: flex-start;
+  }
+  .m-analysis-handoff {
+    grid-template-columns: 1fr;
+  }
+  .m-forge-review-cta {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .m-forge-review-cta-action {
+    width: 100%;
+  }
+  .m-analysis-action {
+    justify-items: start;
+  }
+  .m-appearance-grid,
+  .m-settings-grid,
+  .m-config-layout,
+  .m-config-body,
+  .m-config-fields,
+  .m-config-grid,
+  .m-run-actions {
+    grid-template-columns: 1fr;
+  }
+  .m-run-context {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .m-run-context-copy {
+    flex-wrap: wrap;
+  }
+  .m-run-switch {
+    align-self: flex-end;
+  }
+  .m-handoff {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .m-handoff-actions {
+    justify-content: flex-end;
+  }
+  .m-api-result {
+    grid-template-columns: 1fr auto;
+  }
+  .m-api-result .m-api-detail {
+    grid-column: 1 / -1;
+  }
+  .m-config-body > .full,
+  .m-config-fields > .full,
+  .m-config-grid > .full {
+    grid-column: auto;
+  }
+  .m-forge-field.full,
+  .m-forge-check.full,
+  .m-forge-actions.full {
+    grid-column: auto;
+  }
+  .m-import-controls {
+    grid-template-columns: 1fr;
+  }
+  .m-task-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .m-task-toolbar > span:last-child {
+    justify-content: flex-end;
+  }
+  .m-run-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .m-railfoot {
+    display: none;
+  }
+}

@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Environment Lab — UX mockups</title>
+  <style>
+    @font-face { font-family: PlexMono; src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2'); font-weight: 500; }
+    @font-face { font-family: PlexMono; src: url('/fonts/ibm-plex-mono-700.woff2') format('woff2'); font-weight: 700; }
+    :root {
+      color-scheme: dark;
+      --bg:#050505; --panel:#0b0c0c; --raised:#111313; --deep:#080909;
+      --line:#252a29; --line-soft:#181c1b; --text:#f2f2ed; --muted:#a0a8a5;
+      --quiet:#68716e; --orange:#ff6038; --green:#5bc47f; --blue:#65b9df;
+      --yellow:#d9a441; --red:#ed7362; --mono:PlexMono,ui-monospace,monospace;
+      --sans:Inter,ui-sans-serif,system-ui,sans-serif;
+    }
+    :root[data-theme='light'] { color-scheme:light; --bg:#eef1ef; --panel:#fbfcfb; --raised:#e5eae7; --deep:#e9eeeb; --line:#cbd3cf; --line-soft:#dce2df; --text:#111514; --muted:#45504d; --quiet:#74807b; --orange:#c7462b; --green:#246b45; --blue:#1c6178; --yellow:#805b11; --red:#a73527; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px),var(--bg); background-size:32px 32px; color:var(--muted); font:13px/1.55 var(--sans); }
+    button { font:inherit; }
+    .top { position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:12px 24px; border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--panel) 94%,transparent); backdrop-filter:blur(10px); }
+    .brand { display:flex; align-items:center; gap:10px; color:var(--text); font:700 12px var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+    .brand i { width:9px; height:9px; display:block; background:var(--orange); box-shadow:0 0 14px var(--orange); }
+    .tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .switch { display:flex; border:1px solid var(--line); background:var(--deep); }
+    .switch button,.theme { border:0; color:var(--quiet); background:transparent; padding:7px 10px; cursor:pointer; font:700 10px var(--mono); letter-spacing:.06em; }
+    .switch button + button { border-left:1px solid var(--line); }
+    .switch button.active { color:var(--bg); background:var(--orange); }
+    .theme { border:1px solid var(--line); }
+    .wrap { width:min(1240px,calc(100% - 36px)); margin:0 auto; padding:34px 0 90px; }
+    .eyebrow { color:var(--orange); font:700 10px var(--mono); letter-spacing:.13em; text-transform:uppercase; }
+    h1,h2,h3,p { margin:0; }
+    h1 { max-width:760px; margin-top:10px; color:var(--text); font-size:clamp(27px,4vw,43px); line-height:1.05; letter-spacing:-.05em; }
+    .lede { max-width:740px; margin-top:14px; color:var(--muted); font-size:15px; }
+    .context { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; margin-top:26px; padding:12px 15px; border:1px solid var(--line); border-left:3px solid var(--orange); background:var(--panel); }
+    .context strong { color:var(--text); font-family:var(--mono); }
+    .context span { color:var(--quiet); font:11px var(--mono); }
+    .view { display:none; margin-top:22px; }
+    .view.active { display:block; }
+    .view-title { display:flex; align-items:baseline; justify-content:space-between; gap:15px; margin-bottom:12px; }
+    .view-title h2 { color:var(--text); font-size:18px; letter-spacing:-.02em; }
+    .view-title span { color:var(--orange); font:10px var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+    .rail { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; margin-bottom:14px; border:1px solid var(--line); background:var(--line); }
+    .rail-step { min-height:132px; padding:13px 15px; background:var(--panel); border-top:2px solid var(--line); }
+    .rail-step.done { border-top-color:var(--green); }
+    .rail-step.now { border-top-color:var(--orange); background:linear-gradient(135deg,var(--panel),color-mix(in srgb,var(--orange) 8%,var(--panel))); }
+    .rail-step.locked { opacity:.6; }
+    .rail-step b { display:block; color:var(--quiet); font:700 10px var(--mono); letter-spacing:.08em; }
+    .rail-step strong { display:block; margin-top:8px; color:var(--text); font-size:14px; }
+    .rail-step small { display:block; margin-top:3px; color:var(--muted); font-size:11px; }
+    .stage-meta { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; color:var(--quiet); font:10px var(--mono); }
+    .stage-state { color:var(--quiet); font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+    .stage-state.ok { color:var(--green); } .stage-state.live { color:var(--orange); } .stage-state.error { color:var(--red); }
+    .stage-bar { position:relative; height:6px; margin-top:7px; overflow:visible; background:var(--raised); }
+    .stage-bar i { display:block; width:0; height:100%; background:var(--green); }
+    .stage-bar.active i { width:4px !important; background:var(--orange); }
+    .stage-bar.active::after { position:absolute; top:-3px; left:3px; width:12px; height:12px; border:1px solid var(--orange); border-radius:50%; content:""; box-shadow:0 0 0 3px color-mix(in srgb,var(--orange) 18%,transparent); animation:stage-pulse 1.5s ease-out infinite; }
+    .stage-bar.error i { width:4px !important; background:var(--red); }
+    .stage-bar.error::after { position:absolute; top:-3px; left:3px; width:12px; height:12px; border:1px solid var(--red); border-radius:50%; content:"!"; color:var(--red); background:var(--panel); font:700 9px/10px var(--mono); text-align:center; }
+    @keyframes stage-pulse { 70%,100% { opacity:0; transform:scale(1.65); } }
+    .stage-legend { display:flex; flex-wrap:wrap; gap:7px 16px; margin:-2px 0 14px; color:var(--quiet); font-size:10px; }
+    .stage-legend span { display:inline-flex; align-items:center; gap:6px; }
+    .legend-mark { width:18px; height:5px; display:inline-block; background:var(--raised); }
+    .legend-mark.done { background:var(--green); } .legend-mark.live { background:var(--orange); } .legend-mark.error { background:var(--red); }
+    .notice { display:flex; align-items:flex-start; gap:12px; margin-bottom:14px; padding:13px 15px; border:1px solid color-mix(in srgb,var(--orange) 45%,var(--line)); background:color-mix(in srgb,var(--orange) 8%,var(--panel)); }
+    .notice .mark { color:var(--orange); font:700 14px var(--mono); }
+    .notice strong { color:var(--text); }
+    .notice p { margin-top:2px; }
+    .grid2 { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr); gap:14px; }
+    .card { border:1px solid var(--line); background:var(--panel); }
+    .card-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 15px; border-bottom:1px solid var(--line-soft); }
+    .card-head h3 { color:var(--text); font-size:13px; }
+    .code { color:var(--quiet); font:10px var(--mono); letter-spacing:.06em; text-transform:uppercase; }
+    .card-body { padding:15px; }
+    .status-line { display:flex; align-items:center; gap:9px; color:var(--text); font:700 12px var(--mono); }
+    .dot { width:8px; height:8px; display:inline-block; border-radius:50%; background:var(--orange); box-shadow:0 0 10px var(--orange); }
+    .dot.green { background:var(--green); box-shadow:0 0 9px var(--green); }
+    .progress { height:9px; margin:15px 0 7px; background:var(--raised); }
+    .progress i { display:block; width:18%; height:100%; background:var(--orange); }
+    .progress-meta { display:flex; justify-content:space-between; color:var(--quiet); font:10px var(--mono); }
+    .explain { display:grid; gap:8px; margin-top:17px; }
+    .explain-row { display:grid; grid-template-columns:90px 1fr; gap:12px; padding:9px 0; border-top:1px solid var(--line-soft); }
+    .explain-row b { color:var(--blue); font:700 10px var(--mono); text-transform:uppercase; }
+    .explain-row span { color:var(--muted); font-size:12px; }
+    .explain-row strong { color:var(--text); }
+    .package { display:grid; gap:12px; }
+    .package-count { display:flex; align-items:end; justify-content:space-between; }
+    .package-count strong { color:var(--green); font:700 31px var(--mono); line-height:1; }
+    .package-count span { color:var(--muted); text-align:right; font-size:11px; }
+    .disabled { width:100%; border:1px solid var(--line); padding:9px 12px; color:var(--quiet); background:var(--raised); cursor:not-allowed; font:700 11px var(--mono); text-transform:uppercase; }
+    .hint { color:var(--quiet); font-size:11px; }
+    details { border-top:1px solid var(--line-soft); padding-top:10px; }
+    summary { color:var(--text); cursor:pointer; font-size:12px; }
+    details p { margin-top:8px; color:var(--muted); font-size:11px; }
+    .mini-table { width:100%; border-collapse:collapse; margin-top:14px; }
+    .mini-table th,.mini-table td { padding:9px 10px; border-top:1px solid var(--line-soft); text-align:left; font-size:11px; }
+    .mini-table th { color:var(--quiet); font:700 10px var(--mono); text-transform:uppercase; }
+    .mini-table td:first-child { color:var(--text); }
+    .num { color:var(--text); font-family:var(--mono); text-align:right !important; }
+    .state { font:700 10px var(--mono); text-transform:uppercase; }
+    .state.run { color:var(--orange); } .state.ok { color:var(--green); } .state.wait { color:var(--quiet); } .state.bad { color:var(--red); }
+    .terminal-layout { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr); gap:14px; }
+    .terminal { min-height:430px; border:1px solid var(--line); background:#020303; box-shadow:inset 0 0 40px rgba(0,0,0,.45); }
+    .terminal-bar { display:flex; justify-content:space-between; padding:11px 14px; border-bottom:1px solid #1d2522; color:#6f7d77; font:10px var(--mono); }
+    .terminal-body { padding:15px; color:#94a49c; font:11px/1.85 var(--mono); }
+    .terminal-line { display:grid; grid-template-columns:76px 58px 1fr; gap:8px; }
+    .terminal-line time { color:#53615b; } .terminal-line .tag { color:var(--blue); } .terminal-line .good { color:var(--green); } .terminal-line .warn { color:var(--yellow); } .terminal-line .hot { color:var(--orange); }
+    .cursor { display:inline-block; width:7px; height:14px; margin-left:4px; vertical-align:-2px; background:var(--orange); animation:blink 1s steps(2,end) infinite; }
+    @keyframes blink { 50% { opacity:0; } }
+    .parsed { display:grid; gap:10px; }
+    .metric { padding:12px 13px; border:1px solid var(--line); background:var(--panel); }
+    .metric label { display:block; color:var(--quiet); font:10px var(--mono); text-transform:uppercase; }
+    .metric strong { display:block; margin-top:5px; color:var(--text); font:700 20px var(--mono); }
+    .metric p { margin-top:3px; color:var(--muted); font-size:11px; }
+    .interpret { padding:13px; border-left:2px solid var(--blue); background:color-mix(in srgb,var(--blue) 7%,var(--panel)); color:var(--muted); font-size:11px; }
+    .interpret strong { color:var(--text); }
+    .terminal-foot { margin-top:14px; padding:12px 14px; border:1px solid var(--line); background:var(--panel); color:var(--muted); font-size:12px; }
+    .terminal-foot code { color:var(--orange); font:700 11px var(--mono); }
+    .signal-grid { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.2fr) minmax(230px,.7fr); gap:14px; }
+    .score { min-height:280px; display:flex; flex-direction:column; justify-content:space-between; padding:18px; border:1px solid var(--line); background:radial-gradient(circle at 85% 10%,color-mix(in srgb,var(--orange) 12%,transparent),transparent 35%),var(--panel); }
+    .score h3 { color:var(--text); font-size:15px; }
+    .score-number { color:var(--orange); font:700 58px/.9 var(--mono); letter-spacing:-.08em; }
+    .score-number small { color:var(--quiet); font-size:15px; letter-spacing:0; }
+    .score p { max-width:28ch; color:var(--muted); font-size:12px; }
+    .gates { display:grid; gap:1px; border:1px solid var(--line); background:var(--line); }
+    .gate { display:grid; grid-template-columns:26px 100px 1fr; gap:12px; align-items:start; padding:14px; background:var(--panel); }
+    .gate-mark { color:var(--green); font:700 15px var(--mono); } .gate.locked .gate-mark { color:var(--quiet); }
+    .gate strong { color:var(--text); font-size:12px; } .gate small { display:block; margin-top:3px; color:var(--muted); font-size:11px; }
+    .vocab { padding:15px; border:1px solid var(--line); background:var(--panel); }
+    .vocab h3 { margin-bottom:11px; color:var(--text); font-size:13px; }
+    .term { padding:10px 0; border-top:1px solid var(--line-soft); }
+    .term b { color:var(--blue); font:700 10px var(--mono); text-transform:uppercase; }
+    .term p { margin-top:3px; color:var(--muted); font-size:11px; }
+    .gradient-flow { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:9px; color:var(--orange); font:700 10px var(--mono); }
+    .gradient-flow i { color:var(--quiet); font-style:normal; }
+    .hybrid-lower { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr); gap:14px; margin-top:14px; }
+    .hybrid-summary { display:grid; gap:11px; }
+    .hybrid-summary p { color:var(--muted); font-size:12px; }
+    .hybrid-summary strong { color:var(--text); }
+    .hybrid-next { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-top:1px solid var(--line-soft); }
+    .hybrid-next b { color:var(--orange); font:700 10px var(--mono); text-transform:uppercase; }
+    .hybrid-next span { color:var(--muted); font-size:11px; text-align:right; }
+    .env-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }
+    .env-card { min-width:0; padding:14px; border:1px solid var(--line); border-left:2px solid var(--orange); background:var(--panel); }
+    .env-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:9px; min-height:47px; }
+    .env-card h3 { color:var(--text); font-size:12px; line-height:1.35; }
+    .env-built { color:var(--green); font:700 10px var(--mono); white-space:nowrap; }
+    .env-code { margin-top:6px; color:var(--quiet); font:10px var(--mono); }
+    .coverage { min-height:73px; margin-top:12px; padding:10px 11px; border:1px solid var(--line); background:var(--raised); }
+    .coverage-head { display:flex; align-items:center; gap:10px; }
+    .coverage-head b { color:#9f89ee; font:700 10px var(--mono); letter-spacing:.05em; }
+    .coverage-head span { color:var(--muted); font-size:10px; }
+    .coverage p { margin-top:8px; color:var(--muted); font-size:10px; line-height:1.45; }
+    .env-counts { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin-top:11px; }
+    .env-count { padding:6px 7px; border:1px solid var(--line); }
+    .env-count small { display:block; color:var(--quiet); font:10px var(--mono); text-transform:uppercase; }
+    .env-count strong { display:block; margin-top:2px; color:var(--text); font:700 13px var(--mono); }
+    .env-measures { display:grid; gap:9px; margin-top:14px; }
+    .env-measure { display:grid; grid-template-columns:62px 1fr 52px; align-items:center; gap:7px; color:var(--muted); font-size:10px; }
+    .meter { position:relative; height:8px; background:var(--raised); }
+    .meter i { position:absolute; inset:0 auto 0 0; width:0; background:var(--green); }
+    .meter b { position:absolute; top:-3px; bottom:-3px; left:30%; width:1px; background:var(--text); }
+    .env-value { text-align:right; font:10px var(--mono); }
+    .env-value.error { color:var(--red); } .env-value.pending { color:var(--yellow); }
+    .env-scored { margin-top:11px; color:var(--quiet); font-size:10px; }
+    .env-next { display:flex; align-items:center; gap:9px; margin-top:14px; padding-top:11px; border-top:1px solid var(--line-soft); color:var(--muted); font-size:10px; }
+    .ticks { display:flex; gap:3px; }
+    .ticks i { width:17px; height:4px; background:var(--raised); }
+    .ticks i:first-child { background:var(--green); }
+    .env-grid-note { margin-top:9px; color:var(--quiet); font-size:11px; }
+    .callout { margin-top:14px; padding:13px 15px; border:1px solid var(--line); background:var(--panel); }
+    .callout strong { color:var(--text); } .callout p { margin-top:3px; color:var(--muted); font-size:12px; }
+    @media (max-width:850px) { .grid2,.terminal-layout,.signal-grid,.hybrid-lower { grid-template-columns:1fr; } .env-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .rail { grid-template-columns:repeat(2,1fr); } .top { align-items:flex-start; flex-direction:column; } }
+    @media (max-width:520px) { .wrap { width:min(100% - 22px,1240px); padding-top:24px; } .env-grid { grid-template-columns:1fr; } .rail { grid-template-columns:1fr; } .context { align-items:flex-start; flex-direction:column; gap:5px; } .terminal-line { grid-template-columns:55px 45px 1fr; font-size:10px; } }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><i></i> recursive( ) / env lab / ux mockups</div>
+    <div class="tools">
+      <div class="switch" aria-label="Choose mockup version">
+        <button class="active" data-view="guide">01 guide</button><button data-view="terminal">02 terminal</button><button data-view="signal">03 signal</button><button data-view="hybrid">04 hybrid</button><button data-view="cards">05 cards</button>
+      </div>
+      <button class="theme" id="theme">light mode</button>
+    </div>
+  </header>
+  <main class="wrap">
+    <div class="eyebrow">prototype / local proof before cluster training</div>
+    <h1>Make the run legible before asking the user to trust it.</h1>
+    <p class="lede">Five ways to present the same environment-lab state: keep the hacker-console feeling, but turn raw process output into clear decisions and a small vocabulary lesson.</p>
+    <div class="context"><strong>BR-00011</strong><span>detecting-inconsistent-application-of-a-tp00001</span><span>6 environments</span><span>policy glm-5.2</span><span>judge deepseek-v4-pro</span></div>
+
+    <section class="view active" id="guide">
+      <div class="view-title"><h2>Version 01 — guided runbook</h2><span>best default for first-time users</span></div>
+      <div class="rail">
+        <div class="rail-step done"><b>01 / package</b><strong>6 packages ready</strong><small>Verifier + taskset + runner</small><div class="stage-meta"><span class="stage-state ok">complete</span><span>6 / 6</span></div><div class="stage-bar"><i style="width:100%"></i></div></div>
+        <div class="rail-step now"><b>02 / rl smoke</b><strong>Running now</strong><small>Cheap learnability check · 2 rollouts</small><div class="stage-meta"><span class="stage-state live">live</span><span>0 / 6 scored</span></div><div class="stage-bar active"><i></i></div></div>
+        <div class="rail-step locked"><b>03 / validation</b><strong>Unlocks next</strong><small>More confidence · 4 rollouts</small><div class="stage-meta"><span class="stage-state">locked</span><span>0 / 6</span></div><div class="stage-bar"><i></i></div></div>
+        <div class="rail-step locked"><b>04 / scale</b><strong>Gated</strong><small>Only passing environments</small></div>
+      </div>
+      <div class="notice"><div class="mark">&gt;_</div><p><strong>You are here: RL smoke is running.</strong> Wait for all six environments to report. This test checks whether the policy can produce verifier-scored work before you spend the larger validation budget.</p></div>
+      <div class="grid2">
+        <article class="card">
+          <div class="card-head"><h3>Local RL test</h3><span class="code">JOB-00029 · live</span></div>
+          <div class="card-body">
+            <div class="status-line"><i class="dot"></i> waiting on the first policy + judge result</div>
+            <div class="progress"><i style="width:0%"></i></div><div class="progress-meta"><span>1 active rollout · 0 / 6 environments scored</span><span>0%</span></div>
+            <div class="explain">
+              <div class="explain-row"><b>rollout</b><span>One attempt by <strong>glm-5.2</strong> to solve one task.</span></div>
+              <div class="explain-row"><b>verifier</b><span>A deterministic checker that decides whether the attempt worked.</span></div>
+              <div class="explain-row"><b>reward</b><span>A score from 0 to 1. Higher means the verifier saw a better answer.</span></div>
+            </div>
+            <div class="callout"><strong>When this finishes</strong><p>Look for a result from every environment and no environment errors. Then run validation. The RL test does not train the model; it measures whether this task setup produces a useful learning signal.</p></div>
+          </div>
+        </article>
+        <article class="card package">
+          <div class="card-head"><h3>Package state</h3><span class="code">step 01 / complete</span></div>
+          <div class="card-body package">
+            <div class="package-count"><strong>6 / 6</strong><span>packages built<br>for this benchmark run</span></div>
+            <button class="disabled" disabled>✓ packages complete</button>
+            <p class="hint">No rebuild needed. Existing packages are reused.</p>
+            <details><summary>When would I rebuild?</summary><p>Rebuild after changing the approved task documents, verifier logic, taskset files, or generated package code. A rebuild should be an explicit “rebuild from source” action, not the bright default when nothing changed.</p></details>
+            <details><summary>What is inside a package?</summary><p>One environment’s verifier, its train/canary/heldout task files, and the runner Prime uses to execute rollouts and collect rewards.</p></details>
+          </div>
+        </article>
+      </div>
+      <article class="card" style="margin-top:14px"><div class="card-head"><h3>Environment signal snapshot</h3><span class="code">parsed from the job, not raw log</span></div><table class="mini-table"><thead><tr><th>environment</th><th>state</th><th class="num">mean reward</th><th class="num">tasks</th></tr></thead><tbody>
+        <tr><td>inconsistent application</td><td class="state run">running</td><td class="num">—</td><td class="num">3</td></tr><tr><td>unsafe completion</td><td class="state wait">queued</td><td class="num">—</td><td class="num">3</td></tr><tr><td>missing evidence</td><td class="state wait">queued</td><td class="num">—</td><td class="num">4</td></tr><tr><td>unsupported claim</td><td class="state wait">queued</td><td class="num">—</td><td class="num">3</td></tr><tr><td>wrong scope</td><td class="state wait">queued</td><td class="num">—</td><td class="num">3</td></tr><tr><td>citation mismatch</td><td class="state wait">queued</td><td class="num">—</td><td class="num">3</td></tr>
+      </tbody></table></article>
+    </section>
+
+    <section class="view" id="terminal">
+      <div class="view-title"><h2>Version 02 — parsed terminal</h2><span>best for experienced operators</span></div>
+      <div class="terminal-layout">
+        <div class="terminal"><div class="terminal-bar"><span>JOB-00029 / env_eval / rl_test</span><span>LIVE · tail -f</span></div><div class="terminal-body">
+          <div class="terminal-line"><time>15:33:07</time><span class="tag">START</span><span>local proof requested for <b>6</b> environments</span></div><div class="terminal-line"><time>15:33:08</time><span class="tag">CONFIG</span><span>policy=<b>glm-5.2</b> judge=<b>deepseek-v4-pro</b></span></div><div class="terminal-line"><time>15:33:08</time><span class="tag">CONFIG</span><span>rollouts_per_example=<b>2</b> concurrency=<b>1</b></span></div><div class="terminal-line"><time>15:33:09</time><span class="tag">ENV</span><span>loaded train / canary / heldout task splits</span></div><div class="terminal-line"><time>15:33:10</time><span class="tag">MAP</span><span>6 groups discovered · 18 tasks available</span></div><div class="terminal-line"><time>15:33:11</time><span class="tag">RUN</span><span class="hot">active task=1 · waiting for model response</span></div><div class="terminal-line"><time>15:34:02</time><span class="tag">NOTE</span><span class="warn">eval_dataset fallback warning is non-fatal</span></div><div class="terminal-line"><time>now</time><span class="tag">WAIT</span><span class="hot">no crash detected · next event: first reward<span class="cursor"></span></span></div>
+        </div></div>
+        <aside class="parsed"><div class="metric"><label>plain-English status</label><strong>waiting</strong><p>The worker is alive and has one rollout in flight.</p></div><div class="metric"><label>coverage</label><strong>0 / 6</strong><p>Environment summaries are not ready yet.</p></div><div class="metric"><label>what to do</label><strong>wait</strong><p>Cancel only if the active task stops changing for a long time.</p></div><div class="interpret"><strong>Warnings are translated here.</strong><br>The eval-dataset fallback is noisy, but it does not mean the job failed. Keep raw lines available for debugging; make this interpretation the primary surface.</div></aside>
+      </div>
+      <div class="terminal-foot"><code>rollout</code> = policy attempt → <code>verifier</code> = checker → <code>reward</code> = score → repeated examples become the signal a future trainer can learn from.</div>
+    </section>
+
+    <section class="view" id="signal">
+      <div class="view-title"><h2>Version 03 — signal board</h2><span>best for comparing readiness at a glance</span></div>
+      <div class="signal-grid">
+        <article class="score"><div><div class="eyebrow">learnability signal</div><h3>Can this environment teach?</h3></div><div class="score-number">—<small> / 1.00</small></div><p>Not enough results yet. A reward is useful when it separates good and bad attempts instead of returning all 0s or all 1s.</p></article>
+        <div class="gates"><div class="gate"><div class="gate-mark">✓</div><div><strong>Package</strong><small>6 / 6 ready</small></div><small>Creates the verifier + task bundle the runner needs.</small></div><div class="gate"><div class="gate-mark">●</div><div><strong>RL smoke</strong><small>running · 2 rollouts</small></div><small>Cheap first read: can the policy earn any reward?</small></div><div class="gate locked"><div class="gate-mark">○</div><div><strong>Validation</strong><small>locked until smoke completes</small></div><small>Repeat with 4 rollouts to make the estimate less noisy.</small></div><div class="gate locked"><div class="gate-mark">○</div><div><strong>Scale</strong><small>gated per environment</small></div><small>Only environments with a healthy signal go to cluster training.</small></div></div>
+        <aside class="vocab"><h3>Four words to keep nearby</h3><div class="term"><b>rollout</b><p>One model attempt on one task.</p></div><div class="term"><b>verifier</b><p>The checker that scores the attempt.</p></div><div class="term"><b>reward</b><p>The verifier’s 0–1 feedback. One reward is a single observation, not a training direction.</p></div><div class="term"><b>gradient</b><p>The training algorithm looks across many rewards, compares which attempts were better, and computes a direction for changing the policy’s weights. The gradient is not the reward and this page does not calculate it; this page checks whether the rewards are useful enough to feed into training.</p><div class="gradient-flow"><span>rollouts</span><i>→</i><span>rewards</span><i>→</i><span>gradient</span><i>→</i><span>updated policy</span></div></div></aside>
+      </div>
+      <div class="callout"><strong>Recommended operator path</strong><p>Package once → run the 2-rollout RL smoke test → inspect per-environment mean/spread/errors → run 4-rollout validation → prepare only the environments that pass. The button labels and disabled states should teach this order.</p></div>
+    </section>
+
+    <section class="view" id="hybrid">
+      <div class="view-title"><h2>Version 04 — signal-guided runbook</h2><span>recommended synthesis of 01 + 03</span></div>
+      <div class="rail">
+        <div class="rail-step done"><b>01 / package</b><strong>6 packages ready</strong><small>Reuse until source changes</small><div class="stage-meta"><span class="stage-state ok">complete</span><span>6 / 6</span></div><div class="stage-bar"><i style="width:100%"></i></div></div>
+        <div class="rail-step now"><b>02 / rl smoke</b><strong>Running now</strong><small>2 rollouts · cheap first signal</small><div class="stage-meta"><span class="stage-state live">live</span><span>0 / 6 scored</span></div><div class="stage-bar active"><i></i></div></div>
+        <div class="rail-step locked"><b>03 / validation</b><strong>Unlocks next</strong><small>4 rollouts · reduce noise</small><div class="stage-meta"><span class="stage-state">locked</span><span>0 / 6</span></div><div class="stage-bar"><i></i></div></div>
+        <div class="rail-step locked"><b>04 / scale</b><strong>Gated per environment</strong><small>Train only on healthy signals</small></div>
+      </div>
+      <div class="notice"><div class="mark">&gt;_</div><p><strong>Operator decision:</strong> do not rebuild. Packages are complete. Let the RL smoke test finish, then use the signal board below to decide which environments deserve validation.</p></div>
+      <div class="signal-grid">
+        <article class="score"><div><div class="eyebrow">current checkpoint</div><h3>RL smoke coverage</h3></div><div class="score-number">0<small> / 6 envs</small></div><p>One rollout is active. A blank score means “not measured yet,” not “reward = zero.”</p><div class="progress"><i style="width:0%"></i></div></article>
+        <div class="gates"><div class="gate"><div class="gate-mark">✓</div><div><strong>Package</strong><small>complete · 6 / 6</small></div><small>Builds the verifier, task splits, and runner bundle.</small></div><div class="gate"><div class="gate-mark">●</div><div><strong>RL smoke</strong><small>live · 2 rollouts</small></div><small>Checks that rewards are possible before spending more.</small></div><div class="gate locked"><div class="gate-mark">○</div><div><strong>Validation</strong><small>waiting on smoke</small></div><small>Uses 4 rollouts so mean, spread, and errors are less noisy.</small></div><div class="gate locked"><div class="gate-mark">○</div><div><strong>Scale</strong><small>locked</small></div><small>Opens only for environments whose signal can teach.</small></div></div>
+        <aside class="vocab"><h3>What the score means</h3><div class="term"><b>mean</b><p>Average reward across attempts. Is the policy getting through?</p></div><div class="term"><b>spread</b><p>How much rewards vary. Is there room to improve?</p></div><div class="term"><b>errors</b><p>Whether the environment itself failed before scoring.</p></div><div class="term"><b>gradient</b><p>Training turns many reward comparisons into a direction for updating the policy. We want a signal with enough variation to point somewhere useful.</p></div></aside>
+      </div>
+      <div class="hybrid-lower">
+        <article class="card"><div class="card-head"><h3>Package state</h3><span class="code">safe to leave alone</span></div><div class="card-body hybrid-summary"><p><strong>6 / 6 packages built.</strong> A package is the runnable unit: verifier + taskset + runner. Rebuild only after those inputs change.</p><button class="disabled" disabled>✓ packages complete · reuse</button><details><summary>Show rebuild rule</summary><p>Make “Rebuild from source” a secondary action that appears when task documents, verifier code, or generated package files are newer than the package.</p></details></div></article>
+        <article class="card"><div class="card-head"><h3>What happens next</h3><span class="code">plain-language controls</span></div><div class="card-body hybrid-summary"><div class="hybrid-next"><b>now</b><span>Wait for 6 environment results.</span></div><div class="hybrid-next"><b>then</b><span>Inspect mean, spread, and errors.</span></div><div class="hybrid-next"><b>next button</b><span>Run validation with 4 rollouts.</span></div><div class="hybrid-next"><b>finally</b><span>Prepare only passing environments.</span></div></div></article>
+      </div>
+      <article class="card" style="margin-top:14px"><div class="card-head"><h3>Per-environment gate preview</h3><span class="code">blank ≠ zero</span></div><table class="mini-table"><thead><tr><th>environment</th><th>smoke</th><th class="num">mean</th><th class="num">spread</th><th>next</th></tr></thead><tbody><tr><td>inconsistent application</td><td class="state run">running</td><td class="num">—</td><td class="num">—</td><td>wait</td></tr><tr><td>unsafe completion</td><td class="state wait">queued</td><td class="num">—</td><td class="num">—</td><td>wait</td></tr><tr><td>missing evidence</td><td class="state wait">queued</td><td class="num">—</td><td class="num">—</td><td>wait</td></tr></tbody></table></article>
+    </section>
+
+    <section class="view" id="cards">
+      <div class="view-title"><h2>Version 05 — signal-guided cards</h2><span>04 structure · current six-card surface</span></div>
+      <div class="rail">
+        <div class="rail-step done"><b>01 / package</b><strong>6 packages ready</strong><small>Nothing to rebuild</small><div class="stage-meta"><span class="stage-state ok">complete</span><span>6 / 6</span></div><div class="stage-bar"><i style="width:100%"></i></div></div>
+        <div class="rail-step now"><b>02 / rl smoke</b><strong>Needs attention</strong><small>Errors before a reward was recorded</small><div class="stage-meta"><span class="stage-state error">error</span><span>0 / 6 scored</span></div><div class="stage-bar error"><i></i></div></div>
+        <div class="rail-step locked"><b>03 / validation</b><strong>Blocked</strong><small>Run only after RL smoke is healthy</small><div class="stage-meta"><span class="stage-state">blocked</span><span>0 / 6</span></div><div class="stage-bar"><i></i></div></div>
+        <div class="rail-step locked"><b>04 / scale</b><strong>Gated</strong><small>Per-environment, not all-or-nothing</small></div>
+      </div>
+      <div class="stage-legend"><span><i class="legend-mark done"></i> completed count</span><span><i class="legend-mark live"></i> active job</span><span><i class="legend-mark error"></i> job error</span><span><i class="legend-mark"></i> locked or not run</span></div>
+      <div class="notice"><div class="mark">!_</div><p><strong>Packages are ready, but RL smoke returned errors.</strong> The cards below show which environment failed and what has—or has not—been measured. Fix or rerun the smoke test before starting validation.</p></div>
+      <div class="hybrid-lower">
+        <article class="card"><div class="card-head"><h3>Current signal</h3><span class="code">do not read errors as zero</span></div><div class="card-body hybrid-summary"><p><strong>0 / 6 environments scored.</strong> Every RL bar is empty because the run errored before a reward was stored. That is different from six environments receiving reward 0.000.</p><div class="hybrid-next"><b>next action</b><span>Inspect the job error, then rerun RL smoke.</span></div></div></article>
+        <article class="card"><div class="card-head"><h3>Package state</h3><span class="code">step 01 / complete</span></div><div class="card-body hybrid-summary"><p><strong>6 / 6 built.</strong> Reuse these packages unless the documents, verifier, taskset, or generated runner changed.</p><button class="disabled" disabled>✓ packages complete · reuse</button></div></article>
+      </div>
+      <div class="env-grid">
+        <article class="env-card"><div class="env-card-head"><div><h3>Detecting inconsistent application of a legal doctrine across analogous factual units</h3><div class="env-code">TP-00001 · 1 doc packaged</div></div><span class="env-built">built</span></div><div class="coverage"><div class="coverage-head"><b>JUDGE COVERAGE</b><span>pass ≥ <strong>0.30</strong> · verifier v1</span></div><p>Given a brief that addresses multiple analogous factual units, identify any legal doctrine applied differently across those units.</p></div><div class="env-counts"><div class="env-count"><small>tasks</small><strong>1</strong></div><div class="env-count"><small>train</small><strong>1</strong></div><div class="env-count"><small>canary</small><strong>0</strong></div><div class="env-count"><small>heldout</small><strong>0</strong></div></div><div class="env-measures"><div class="env-measure"><span>RL test</span><div class="meter"><b></b></div><span class="env-value error">— ERROR</span></div><div class="env-measure"><span>Validation</span><div class="meter"><b></b></div><span class="env-value pending">— not run</span></div></div><div class="env-scored">0 of 1 task scored</div><div class="env-next"><div class="ticks"><i></i><i></i><i></i><i></i><i></i></div><span>Next: RL test</span></div></article>
+        <article class="env-card"><div class="env-card-head"><div><h3>Detecting material misquotation of authority</h3><div class="env-code">TP-00002 · 1 doc packaged</div></div><span class="env-built">built</span></div><div class="coverage"><div class="coverage-head"><b>JUDGE COVERAGE</b><span>pass ≥ <strong>0.30</strong> · verifier v1</span></div><p>Given a brief and the relevant source text, flag any quotation that materially differs from the source and explain the legal change.</p></div><div class="env-counts"><div class="env-count"><small>tasks</small><strong>1</strong></div><div class="env-count"><small>train</small><strong>1</strong></div><div class="env-count"><small>canary</small><strong>0</strong></div><div class="env-count"><small>heldout</small><strong>0</strong></div></div><div class="env-measures"><div class="env-measure"><span>RL test</span><div class="meter"><b></b></div><span class="env-value error">— ERROR</span></div><div class="env-measure"><span>Validation</span><div class="meter"><b></b></div><span class="env-value pending">— not run</span></div></div><div class="env-scored">0 of 1 task scored</div><div class="env-next"><div class="ticks"><i></i><i></i><i></i><i></i><i></i></div><span>Next: RL test</span></div></article>
+        <article class="env-card"><div class="env-card-head"><div><h3>Identifying omitted statutory or doctrinal arguments in an opposing brief</h3><div class="env-code">TP-00003 · 1 doc packaged</div></div><span class="env-built">built</span></div><div class="coverage"><div class="coverage-head"><b>JUDGE COVERAGE</b><span>pass ≥ <strong>0.30</strong> · verifier v1</span></div><p>Given a brief and the governing legal framework, identify statutory or doctrinal arguments absent from the brief.</p></div><div class="env-counts"><div class="env-count"><small>tasks</small><strong>1</strong></div><div class="env-count"><small>train</small><strong>1</strong></div><div class="env-count"><small>canary</small><strong>0</strong></div><div class="env-count"><small>heldout</small><strong>0</strong></div></div><div class="env-measures"><div class="env-measure"><span>RL test</span><div class="meter"><b></b></div><span class="env-value error">— ERROR</span></div><div class="env-measure"><span>Validation</span><div class="meter"><b></b></div><span class="env-value pending">— not run</span></div></div><div class="env-scored">0 of 1 task scored</div><div class="env-next"><div class="ticks"><i></i><i></i><i></i><i></i><i></i></div><span>Next: RL test</span></div></article>
+        <article class="env-card"><div class="env-card-head"><div><h3>Identifying mischaracterization or omission of controlling precedent</h3><div class="env-code">TP-00004 · 1 doc packaged</div></div><span class="env-built">built</span></div><div class="coverage"><div class="coverage-head"><b>JUDGE COVERAGE</b><span>pass ≥ <strong>0.30</strong> · verifier v1</span></div><p>Given a brief and the applicable controlling case law, identify material mischaracterization, misapplication, or omission.</p></div><div class="env-counts"><div class="env-count"><small>tasks</small><strong>1</strong></div><div class="env-count"><small>train</small><strong>1</strong></div><div class="env-count"><small>canary</small><strong>0</strong></div><div class="env-count"><small>heldout</small><strong>0</strong></div></div><div class="env-measures"><div class="env-measure"><span>RL test</span><div class="meter"><b></b></div><span class="env-value error">— ERROR</span></div><div class="env-measure"><span>Validation</span><div class="meter"><b></b></div><span class="env-value pending">— not run</span></div></div><div class="env-scored">0 of 1 task scored</div><div class="env-next"><div class="ticks"><i></i><i></i><i></i><i></i><i></i></div><span>Next: RL test</span></div></article>
+        <article class="env-card"><div class="env-card-head"><div><h3>Identifying related state-law framework and preclusion implications</h3><div class="env-code">TP-00005 · 1 doc packaged</div></div><span class="env-built">built</span></div><div class="coverage"><div class="coverage-head"><b>JUDGE COVERAGE</b><span>pass ≥ <strong>0.30</strong> · verifier v1</span></div><p>Given a brief addressing related federal and state claims, identify material differences and preclusive state-law arguments.</p></div><div class="env-counts"><div class="env-count"><small>tasks</small><strong>1</strong></div><div class="env-count"><small>train</small><strong>1</strong></div><div class="env-count"><small>canary</small><strong>0</strong></div><div class="env-count"><small>heldout</small><strong>0</strong></div></div><div class="env-measures"><div class="env-measure"><span>RL test</span><div class="meter"><b></b></div><span class="env-value error">— ERROR</span></div><div class="env-measure"><span>Validation</span><div class="meter"><b></b></div><span class="env-value pending">— not run</span></div></div><div class="env-scored">0 of 1 task scored</div><div class="env-next"><div class="ticks"><i></i><i></i><i></i><i></i><i></i></div><span>Next: RL test</span></div></article>
+        <article class="env-card"><div class="env-card-head"><div><h3>Assigning severity ratings to dispositive issues</h3><div class="env-code">TP-00006 · 1 doc packaged</div></div><span class="env-built">built</span></div><div class="coverage"><div class="coverage-head"><b>JUDGE COVERAGE</b><span>pass ≥ <strong>0.30</strong> · verifier v1</span></div><p>Given a set of legal issues to address, assign the highest severity rating to the most case-dispositive issues.</p></div><div class="env-counts"><div class="env-count"><small>tasks</small><strong>1</strong></div><div class="env-count"><small>train</small><strong>1</strong></div><div class="env-count"><small>canary</small><strong>0</strong></div><div class="env-count"><small>heldout</small><strong>0</strong></div></div><div class="env-measures"><div class="env-measure"><span>RL test</span><div class="meter"><b></b></div><span class="env-value error">— ERROR</span></div><div class="env-measure"><span>Validation</span><div class="meter"><b></b></div><span class="env-value pending">— not run</span></div></div><div class="env-scored">0 of 1 task scored</div><div class="env-next"><div class="ticks"><i></i><i></i><i></i><i></i><i></i></div><span>Next: RL test</span></div></article>
+      </div>
+      <p class="env-grid-note">The cards answer “what exists and what happened?” The rail answers “what should I do next?” Keep the raw job log one click away for debugging, but don’t make it the instruction manual.</p>
+    </section>
+  </main>
+  <script>
+    const buttons = [...document.querySelectorAll('[data-view]')];
+    const views = [...document.querySelectorAll('.view')];
+    buttons.forEach((button) => button.addEventListener('click', () => {
+      const target = button.dataset.view;
+      buttons.forEach((item) => item.classList.toggle('active', item === button));
+      views.forEach((view) => view.classList.toggle('active', view.id === target));
+    }));
+    document.querySelector('#theme').addEventListener('click', (event) => {
+      const root = document.documentElement;
+      const light = root.dataset.theme !== 'light';
+      root.dataset.theme = light ? 'light' : 'dark';
+      event.currentTarget.textContent = light ? 'dark mode' : 'light mode';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+/**
+ * The seven pipeline stages plus settings.
+ *
+ * Order is the pipeline order and is load bearing: the rail numbers stages
+ * 01–07 by position, and `gates` counts how far down this list the current
+ * progress reaches. `settings` is deliberately not a stage — it is reached from
+ * the rail head, not the numbered list.
+ */
+
+export const STAGES = [
+  { tab: 'benchmarks', label: 'Benchmarks', title: 'Run benchmarks' },
+  { tab: 'results', label: 'Results', title: 'Benchmark results' },
+  { tab: 'failures', label: 'Failure map', title: 'Failure map' },
+  { tab: 'forge', label: 'Data forge', title: 'Forge training documents' },
+  { tab: 'forge-review', label: 'Forge review', title: 'Review training documents' },
+  { tab: 'env-lab', label: 'Env lab', title: 'Environment lab' },
+  { tab: 'cluster', label: 'Cluster handoff', title: 'Cluster handoff' },
+] as const;
+
+export type Stage = (typeof STAGES)[number];
+export type Tab = Stage['tab'] | 'settings';
+
+export const TABS: readonly Tab[] = [...STAGES.map((s) => s.tab), 'settings'];
+
+export const isTab = (value: string): value is Tab => TABS.includes(value as Tab);
+
+/** Zero-padded stage number as shown in the rail: 1 -> "01". */
+export const stageNumber = (index: number) => String(index + 1).padStart(2, '0');
+
+/** Page <title> and the h2 at the top of each tab. */
+export const titleOf = (tab: Tab) =>
+  tab === 'settings'
+    ? 'Settings'
+    : (STAGES.find((s) => s.tab === tab)?.title ?? '');
+
+export const labelOf = (tab: Tab) =>
+  tab === 'settings' ? 'Settings' : (STAGES.find((s) => s.tab === tab)?.label ?? '');

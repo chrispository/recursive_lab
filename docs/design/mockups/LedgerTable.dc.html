@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&display=swap');
+    /* Ink — lifted from public/css/tokens.css, values unchanged. */
+    .sheet {
+      --text-1:#101314; --text-2:#3f4749; --text-3:#636c6e; --text-4:#868f91;
+      --line-soft:#dfe3e2; --line:#cfd5d3; --edge:#7f8886;
+      --black:#eff2f0; --deep:#eaeeec; --panel:#fafbfa;
+      --raised:#e6ebe8; --raised-2:#dbe1de;
+      --brand:#c8452a; --brand-ink:#9b3520; --btn-ink:#fdf7f5;
+      --pass:#26654a; --fail:#9c3126; --run:#1c6178; --warn:#7f5610;
+      --grid:rgba(16,19,20,.05); --wash:rgba(16,19,20,.045); --wash-2:rgba(16,19,20,.08);
+      --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      --sans:'Avenir Next','Segoe UI',Inter,'Adwaita Sans','Noto Sans',system-ui,sans-serif;
+    }
+    .sheet[data-theme='dark'] {
+      --text-1:#f2f2f0; --text-2:#b3b3af; --text-3:#7c7c79; --text-4:#60605d;
+      --line-soft:#1a1a18; --line:#232321; --edge:#5d5d59;
+      --black:#050505; --deep:#080808; --panel:#0a0a0a;
+      --raised:#101010; --raised-2:#151515;
+      --brand:#ff5c35; --brand-ink:#ff5c35; --btn-ink:#160a05;
+      --pass:#4fa76f; --fail:#e46452; --run:#5aa9d6; --warn:#d9a441;
+      --grid:rgba(255,255,255,.027); --wash:rgba(255,255,255,.04); --wash-2:rgba(255,255,255,.07);
+    }
+    body { margin:0; }
+    a { color:var(--brand-ink); } a:hover { color:var(--brand); }
+    .sheet {
+      padding:24px; color:var(--text-2);
+      font:12.5px/1.6 var(--sans); font-variant-numeric:tabular-nums;
+      -webkit-font-smoothing:antialiased;
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        var(--black);
+      background-size:32px 32px;
+    }
+    .sheet * { box-sizing:border-box; }
+    /* .m-tablebox / .m-cap / .m-tally — as shipped. */
+    .box { border:1px solid var(--line); background:var(--panel); }
+    .box + .box { margin-top:16px; }
+    .cap {
+      display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
+      gap:12px; padding:9px 12px; border-bottom:1px solid var(--line); background:var(--deep);
+    }
+    .cap h3 {
+      margin:0; color:var(--text-1);
+      font:600 11px/1.3 var(--sans); letter-spacing:.06em; text-transform:uppercase;
+    }
+    .tally { display:flex; flex-wrap:wrap; align-items:baseline; gap:0; }
+    .tally span { display:inline-flex; align-items:baseline; gap:6px; padding:0 12px; border-right:1px solid var(--line-soft); }
+    .tally span:first-child { padding-left:0; }
+    .tally span:last-child { padding-right:0; border-right:0; }
+    .tally b { color:var(--text-1); font:500 13px/1 var(--mono); }
+    .tally i { color:var(--text-3); font-style:normal; font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+    .tally span.hot b { color:var(--brand-ink); }
+    .code { color:var(--text-3); font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+    .id { color:var(--text-3); font:500 10px/1 var(--mono); letter-spacing:.08em; }
+    /* .m-tablewrap / .m-table — as shipped. */
+    .wrap { overflow-x:auto; }
+    table.t { width:100%; margin:0; border-collapse:collapse; font-size:12.5px; }
+    .t th {
+      padding:7px 12px; color:var(--text-3); border-bottom:1px solid var(--line);
+      text-align:left; font:500 9px/1.4 var(--mono); letter-spacing:.14em;
+      text-transform:uppercase; white-space:nowrap;
+    }
+    .t td { padding:9px 12px; color:var(--text-2); border-bottom:1px solid var(--line-soft); vertical-align:top; }
+    .t tbody tr:last-child td { border-bottom:0; }
+    .t tbody tr:hover td { background:var(--wash); }
+    .t tr.selected td { background:var(--wash-2); }
+    .t th.n, .t td.n { text-align:right; font-family:var(--mono); font-weight:500; }
+    .t .nm { color:var(--text-1); font-weight:500; }
+    .t .sub { display:block; margin-top:2px; color:var(--text-3); font-size:10px; }
+    .t td:first-child { border-left:3px solid transparent; }
+    .t tr[data-state='succeeded'] td:first-child { border-left-color:var(--pass); }
+    .t tr[data-state='failed'] td:first-child,
+    .t tr[data-state='error'] td:first-child { border-left-color:var(--fail); }
+    .t tr[data-state='running'] td:first-child { border-left-color:var(--run); }
+    .t tr[data-state='pending'] td:first-child { border-left-color:var(--warn); }
+    /* Numbers carry the verdict; only the states numbers cannot express get a word. */
+    .t .good { color:var(--pass); }
+    .t .bad  { color:var(--fail); }
+    .t .none { color:var(--text-4); }
+    .t .flag { color:var(--fail); font:500 9px/1.7 var(--mono); letter-spacing:.12em; text-transform:uppercase; }
+    .t .flag.warn { color:var(--warn); }
+    /* Inline share bar, in the cell rather than a column of its own. */
+    .meter { display:block; width:64px; height:3px; margin:5px 0 0 auto; background:var(--line-soft); }
+    .meter > i { display:block; height:100%; background:var(--pass); }
+    .meter > i[data-below='1'] { background:var(--warn); }
+    .meter > i[data-below='2'] { background:var(--fail); }
+    .lab { color:var(--text-4); }
+  </style>
+</helmet>
+<div class="sheet" data-theme="{{theme}}">
+  <section class="box">
+    <div class="cap">
+      <h3>Benchmark run ledger</h3>
+      <div class="tally">
+        <span><b>4</b><i>runs</i></span>
+        <span><b>1</b><i>running</i></span>
+        <span class="hot"><b>1</b><i>could not complete</i></span>
+      </div>
+    </div>
+    <div class="wrap">
+      <table class="t">
+        <thead>
+          <tr>
+            <th>Run</th><th>Model</th>
+            <th class="n">Tasks</th><th class="n">Passed</th><th class="n">Failed</th>
+            <th class="n">Checks</th><th class="n">Passed</th><th class="n">Failed</th>
+            <th class="n">Rollouts</th><th class="n">Runtime</th><th>Started</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-state="running">
+            <td>
+              <span class="nm">harvey_004</span>
+              <span class="sub">BR-00012 · Harvey Labs <span class="lab">· Harvey</span></span>
+            </td>
+            <td>glm-5.2<span class="sub">2 repeats · temp 0.6</span></td>
+            <td class="n">12</td>
+            <td class="n none">—</td>
+            <td class="n none">—</td>
+            <td class="n">96</td>
+            <td class="n none">—</td>
+            <td class="n none">—</td>
+            <td class="n">9</td>
+            <td class="n">6m 41s</td>
+            <td>18 Aug 09:52<span class="sub">37% complete</span></td>
+          </tr>
+          <tr data-state="succeeded" class="selected">
+            <td>
+              <span class="nm">harvey_003</span>
+              <span class="sub">BR-00010 · Harvey Labs <span class="lab">· Harvey</span></span>
+            </td>
+            <td>glm-5.2<span class="sub">1 repeat · temp 0.6</span></td>
+            <td class="n">1</td>
+            <td class="n good">1</td>
+            <td class="n">0</td>
+            <td class="n">1</td>
+            <td class="n good">1<span class="meter"><i style="width:100%"></i></span></td>
+            <td class="n">0</td>
+            <td class="n">1</td>
+            <td class="n">2m 08s</td>
+            <td>18 Aug 08:14</td>
+          </tr>
+          <tr data-state="error">
+            <td>
+              <span class="nm">harvey_002</span>
+              <span class="sub">BR-00009 · Harvey Labs <span class="lab">· Harvey</span></span>
+            </td>
+            <td>glm-5.2<span class="sub">1 repeat · temp 0.6</span></td>
+            <td class="n">1</td>
+            <td class="n">0</td>
+            <td class="n">0</td>
+            <td class="n none">0</td>
+            <td class="n none">—</td>
+            <td class="n none">—</td>
+            <td class="n">1</td>
+            <td class="n">9m 30s</td>
+            <td>17 Aug 17:03<span class="sub"><span class="flag">Error · judge timeout</span></span></td>
+          </tr>
+          <tr data-state="pending">
+            <td>
+              <span class="nm">harvey_001</span>
+              <span class="sub">BR-00008 · Harvey Labs <span class="lab">· Harvey</span></span>
+            </td>
+            <td>glm-5.2<span class="sub">1 repeat · temp 0.6</span></td>
+            <td class="n">1</td>
+            <td class="n none">—</td>
+            <td class="n none">—</td>
+            <td class="n none">—</td>
+            <td class="n none">—</td>
+            <td class="n none">—</td>
+            <td class="n none">—</td>
+            <td class="n none">—</td>
+            <td>17 Aug 16:41<span class="sub"><span class="flag warn">Never ran</span></span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1180,"height":260}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'light' };
+  }
+}
+</script>
+</body>
+</html>

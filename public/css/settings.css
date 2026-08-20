@@ -1,0 +1,10 @@
+/* The Settings tab is a single column of panels, spaced like every other tab.
+   Component styling — titles, panels, badges, fields, status lists, storage
+   rows — all comes from the shared ledger styles. This file only supplies the
+   vertical rhythm the page and the gym fragment need. */
+
+.m-settings-page,
+.m-settings-page #settings-gym {
+  display: grid;
+  gap: var(--s4);
+}

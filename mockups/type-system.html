@@ -1,0 +1,1233 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Type system — env lab 05</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ===========================================================================
+   Tokens lifted verbatim from public/css/tokens.css so the mockup sits in the
+   real palette. Only the TYPE tokens are new — they are the proposal.
+   ======================================================================== */
+:root, :root[data-theme='light'] {
+  color-scheme: light;
+  --text-1:#101314; --text-2:#3f4749; --text-3:#636c6e; --text-4:#868f91;
+  --line-soft:#dfe3e2; --line:#cfd5d3; --edge:#7f8886;
+  --black:#eff2f0; --deeper:#e3e8e5; --deep:#eaeeec; --panel:#fafbfa;
+  --raised:#e6ebe8; --raised-2:#dbe1de; --code-bg:#dfe5e2; --focus-bg:#fdfffe;
+  --brand:#c8452a; --brand-ink:#9b3520; --brand-press:#a8371f; --btn-ink:#fdf7f5;
+  --pass:#26654a; --fail:#9c3126; --run:#1c6178; --violet:#6655a4; --warn:#7f5610;
+  --grid:rgba(16,19,20,.05); --wash:rgba(16,19,20,.045); --wash-2:rgba(16,19,20,.08);
+  --inset:rgba(16,19,20,.025); --shadow:rgba(25,45,40,.18);
+  --hover-border:#6b7472;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --text-1:#f2f2f0; --text-2:#b3b3af; --text-3:#7c7c79; --text-4:#60605d;
+  --line-soft:#1a1a18; --line:#232321; --edge:#5d5d59;
+  --black:#050505; --deeper:#070707; --deep:#080808; --panel:#0a0a0a;
+  --raised:#101010; --raised-2:#151515; --code-bg:#060606; --focus-bg:#0c0c0c;
+  --brand:#ff5c35; --brand-ink:#ff5c35; --brand-press:#d9481f; --btn-ink:#160a05;
+  --pass:#4fa76f; --fail:#e46452; --run:#5aa9d6; --violet:#bdb5e9; --warn:#d9a441;
+  --grid:rgba(255,255,255,.027); --wash:rgba(255,255,255,.04); --wash-2:rgba(255,255,255,.07);
+  --inset:rgba(255,255,255,.012); --shadow:rgba(0,0,0,.5);
+  --hover-border:#777;
+}
+:root{
+  --sans:'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* PROPOSED SCALE — 7 steps, nothing between them, 11px floor. */
+  --t-2xs:11px;  /* ids and column micro-heads only */
+  --t-xs:12px;   /* labels, badges, secondary meta */
+  --t-sm:13px;   /* dense table cells, controls, buttons */
+  --t-md:14px;   /* body / reading default */
+  --t-lg:17px;   /* section + card headings */
+  --t-xl:21px;   /* page title */
+  --t-2xl:28px;  /* the one number that matters */
+
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+*{margin:0}
+body{
+  min-height:100vh; color:var(--text-2);
+  background:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+    var(--black);
+  background-size:32px 32px;
+  font:400 var(--t-md)/1.6 var(--sans);
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+b,strong{font-weight:600}
+i,em{font-style:normal}
+
+/* --- document chrome ---------------------------------------------------- */
+.doc{max-width:1360px;margin:0 auto;padding:var(--s6) var(--s5) var(--s7)}
+
+.masthead{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:var(--s5);
+  flex-wrap:wrap;padding-bottom:var(--s4);border-bottom:1px solid var(--line);
+}
+.masthead h1{
+  color:var(--text-1);font:700 var(--t-xl)/1.15 var(--sans);letter-spacing:-.02em;
+}
+.masthead p{color:var(--text-3);font-size:var(--t-sm);margin-top:6px;max-width:64ch}
+.kicker{
+  color:var(--brand-ink);font:600 var(--t-xs)/1 var(--sans);
+  letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:10px;
+}
+.chrome-tools{display:flex;gap:var(--s2);align-items:center}
+
+button{
+  font-family:inherit;border-radius:2px;cursor:pointer;
+  font:600 var(--t-sm)/1 var(--sans);
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:32px;padding:0 14px;
+  color:var(--btn-ink);background:var(--brand);border:1px solid var(--brand);
+  transition:.15s var(--ease);
+}
+button:hover{background:var(--brand-press);border-color:var(--brand-press)}
+button.sec{color:var(--text-1);background:var(--raised);border-color:var(--edge)}
+button.sec:hover{background:var(--raised-2);border-color:var(--hover-border)}
+button.ghost{color:var(--text-3);background:transparent;border-color:transparent;padding:0 8px}
+button.ghost:hover{color:var(--text-1);background:var(--wash)}
+button:disabled{opacity:.36;cursor:not-allowed}
+button.sm{min-height:26px;padding:0 10px;font-size:var(--t-xs)}
+
+section.block{margin-top:var(--s7)}
+.block > h2{
+  color:var(--text-1);font:600 var(--t-lg)/1.25 var(--sans);letter-spacing:-.01em;
+  display:flex;align-items:baseline;gap:10px;
+}
+.block > h2 .num{
+  color:var(--text-4);font:500 var(--t-2xs)/1 var(--mono);letter-spacing:.1em;
+}
+.block > .lede{color:var(--text-3);font-size:var(--t-md);max-width:74ch;margin-top:8px}
+
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:var(--s3);margin-top:var(--s4)}
+.card{
+  border:1px solid var(--line);border-top:2px solid var(--line);background:var(--panel);
+  padding:var(--s4);box-shadow:inset 0 0 0 1px var(--inset);
+}
+.card[data-tone='bad']{border-top-color:var(--fail)}
+.card[data-tone='warn']{border-top-color:var(--warn)}
+.card[data-tone='good']{border-top-color:var(--pass)}
+.card h3{color:var(--text-1);font:600 var(--t-md)/1.3 var(--sans);margin-bottom:6px}
+.card .figure{display:block;color:var(--text-1);font:600 var(--t-2xl)/1 var(--sans);letter-spacing:-.02em;margin:2px 0 10px}
+.card[data-tone='bad'] .figure{color:var(--fail)}
+.card[data-tone='warn'] .figure{color:var(--warn)}
+.card[data-tone='good'] .figure{color:var(--pass)}
+.card p{color:var(--text-3);font-size:var(--t-sm);line-height:1.55}
+
+/* --- specimen ----------------------------------------------------------- */
+.specimen{border:1px solid var(--line);background:var(--panel);margin-top:var(--s4)}
+.specimen-head{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--s3);
+  padding:10px 14px;background:var(--deep);border-bottom:1px solid var(--line);
+  border-left:3px solid var(--brand);
+}
+.specimen-head h3{
+  color:var(--text-1);font:600 var(--t-xs)/1.3 var(--sans);
+  letter-spacing:.09em;text-transform:uppercase;
+}
+.specimen-head .side{color:var(--text-3);font:400 var(--t-2xs)/1 var(--mono);letter-spacing:.08em}
+.rowset > div{
+  display:grid;grid-template-columns:118px 88px 1fr;gap:var(--s4);align-items:baseline;
+  padding:11px 14px;border-bottom:1px solid var(--line-soft);
+}
+.rowset > div:last-child{border-bottom:0}
+.rowset .tok{color:var(--text-3);font:400 var(--t-2xs)/1.4 var(--mono);letter-spacing:.04em}
+.rowset .use{color:var(--text-3);font-size:var(--t-xs)}
+.rowset .sample{color:var(--text-1);min-width:0}
+.rowset.old > div{grid-template-columns:118px 1fr}
+.rowset.old .sample{color:var(--text-2)}
+.dead{color:var(--fail);text-decoration:line-through;text-decoration-thickness:1px}
+
+/* --- audit table -------------------------------------------------------- */
+table.audit{width:100%;border-collapse:collapse;margin-top:var(--s4);background:var(--panel);border:1px solid var(--line)}
+table.audit th,table.audit td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+table.audit thead th{
+  background:var(--deep);color:var(--text-2);font:600 var(--t-xs)/1.3 var(--sans);
+  letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--line);
+}
+table.audit tbody th{color:var(--text-1);font:600 var(--t-sm)/1.45 var(--sans);width:23%}
+table.audit td{color:var(--text-3);font-size:var(--t-sm);line-height:1.5}
+table.audit td.n{
+  width:74px;color:var(--fail);font:600 var(--t-md)/1.4 var(--sans);
+  font-variant-numeric:tabular-nums;
+}
+table.audit tbody tr:last-child th,table.audit tbody tr:last-child td{border-bottom:0}
+
+/* --- variant switcher --------------------------------------------------- */
+.switcher{
+  position:sticky;top:0;z-index:9;display:flex;flex-wrap:wrap;gap:2px;align-items:center;
+  margin-top:var(--s4);padding:8px;border:1px solid var(--line);
+  background:var(--panel);box-shadow:0 6px 18px -14px var(--shadow);
+}
+.switcher .lab{
+  color:var(--text-4);font:500 var(--t-2xs)/1 var(--mono);letter-spacing:.1em;
+  text-transform:uppercase;padding:0 10px 0 4px;
+}
+.switcher button{
+  background:transparent;border-color:transparent;color:var(--text-3);
+  min-height:30px;font-weight:500;
+}
+.switcher button:hover{background:var(--wash);color:var(--text-1)}
+.switcher button.on{background:var(--wash-2);color:var(--text-1);font-weight:600;box-shadow:inset 0 -2px 0 var(--brand)}
+.switcher .spacer{margin-left:auto}
+
+.variant{display:none;margin-top:var(--s4)}
+.variant.on{display:block}
+.variant > .intro{
+  border:1px solid var(--line);border-left:3px solid var(--violet);
+  background:var(--panel);padding:var(--s4);margin-bottom:var(--s4);
+}
+.variant > .intro h3{color:var(--text-1);font:600 var(--t-lg)/1.25 var(--sans);letter-spacing:-.01em}
+.variant > .intro p{color:var(--text-3);font-size:var(--t-md);margin-top:8px;max-width:80ch}
+.variant > .intro ul{margin:10px 0 0 18px;color:var(--text-3);font-size:var(--t-sm);line-height:1.7}
+
+/* ===========================================================================
+   THE APP SHELL — shared by every variant
+   ======================================================================== */
+.app{border:1px solid var(--line);background:var(--black);display:grid;grid-template-columns:186px minmax(0,1fr)}
+.rail{border-right:1px solid var(--line);background:var(--deeper);display:flex;flex-direction:column}
+.railhead{padding:15px 14px;border-bottom:1px solid var(--line)}
+.wordmark{color:var(--text-1);font:500 var(--t-lg)/1 var(--sans);letter-spacing:-.045em}
+.wordmark span{color:var(--brand);font-size:1.1em}
+.rail a{
+  display:grid;grid-template-columns:20px 1fr;align-items:center;gap:9px;padding:10px 14px;
+  color:var(--text-3);border-bottom:1px solid var(--line-soft);
+  font:500 var(--t-sm)/1.3 var(--sans);
+}
+.rail a .n{color:var(--text-4);font:400 var(--t-2xs)/1 var(--mono);letter-spacing:.06em}
+.rail a.on{color:var(--text-1);background:var(--wash-2);box-shadow:inset 2px 0 0 var(--brand);font-weight:600}
+.rail a.on .n{color:var(--brand-ink)}
+.rail a.locked{color:var(--text-4)}
+.railfoot{margin-top:auto;padding:12px 14px;border-top:1px solid var(--line);color:var(--text-4);font-size:var(--t-xs)}
+.railfoot i{color:var(--pass)}
+
+.main{padding:var(--s5);min-width:0}
+.ptitle h2{color:var(--text-1);font:700 var(--t-xl)/1.2 var(--sans);letter-spacing:-.02em}
+.ptitle p{color:var(--text-3);font-size:var(--t-md);margin-top:8px;max-width:66ch}
+.ptitle{padding-bottom:var(--s3);border-bottom:1px solid var(--line)}
+
+.runctx{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--s4);flex-wrap:wrap;
+  margin-top:var(--s3);padding:10px 12px;border:1px solid var(--line);
+  background:linear-gradient(105deg,color-mix(in srgb,var(--run) 9%,var(--deep)) 0%,var(--deep) 38%,color-mix(in srgb,var(--violet) 7%,var(--deep)) 100%);
+}
+.runctx .left{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.runctx .code{color:var(--text-3);font:400 var(--t-2xs)/1 var(--mono);letter-spacing:.06em}
+.runctx .name{color:var(--text-1);font:600 var(--t-md)/1 var(--sans)}
+.runctx .tally{display:inline-flex;align-items:baseline;border-left:1px solid var(--line-soft)}
+.runctx .tally > span{display:inline-flex;align-items:baseline;gap:6px;padding:0 12px;border-right:1px solid var(--line-soft)}
+.runctx .tally > span:last-child{border-right:0;padding-right:0}
+.runctx .tally b{color:var(--text-1);font:600 var(--t-sm)/1 var(--sans)}
+.runctx .tally i{color:var(--text-3);font-size:var(--t-xs)}
+.runctx .switch{color:var(--text-3);font-size:var(--t-sm)}
+
+.box{margin-top:var(--s4);border:1px solid var(--line);background:var(--panel)}
+.cap{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--s3);
+  padding:10px 14px;border-bottom:1px solid var(--line);border-left:3px solid var(--brand);background:var(--deep);
+}
+.cap h3{color:var(--text-1);font:600 var(--t-xs)/1.3 var(--sans);letter-spacing:.09em;text-transform:uppercase}
+.cap .code{color:var(--text-3);font:400 var(--t-2xs)/1 var(--mono);letter-spacing:.06em}
+.tally{display:flex;flex-wrap:wrap;align-items:baseline}
+.tally > span{display:inline-flex;align-items:baseline;gap:6px;padding:0 13px;border-right:1px solid var(--line-soft)}
+.tally > span:first-child{padding-left:0}
+.tally > span:last-child{border-right:0;padding-right:0}
+.tally b{color:var(--text-1);font:600 var(--t-sm)/1 var(--sans)}
+.tally i{color:var(--text-3);font-size:var(--t-xs)}
+.tally span.hot b{color:var(--brand-ink)}
+
+.badge{font:500 var(--t-xs)/1.4 var(--sans);color:var(--text-3)}
+.badge.ready,.badge.pass{color:var(--pass)}
+.badge.error,.badge.fail{color:var(--fail)}
+.badge.running{color:var(--run)}
+.badge.pending{color:var(--warn)}
+.id{color:var(--text-3);font:400 var(--t-2xs)/1 var(--mono);letter-spacing:.06em}
+.path{color:var(--text-3);font:400 var(--t-2xs)/1.5 var(--mono)}
+
+.meter{position:relative;display:block;height:7px;background:var(--raised-2);min-width:60px}
+.meter > i{position:absolute;inset:0 auto 0 0;background:var(--pass)}
+.meter > b{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--text-1)}
+.meter[data-s='fail'] > i{background:var(--fail)}
+.meter[data-s='none'] > i{background:var(--raised-2)}
+.meter[data-s='err'] > i{background:var(--warn)}
+
+.panel{margin-top:var(--s4);border:1px solid var(--line);background:var(--panel)}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--s3);
+  padding:10px 14px;border-bottom:1px solid var(--line);background:var(--deep);
+}
+.panel-head h3{color:var(--text-1);font:600 var(--t-xs)/1.3 var(--sans);letter-spacing:.09em;text-transform:uppercase}
+.panel-head .code{color:var(--text-3);font:400 var(--t-2xs)/1 var(--mono);letter-spacing:.06em}
+.panel-body{padding:var(--s4)}
+
+table.grid{width:100%;border-collapse:collapse}
+table.grid th,table.grid td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line-soft)}
+table.grid thead th{
+  color:var(--text-2);font:600 var(--t-xs)/1.3 var(--sans);letter-spacing:.07em;text-transform:uppercase;
+  background:var(--deep);border-bottom:1px solid var(--line);white-space:nowrap;
+}
+table.grid tbody th{color:var(--text-1);font:600 var(--t-sm)/1.4 var(--sans)}
+table.grid td{color:var(--text-2);font-size:var(--t-sm)}
+table.grid td.n,table.grid th.n{text-align:right;font-variant-numeric:tabular-nums}
+table.grid tbody tr:hover{background:var(--wash)}
+table.grid tfoot th,table.grid tfoot td{
+  border-top:1px solid var(--line);border-bottom:0;color:var(--text-2);
+  font-size:var(--t-sm);font-weight:600;background:var(--deep);
+}
+
+/* --- split queue -------------------------------------------------------- */
+.split{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr)}
+.queue{border-right:1px solid var(--line);background:var(--deep);display:flex;flex-direction:column}
+.queue-tools{display:flex;flex-wrap:wrap;gap:2px;padding:8px;background:var(--panel);border-bottom:1px solid var(--line)}
+.qfilter{
+  background:transparent;border:1px solid transparent;color:var(--text-3);
+  min-height:26px;padding:0 9px;font:500 var(--t-xs)/1 var(--sans);
+}
+.qfilter:hover{background:var(--wash);color:var(--text-1)}
+.qfilter.on{color:var(--text-1);background:var(--wash-2);border-color:var(--line);font-weight:600}
+.qrow{
+  display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:start;gap:10px;
+  width:100%;text-align:left;padding:12px 14px;border-bottom:1px solid var(--line-soft);
+  background:transparent;border-left:2px solid transparent;color:inherit;
+  min-height:0;border-radius:0;font:inherit;
+}
+.qrow:hover{background:var(--wash)}
+.qrow.on{background:var(--panel);border-left-color:var(--brand)}
+.qrow .dot{width:7px;height:7px;margin-top:6px;background:var(--text-4);border-radius:50%}
+.qrow .dot.ok{background:var(--pass)} .qrow .dot.bad{background:var(--fail)}
+.qrow .dot.run{background:var(--run)} .qrow .dot.wait{background:var(--warn)}
+.qrow strong{display:block;color:var(--text-1);font:600 var(--t-sm)/1.35 var(--sans)}
+.qrow small{display:block;margin-top:3px;color:var(--text-3);font:400 var(--t-xs)/1.45 var(--sans)}
+.detail{padding:var(--s5);min-width:0}
+.detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s4);flex-wrap:wrap}
+.detail-head h4{color:var(--text-1);font:600 var(--t-lg)/1.25 var(--sans);letter-spacing:-.01em}
+.detail-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;color:var(--text-3);font-size:var(--t-xs)}
+.detail-meta > span{display:inline-flex;gap:5px;align-items:baseline}
+
+.eyebrow{color:var(--text-4);font:600 var(--t-xs)/1 var(--sans);letter-spacing:.09em;text-transform:uppercase}
+.reading p{color:var(--text-3);font-size:var(--t-md);line-height:1.6;max-width:70ch}
+.reading h5{color:var(--text-1);font:600 var(--t-md)/1.3 var(--sans);margin-bottom:6px}
+
+.measures{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:var(--s3);margin-top:var(--s3)}
+.measure{border:1px solid var(--line-soft);border-top:2px solid var(--line-soft);background:var(--deep);padding:12px}
+.measure[data-s='pass']{border-top-color:var(--pass)}
+.measure[data-s='fail']{border-top-color:var(--fail)}
+.measure[data-s='none']{border-top-color:var(--line)}
+.measure .mh{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.measure .mh strong{color:var(--text-1);font:600 var(--t-sm)/1.3 var(--sans)}
+.measure .mm{display:flex;align-items:center;gap:10px;margin:10px 0 8px}
+.measure .mm b{color:var(--text-1);font:600 var(--t-md)/1 var(--sans);font-variant-numeric:tabular-nums}
+.measure small{color:var(--text-3);font-size:var(--t-xs);line-height:1.5}
+
+.stagestrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s2);margin-top:var(--s4)}
+.stagestrip > div{
+  padding:10px;border:1px solid var(--line-soft);border-top:2px solid var(--line-soft);background:var(--deep);
+}
+.stagestrip > div[data-s='done']{border-top-color:var(--pass)}
+.stagestrip > div[data-s='active']{border-top-color:var(--run)}
+.stagestrip .sn{color:var(--text-4);font:400 var(--t-2xs)/1 var(--mono);letter-spacing:.08em}
+.stagestrip strong{display:block;margin-top:4px;color:var(--text-1);font:600 var(--t-sm)/1.3 var(--sans)}
+.stagestrip span.st{display:block;margin-top:2px;color:var(--text-3);font-size:var(--t-xs)}
+
+.tabs{display:flex;gap:2px;margin-top:var(--s4);border-bottom:1px solid var(--line)}
+.tabs button{
+  background:transparent;border:0;color:var(--text-3);min-height:32px;padding:0 12px;
+  font:500 var(--t-sm)/1 var(--sans);
+}
+.tabs button.on{color:var(--text-1);font-weight:600;box-shadow:inset 0 -2px 0 var(--brand)}
+.tabs button:hover{color:var(--text-1);background:var(--wash)}
+
+/* subway */
+.subway{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+.stop{padding:var(--s4);border-right:1px solid var(--line-soft);display:grid;gap:8px;align-content:start}
+.stop:last-child{border-right:0}
+.stop[data-s='done']{background:color-mix(in srgb,var(--pass) 5%,transparent)}
+.stop[data-s='active']{background:color-mix(in srgb,var(--run) 7%,transparent)}
+.stop .sname{color:var(--text-1);font:600 var(--t-md)/1.3 var(--sans)}
+.stop .sstate{color:var(--text-3);font-size:var(--t-sm)}
+.stop .strack{position:relative;height:5px;background:var(--raised-2)}
+.stop .strack i{position:absolute;inset:0 auto 0 0;background:var(--text-3)}
+.stop[data-s='done'] .strack i{background:var(--pass)}
+.stop[data-s='active'] .strack i{background:var(--run)}
+.stop .smeta{display:flex;justify-content:space-between;gap:8px;color:var(--text-3);font-size:var(--t-xs)}
+.stop .smeta b{font-weight:600}
+.stop button{width:100%}
+
+.settings-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--s4);padding:var(--s4);border-top:1px solid var(--line-soft)}
+.settings-row .f small{display:block;color:var(--text-3);font-size:var(--t-xs)}
+.settings-row .f strong{display:block;margin-top:3px;color:var(--text-1);font:600 var(--t-sm)/1.4 var(--sans)}
+.settings-row input{
+  width:100%;margin-top:3px;padding:6px 9px;color:var(--text-1);background:var(--raised);
+  border:1px solid var(--line);border-radius:0;font:500 var(--t-sm)/1.4 var(--sans);
+}
+
+.note{color:var(--text-3);font-size:var(--t-sm);line-height:1.6}
+.empty{padding:var(--s5);text-align:center;color:var(--text-4);font-size:var(--t-sm)}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line-soft)}
+.tiles > div{background:var(--panel);padding:12px 14px}
+.tiles small{display:block;color:var(--text-3);font-size:var(--t-xs)}
+.tiles strong{display:block;margin-top:4px;color:var(--text-1);font:600 var(--t-lg)/1.1 var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+.ledgerrow{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--s4);flex-wrap:wrap;
+  padding:12px 14px;border-bottom:1px solid var(--line-soft);
+}
+.ledgerrow:last-of-type{border-bottom:0}
+.ledgerrow .lt{color:var(--text-1);font:600 var(--t-sm)/1.4 var(--sans)}
+.ledgerrow .lm{margin-top:2px;color:var(--text-3);font-size:var(--t-xs)}
+
+.flag{
+  display:flex;gap:10px;align-items:flex-start;padding:11px 14px;
+  border-left:2px solid var(--warn);background:color-mix(in srgb,var(--warn) 7%,transparent);
+  color:var(--text-2);font-size:var(--t-sm);line-height:1.55;
+}
+.flag.good{border-left-color:var(--pass);background:color-mix(in srgb,var(--pass) 7%,transparent)}
+.flag.bad{border-left-color:var(--fail);background:color-mix(in srgb,var(--fail) 7%,transparent)}
+
+.cmdbar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:var(--s3);
+  padding:var(--s3) var(--s4);border:1px solid var(--line);border-top:2px solid var(--brand);
+  background:var(--panel);margin-top:var(--s4);
+}
+.cmdbar .step{display:flex;align-items:center;gap:8px;padding-right:var(--s3);border-right:1px solid var(--line-soft)}
+.cmdbar .step:last-of-type{border-right:0}
+.cmdbar .step .tick{
+  width:18px;height:18px;display:grid;place-items:center;border:1px solid var(--line);
+  color:var(--text-4);font:600 10px/1 var(--sans);
+}
+.cmdbar .step[data-s='done'] .tick{border-color:var(--pass);color:var(--pass)}
+.cmdbar .step[data-s='active'] .tick{border-color:var(--run);color:var(--run)}
+.cmdbar .step .sl{color:var(--text-1);font:600 var(--t-sm)/1.2 var(--sans)}
+.cmdbar .step .ss{color:var(--text-3);font-size:var(--t-xs)}
+.cmdbar .grow{margin-left:auto;display:flex;gap:var(--s2);align-items:center}
+
+.expand{background:var(--deep);border-bottom:1px solid var(--line-soft)}
+.expand-inner{padding:var(--s4) var(--s4) var(--s5);display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:var(--s5)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px var(--s4);align-items:baseline}
+.kv dt{color:var(--text-3);font-size:var(--t-xs)}
+.kv dd{color:var(--text-1);font-size:var(--t-sm);font-weight:500;text-align:right}
+
+.mono-legit{background:var(--code-bg);padding:10px 12px;border:1px solid var(--line-soft);color:var(--text-2);font:400 var(--t-sm)/1.6 var(--mono);white-space:pre-wrap;overflow-x:auto}
+
+.footnote{margin-top:var(--s6);padding-top:var(--s4);border-top:1px solid var(--line);color:var(--text-4);font-size:var(--t-xs)}
+
+@media (max-width:1080px){
+  .app{grid-template-columns:1fr}
+  .rail{flex-direction:row;flex-wrap:wrap;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .split{grid-template-columns:1fr}
+  .queue{border-right:0;border-bottom:1px solid var(--line)}
+  .subway{grid-template-columns:repeat(2,1fr)}
+  .expand-inner{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="masthead">
+  <div>
+    <span class="kicker">Design note · stage 05</span>
+    <h1>Type system and the env lab</h1>
+    <p>Three problems — three font families doing one job, nineteen shipped type sizes across five tokens, and a page that states the same six-row dataset seven times. Below: the evidence, a proposed scale, and three mockups of the env lab under it.</p>
+  </div>
+  <div class="chrome-tools">
+    <button class="sec" id="themeBtn" type="button">Dark</button>
+  </div>
+</header>
+
+<!-- ====================================================================== -->
+<section class="block">
+  <h2><span class="num">01</span> What is actually shipping</h2>
+  <p class="lede">Counted from <code style="font:400 13px/1 var(--mono)">public/css/*.css</code> as of this branch. None of these are estimates.</p>
+
+  <div class="cardgrid">
+    <div class="card" data-tone="bad">
+      <h3>Font families</h3>
+      <span class="figure">3</span>
+      <p>Manrope, Inter, and IBM Plex Mono are all pulled from Google Fonts at four weights each — twelve files. Inter sits in <b>--sans</b> only as a fallback behind Manrope, so it should never render — except that four rules in <b>results.css</b> (lines 30, 61, 89, 95) hardcode it into <i>first</i> position at 10.5px, and those rules are the panel captions and evidence heads used on every page. The captions are therefore set in a different family than every other heading in the app, for no stated reason. <b>base.css</b> also re-declares IBM Plex Mono via local <b>@font-face</b>, duplicating the Google copy, and <b>public/fonts/dm-mono-500.woff2</b> ships without a single reference.</p>
+    </div>
+    <div class="card" data-tone="bad">
+      <h3>Distinct type sizes</h3>
+      <span class="figure">19</span>
+      <p>Against a scale of five tokens. The extras: 9, 10, 10.5, 11, 11.5, 12, 12.5, 14, 16, 18, 19, 20px and two clamps. Nine of them land within 1px of a token they should have used. Nobody perceives a 10 vs 10.5 vs 11px distinction — it reads as inconsistency, not hierarchy.</p>
+    </div>
+    <div class="card" data-tone="warn">
+      <h3>Mono declarations</h3>
+      <span class="figure">46</span>
+      <p>Thirty-five of them are at 9–11px, most uppercase with letter-spacing. That is the least legible combination available, and it is carrying words like <i>package</i>, <i>not built</i>, and <i>recommended path</i> — prose, not data. Mono is being used as a texture.</p>
+    </div>
+    <div class="card" data-tone="warn">
+      <h3>Uppercase rules</h3>
+      <span class="figure">42</span>
+      <p>Stacked on top of small sizes and mono, uppercase is a third legibility tax on the same text. It should mark exactly one role in the app, not eight.</p>
+    </div>
+    <div class="card" data-tone="warn">
+      <h3>Font weights</h3>
+      <span class="figure">5</span>
+      <p>400, 500, 600, 650, and 700. 600 and 650 are used interchangeably for the same job — headings — and are barely separable in Manrope. Three weights cover everything this app does.</p>
+    </div>
+    <div class="card" data-tone="bad">
+      <h3>Reading size</h3>
+      <span class="figure">12.5px</span>
+      <p><b>--t-body</b> is the default for every paragraph, including the page lede and the review-inbox explainers — sentences you actually read, not scan. It sits half a pixel from <b>--t-data</b> (13px), which is not a scale step; it is noise.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<section class="block">
+  <h2><span class="num">02</span> Where mono is earning its keep, and where it is not</h2>
+  <p class="lede">There are exactly three jobs that need a monospaced face. Everything else in the current 46 declarations is decoration, and it is the decoration that is making the page feel noisy.</p>
+
+  <div class="specimen">
+    <div class="specimen-head"><h3>Keep mono</h3><span class="side">3 roles</span></div>
+    <div class="rowset">
+      <div><span class="tok">.m-id</span><span class="use">Entity ids</span><span class="sample"><span class="id">ENV-00042</span> &nbsp; <span class="id">EVL-00318</span> &nbsp; <span class="id">JOB-01907</span><br><span style="color:var(--text-3);font-size:var(--t-xs)">You compare these character by character. Fixed advance width is the whole point.</span></span></div>
+      <div><span class="tok">paths</span><span class="use">Filesystem</span><span class="sample"><span class="path">~/.recursive/envs/async-error-propagation/taskset/heldout.jsonl</span><br><span style="color:var(--text-3);font-size:var(--t-xs)">Copy-pasteable, and the reader needs to see exactly which characters are there.</span></span></div>
+      <div><span class="tok">pre / code</span><span class="use">Job log</span><span class="sample"><span class="mono-legit">14:22:07  rollout 3/4  env=async-error-propagation  reward=0.412
+14:22:09  rollout 4/4  env=async-error-propagation  reward=0.388</span></span></div>
+    </div>
+  </div>
+
+  <div class="specimen">
+    <div class="specimen-head"><h3>Drop mono</h3><span class="side">the other 43</span></div>
+    <div class="rowset">
+      <div><span class="tok">--t-micro</span><span class="use">Stage labels</span><span class="sample"><span style="font:500 10px/1.2 var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)">01 package → 02 rl smoke → 03 validation</span> &nbsp;<span class="dead" style="font-size:var(--t-xs)">before</span><br><span style="font:500 var(--t-sm)/1.4 var(--sans);color:var(--text-1);margin-top:4px;display:inline-block">Package → RL smoke → Validation</span> <span style="color:var(--pass);font-size:var(--t-xs)">after</span></span></div>
+      <div><span class="tok">--t-micro</span><span class="use">Next-action copy</span><span class="sample"><span style="font:500 10px/1.35 var(--mono);color:var(--text-3)">reward recorded · 12 tasks scored · spread ±0.061</span> &nbsp;<span class="dead" style="font-size:var(--t-xs)">before</span><br><span style="font:400 var(--t-xs)/1.5 var(--sans);color:var(--text-3);margin-top:4px;display:inline-block">Reward recorded · 12 tasks scored · spread ±0.061</span> <span style="color:var(--pass);font-size:var(--t-xs)">after</span></span></div>
+      <div><span class="tok">--t-data</span><span class="use">Numerals</span><span class="sample"><span style="font:500 13px/1.2 var(--mono);color:var(--text-1)">0.412 &nbsp; 0.388 &nbsp; 0.501</span> &nbsp;<span class="dead" style="font-size:var(--t-xs)">before</span><br><span style="font:600 var(--t-md)/1.2 var(--sans);color:var(--text-1);font-variant-numeric:tabular-nums;margin-top:4px;display:inline-block">0.412 &nbsp; 0.388 &nbsp; 0.501</span> <span style="color:var(--pass);font-size:var(--t-xs)">after</span></span></div>
+    </div>
+  </div>
+
+  <div class="flag good" style="margin-top:var(--s3)">
+    <span><b>The decisive point on numerals:</b> <code style="font:400 13px/1 var(--mono)">body</code> in <b>base.css</b> already sets <code style="font:400 13px/1 var(--mono)">font-variant-numeric: tabular-nums</code>. Manrope's tabular figures already align in columns. Mono was never buying number alignment — that argument for keeping it in tables, tallies, and meters does not hold.</span>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<section class="block">
+  <h2><span class="num">03</span> Proposed scale</h2>
+  <p class="lede">Seven steps, nothing between them, an 11px floor. Tight ratios at the bottom where dense instrument UI lives, wider at the top so a heading actually reads as a heading. Every current ad-hoc size maps onto one of these.</p>
+
+  <div class="specimen">
+    <div class="specimen-head"><h3>New tokens</h3><span class="side">7 steps · 3 weights</span></div>
+    <div class="rowset">
+      <div><span class="tok">--t-2xs · 11</span><span class="use">Ids only</span><span class="sample" style="font-size:11px"><span class="id">ENV-00042</span> — the floor. Nothing else in the app is allowed to be this small.</span></div>
+      <div><span class="tok">--t-xs · 12</span><span class="use">Labels, meta</span><span class="sample" style="font-size:12px">Tasks scored · pass floor · badges · caption text</span></div>
+      <div><span class="tok">--t-sm · 13</span><span class="use">Dense cells</span><span class="sample" style="font-size:13px">Table cells, queue rows, buttons, form controls</span></div>
+      <div><span class="tok">--t-md · 14</span><span class="use">Body</span><span class="sample" style="font-size:14px">The reading default. Paragraphs, explainers, lede copy — text that gets read rather than scanned.</span></div>
+      <div><span class="tok">--t-lg · 17</span><span class="use">Headings</span><span class="sample" style="font:600 17px/1.25 var(--sans);color:var(--text-1)">Environment readiness</span></div>
+      <div><span class="tok">--t-xl · 21</span><span class="use">Page title</span><span class="sample" style="font:700 21px/1.2 var(--sans);color:var(--text-1);letter-spacing:-.02em">Environment lab</span></div>
+      <div><span class="tok">--t-2xl · 28</span><span class="use">Hero figure</span><span class="sample" style="font:600 28px/1 var(--sans);color:var(--text-1);letter-spacing:-.02em">0.412</span></div>
+    </div>
+  </div>
+
+  <div class="specimen">
+    <div class="specimen-head"><h3>Retired</h3><span class="side">maps to</span></div>
+    <div class="rowset old">
+      <div><span class="tok dead">9px</span><span class="sample">rail numbers, gate readout &nbsp;→&nbsp; <b>--t-2xs</b> (11) — they were unreadable</span></div>
+      <div><span class="tok dead">10px --t-micro</span><span class="sample">37 uses &nbsp;→&nbsp; <b>--t-xs</b> (12) as sans, or <b>--t-2xs</b> where it is genuinely an id</span></div>
+      <div><span class="tok dead">10.5px</span><span class="sample">4 rules — panel captions and evidence heads, hardcoded to Inter &nbsp;→&nbsp; <b>--t-xs</b> (12) in Manrope</span></div>
+      <div><span class="tok dead">11px --t-label</span><span class="sample">72 uses, the workhorse &nbsp;→&nbsp; splits into <b>--t-xs</b> (labels) and <b>--t-sm</b> (cells)</span></div>
+      <div><span class="tok dead">11.5 / 12 / 12.5px</span><span class="sample">buttons, body, badges &nbsp;→&nbsp; <b>--t-sm</b> (13) for controls, <b>--t-md</b> (14) for prose</span></div>
+      <div><span class="tok dead">13px --t-data</span><span class="sample">→&nbsp; <b>--t-sm</b> (13), unchanged in value, renamed for its actual job</span></div>
+      <div><span class="tok dead">14 / 16 / 17 / 18px</span><span class="sample">→&nbsp; <b>--t-lg</b> (17)</span></div>
+      <div><span class="tok dead">19 / 20px + clamp(18,2vw,25)</span><span class="sample">wordmark, h2 &nbsp;→&nbsp; <b>--t-xl</b> (21), fixed. The viewport clamp bought nothing at these sizes.</span></div>
+      <div><span class="tok dead">clamp(34,5.2vw,70)</span><span class="sample">h1 &nbsp;→&nbsp; delete. No surface in the app renders an h1.</span></div>
+      <div><span class="tok dead">weights 400/500/600/650/700</span><span class="sample">→&nbsp; <b>400</b> body, <b>500</b> emphasis and labels, <b>600</b> headings. Drop 650 and 700 entirely; drop the 700 webfont download with them.</span></div>
+    </div>
+  </div>
+
+  <div class="flag" style="margin-top:var(--s3)">
+    <span><b>Uppercase gets one job:</b> the panel caption strip (<b>.m-cap h3</b>, <b>.m-panel-head h3</b>) and table column heads. Everywhere else — rail links, field labels, badges, stage names, the collapse toggle — goes sentence case. That alone removes about 30 of the 42 uppercase rules and makes the remaining ones mean something.</span>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<section class="block">
+  <h2><span class="num">04</span> The duplication on stage 05</h2>
+  <p class="lede">The env lab renders six environments. It renders facts about those six environments in seven stacked regions: readiness tally, review inbox (queue + detail), prove-locally subway, run settings, status strip, proof report, cluster handoff. Here is what each fact costs today.</p>
+
+  <table class="audit">
+    <thead><tr><th>Fact</th><th class="n" style="text-align:left">Times</th><th>Rendered in</th></tr></thead>
+    <tbody>
+      <tr><th>Environment count (6)</th><td class="n">8</td><td>readiness tally · inbox summary “6 packages” · flow strip · readiness headline “across 6 topics” · coverage chain · splits table footer · proof-report tile denominators · cluster ledger length</td></tr>
+      <tr><th>Coverage chain</th><td class="n">1</td><td>“<b>6</b> topics → <b>6</b> verifiers → <b>6</b> packages”. Structurally these three numbers are always identical — one environment per topic, one verifier per environment. The chain can never say anything the first number did not.</td></tr>
+      <tr><th>Pipeline stage model</th><td class="n">4</td><td>the subway in <b>Stages.tsx</b> · the 01–04 stage strip inside each inbox detail · the 01–03 flow strip in the decision bar · the queue filter tabs. Four renderings of Package → RL → Validation → Scale, in three different visual languages.</td></tr>
+      <tr><th>Mean reward per env</th><td class="n">6</td><td>aggregate tally · RL meter · validation meter · proof-report tile · comparison table · gate table column 1 · cluster ledger row meta</td></tr>
+      <tr><th>Pass threshold</th><td class="n">5</td><td>detail meta “pass floor 0.30” · verifier tab fact · the meter notch · gate table header “Mean ≥ 0.30” · cluster ledger “threshold 0.30”</td></tr>
+      <tr><th>Rollout counts</th><td class="n">6</td><td>run settings “RL smoke 2 · validation 4” · both measure labels · both measure sub-lines · proof tile · subway state text · cost estimate</td></tr>
+      <tr><th>Task split counts</th><td class="n">4</td><td>splits table · taskset tab counts (same four numbers) · queue row “12 tasks” · cluster ledger “12 tasks”</td></tr>
+      <tr><th>Next action, per env</th><td class="n">3</td><td>queue row sub-line · proof panel “Next action” block · review-actions footer. All three call <b>nextAction()</b> with the same arguments.</td></tr>
+      <tr><th>Environment code</th><td class="n">4</td><td>queue row · detail meta · taskset path line · review-actions footer — inside one card</td></tr>
+      <tr><th>Job status</th><td class="n">4</td><td><b>EnvLabStatus</b> strip · subway button labels · inbox decision bar · proof-report status line</td></tr>
+    </tbody>
+  </table>
+
+  <div class="flag bad" style="margin-top:var(--s3)">
+    <span><b>The shape of the problem:</b> the inbox and the proof report are the same table twice — once as cards, once as rows. The subway and the stage strip are the same state machine twice. The splits table and the taskset tab are the same four integers twice. Nothing here is wrong; it is that a reader has to check three places to be sure they are not looking at three different numbers.</span>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<section class="block">
+  <h2><span class="num">05</span> Mockups</h2>
+  <p class="lede">Same data in all three: six environments, packages built, RL smoke clean, validation just finished with one environment below its floor and one errored. Switch the theme with the button up top — the type has to hold in both.</p>
+
+  <div class="switcher">
+    <span class="lab">Variant</span>
+    <button class="on" data-v="a" type="button">A · Type pass only</button>
+    <button data-v="b" type="button">B · One ledger</button>
+    <button data-v="c" type="button">C · Workbench</button>
+    <span class="spacer"></span>
+    <button class="ghost" data-v="a" type="button" id="compareHint" style="pointer-events:none;color:var(--text-4)">Layout is identical in A — only type changed</button>
+  </div>
+
+  <!-- ################ VARIANT A ################ -->
+  <div class="variant on" id="v-a">
+    <div class="intro">
+      <h3>A · Type pass only</h3>
+      <p>The current page, structure untouched, retyped on the new scale. Every mono declaration except ids and paths is gone; every size snaps to a token; uppercase survives only on caption strips and column heads. This is the change that can ship on its own, in a branch that touches only CSS.</p>
+      <ul>
+        <li>It does not fix the duplication — scroll and you will still meet the same six environments four times.</li>
+        <li>What it does fix: the page stops looking like four different applications stacked vertically.</li>
+        <li>Roughly 40 CSS declarations, no TSX changes.</li>
+      </ul>
+    </div>
+
+    <div class="app">
+      <nav class="rail">
+        <div class="railhead"><span class="wordmark">recursive<span>(</span> <span>)</span></span></div>
+        <a href="#"><span class="n">01</span> Benchmarks</a>
+        <a href="#"><span class="n">02</span> Results</a>
+        <a href="#"><span class="n">03</span> Failure map</a>
+        <a href="#"><span class="n">04</span> Data forge</a>
+        <a href="#" class="on"><span class="n">05</span> Env lab</a>
+        <div class="railfoot">Settings<br><span style="margin-top:6px;display:block"><i>●</i> 4 of 5 gates · 61.2% pass</span></div>
+      </nav>
+
+      <main class="main">
+        <div class="ptitle">
+          <h2>Environment lab</h2>
+          <p>Prime runs the package and the policy model here. A passing local validation unlocks the immutable training handoff; the cluster always trains on 4 rollouts per example.</p>
+        </div>
+
+        <div class="runctx">
+          <div class="left">
+            <span class="code">BR-00017</span>
+            <span class="name">swe-bench-verified · claude-sonnet-4</span>
+            <span class="tally"><span><b>184/301</b><i>criteria</i></span><span><b>41/62</b><i>tasks</i></span><span><b>6</b><i>failure topics</i></span></span>
+          </div>
+          <span class="switch">Switch run</span>
+        </div>
+
+        <div class="box">
+          <div class="cap">
+            <h3>Environment readiness</h3>
+            <div class="tally">
+              <span><b>6</b><i>environments</i></span>
+              <span><b>6</b><i>built</i></span>
+              <span><b>6</b><i>rl passed</i></span>
+              <span><b>4</b><i>validated</i></span>
+              <span class="hot"><b>4</b><i>scale ready</i></span>
+              <span><b>0.431</b><i>mean reward</i></span>
+            </div>
+            <span class="code">EVL-00318</span>
+          </div>
+
+          <div style="padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:var(--s4);flex-wrap:wrap;align-items:flex-start">
+            <div>
+              <strong style="color:var(--text-1);font:600 var(--t-md)/1.3 var(--sans)">Environment review queue</strong>
+              <p style="color:var(--text-3);font-size:var(--t-sm);margin-top:3px">6 packages, one environment open, one next action at a time.</p>
+            </div>
+            <span style="color:var(--text-3);font-size:var(--t-xs)">Recommended path · collapse</span>
+          </div>
+
+          <div class="split">
+            <div class="queue">
+              <div class="queue-tools">
+                <button class="qfilter on" type="button">Next action 2</button>
+                <button class="qfilter" type="button">Running 0</button>
+                <button class="qfilter" type="button">Proof recorded 4</button>
+                <button class="qfilter" type="button">Errors 1</button>
+                <button class="qfilter" type="button">All 6</button>
+              </div>
+              <button class="qrow on" type="button"><i class="dot bad"></i><span><strong>Async error propagation</strong><small><span class="id">ENV-00042</span> · 12 tasks · Rerun validation</small></span><span class="badge error">needs attention</span></button>
+              <button class="qrow" type="button"><i class="dot wait"></i><span><strong>Retry budget accounting</strong><small><span class="id">ENV-00043</span> · 9 tasks · Review scale gate</small></span><span class="badge pending">next action</span></button>
+              <button class="qrow" type="button"><i class="dot ok"></i><span><strong>Schema migration ordering</strong><small><span class="id">ENV-00044</span> · 14 tasks · Ready for scale</small></span><span class="badge ready">proof recorded</span></button>
+              <button class="qrow" type="button"><i class="dot ok"></i><span><strong>Timezone boundary math</strong><small><span class="id">ENV-00045</span> · 11 tasks · Ready for scale</small></span><span class="badge ready">proof recorded</span></button>
+              <button class="qrow" type="button"><i class="dot ok"></i><span><strong>Partial-failure fan-out</strong><small><span class="id">ENV-00046</span> · 8 tasks · Ready for scale</small></span><span class="badge ready">proof recorded</span></button>
+              <button class="qrow" type="button"><i class="dot ok"></i><span><strong>Idempotency key reuse</strong><small><span class="id">ENV-00047</span> · 10 tasks · Ready for scale</small></span><span class="badge ready">proof recorded</span></button>
+            </div>
+
+            <div class="detail">
+              <div class="detail-head">
+                <div>
+                  <span class="eyebrow">Async error propagation / environment</span>
+                  <h4 style="margin-top:4px">Async error propagation</h4>
+                  <div class="detail-meta">
+                    <span><span class="id">ENV-00042</span></span>
+                    <span>async-error-propagation</span>
+                    <span>pass floor 0.30</span>
+                    <span>qwen3-8b-instruct</span>
+                  </div>
+                </div>
+                <span class="badge error">needs attention</span>
+              </div>
+
+              <div class="stagestrip">
+                <div data-s="done"><span class="sn">01</span><strong>Package</strong><span class="st">Ready</span></div>
+                <div data-s="done"><span class="sn">02</span><strong>RL test</strong><span class="st">Reward recorded</span></div>
+                <div data-s="err" style="border-top-color:var(--fail)"><span class="sn">03</span><strong>Validation</strong><span class="st" style="color:var(--fail)">Below floor</span></div>
+                <div><span class="sn">04</span><strong>Scale</strong><span class="st">Gated</span></div>
+              </div>
+
+              <div class="tabs">
+                <button class="on" type="button">Proof signal</button>
+                <button type="button">Verifier</button>
+                <button type="button">Taskset</button>
+              </div>
+
+              <div class="reading" style="padding-top:var(--s4)">
+                <h5>Latest local proof</h5>
+                <p>The RL test is a small smoke test. Validation repeats the same environment with broader coverage. The meter fill is mean reward; the notch is this environment’s pass floor.</p>
+                <div class="measures">
+                  <div class="measure" data-s="pass">
+                    <div class="mh"><strong>RL test · 2 rollouts</strong><span class="badge pass">pass</span></div>
+                    <div class="mm"><span class="meter" data-s="pass"><i style="width:41%"></i><b style="left:30%"></b></span><b>0.412</b></div>
+                    <small>12 tasks scored · 2 rollouts · spread ±0.061</small>
+                  </div>
+                  <div class="measure" data-s="fail">
+                    <div class="mh"><strong>Validation · 4 rollouts</strong><span class="badge fail">below floor</span></div>
+                    <div class="mm"><span class="meter" data-s="fail"><i style="width:24%"></i><b style="left:30%"></b></span><b>0.243</b></div>
+                    <small>12 tasks scored · 4 rollouts · spread ±0.038</small>
+                  </div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3);margin-top:var(--s4);padding:10px 12px;background:var(--deep);border:1px solid var(--line-soft)">
+                  <span style="color:var(--text-3);font-size:var(--t-xs)">Next action</span>
+                  <strong style="color:var(--text-1);font:600 var(--t-sm)/1.3 var(--sans)">Rerun validation</strong>
+                </div>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;gap:var(--s3);margin-top:var(--s5);padding-top:12px;border-top:1px solid var(--line-soft);color:var(--text-3);font-size:var(--t-xs)">
+                <span><span class="id">ENV-00042</span> · local environment</span>
+                <span>Rerun validation</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Prove locally</h3><span class="code">RUN SETTINGS · COVERAGE</span></div>
+          <div class="subway">
+            <div class="stop" data-s="done">
+              <span class="sname">Package</span>
+              <span class="sstate">6 packages ready</span>
+              <span class="smeta"><b style="color:var(--pass)">Complete</b><span>6 / 6 built</span></span>
+              <span class="strack"><i style="width:100%"></i></span>
+              <button class="sec" disabled type="button">✓ Packages complete</button>
+            </div>
+            <div class="stop" data-s="done">
+              <span class="sname">Local RL test</span>
+              <span class="sstate">6 environments scored · 2 rollouts</span>
+              <span class="smeta"><b style="color:var(--pass)">Complete</b><span>6 / 6 scored</span></span>
+              <span class="strack"><i style="width:100%"></i></span>
+              <button class="sec" type="button">Rerun RL test</button>
+            </div>
+            <div class="stop" data-s="done">
+              <span class="sname">Local validation</span>
+              <span class="sstate">5 environments scored · 1 error</span>
+              <span class="smeta"><b style="color:var(--warn)">Errors</b><span>5 / 6 scored · 1 error</span></span>
+              <span class="strack"><i style="width:83%;background:var(--warn)"></i></span>
+              <button type="button">Rerun validation</button>
+            </div>
+            <div class="stop">
+              <span class="sname">Scale</span>
+              <span class="sstate">Per-environment gate · later</span>
+              <span class="smeta"><b>Locked</b><span>4 / 6 ready</span></span>
+              <span class="strack"><i style="width:66%"></i></span>
+              <span style="color:var(--text-4);font-size:var(--t-xs)">Not part of this pass</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="f"><small>Local inference model</small><strong>qwen3-8b-instruct</strong></div>
+            <div class="f"><small>Rollouts per task</small><strong>RL smoke 2 · validation 4</strong></div>
+            <div class="f"><small>Local concurrency</small><input type="number" value="1" /></div>
+            <div class="f"><small>Estimated validation cost</small><strong>256 rollouts · ~512 model calls</strong></div>
+          </div>
+          <div style="padding:var(--s4);border-top:1px solid var(--line-soft)">
+            <p class="note" style="font-size:var(--t-md)">64 approved documents across 6 topics.</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--s5);margin-top:var(--s3)">
+              <div>
+                <small style="display:block;color:var(--text-3);font-size:var(--t-xs);margin-bottom:6px">Coverage</small>
+                <div style="display:flex;gap:9px;align-items:baseline;color:var(--text-2);font-size:var(--t-sm)">
+                  <span><b>6</b> topics</span><i style="color:var(--text-4)">→</i><span><b>6</b> verifiers</span><i style="color:var(--text-4)">→</i><span><b>6</b> packages</span>
+                </div>
+              </div>
+              <div>
+                <small style="display:block;color:var(--text-3);font-size:var(--t-xs);margin-bottom:6px">Taskset splits · taskset/*.jsonl</small>
+                <table class="grid" style="border:1px solid var(--line-soft)">
+                  <thead><tr><th>Topic</th><th class="n">train</th><th class="n">canary</th><th class="n">heldout</th><th class="n">Total</th></tr></thead>
+                  <tbody>
+                    <tr><th>Async error propagation</th><td class="n">8</td><td class="n">2</td><td class="n">2</td><td class="n">12</td></tr>
+                    <tr><th>Retry budget accounting</th><td class="n">6</td><td class="n">1</td><td class="n">2</td><td class="n">9</td></tr>
+                    <tr><th>Schema migration ordering</th><td class="n">10</td><td class="n">2</td><td class="n">2</td><td class="n">14</td></tr>
+                  </tbody>
+                  <tfoot><tr><th>Total</th><td class="n">44</td><td class="n">9</td><td class="n">11</td><td class="n">64</td></tr></tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Local proof report</h3><span class="code">EVL-00318 · VALIDATION</span></div>
+          <div class="tiles">
+            <div><small>Mean reward</small><strong>0.431</strong></div>
+            <div><small>Above threshold</small><strong>4/6</strong></div>
+            <div><small>Tasks scored</small><strong>52/64</strong></div>
+            <div><small>Rollouts per task</small><strong>4</strong></div>
+            <div><small>Trainable signal</small><strong>4/6</strong></div>
+            <div><small>Environment errors</small><strong>1</strong></div>
+          </div>
+          <div class="panel-body">
+            <h5 style="color:var(--text-1);font:600 var(--t-md)/1.3 var(--sans)">Reward by environment</h5>
+            <p class="note" style="margin-top:4px">RL test and validation stay paired; values are raw judge coverage fractions.</p>
+          </div>
+          <table class="grid">
+            <thead><tr><th>Environment</th><th>RL test</th><th>Validation</th><th class="n">Delta</th></tr></thead>
+            <tbody>
+              <tr><th>Async error propagation</th><td>0.412</td><td>0.243</td><td class="n" style="color:var(--fail)">−0.169</td></tr>
+              <tr><th>Retry budget accounting</th><td>0.388</td><td>0.401</td><td class="n">+0.013</td></tr>
+              <tr><th>Schema migration ordering</th><td>0.501</td><td>0.523</td><td class="n">+0.022</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="box">
+          <div class="cap">
+            <h3>Hand off to the cluster</h3>
+            <div class="tally"><span class="hot"><b>4</b><i>scale ready</i></span><span><b>2</b><i>gated</i></span></div>
+            <span class="code">UNLOCKED BY LOCAL VALIDATION</span>
+          </div>
+          <div style="padding:var(--s4)">
+            <p class="note">Preparing writes the immutable taskset and the cluster training TOML next to each package; the cluster then trains on all of train.jsonl.</p>
+          </div>
+          <div class="ledgerrow">
+            <div><div class="lt">Async error propagation</div><div class="lm">validation 0.243 / threshold 0.30 · 12 tasks · <span class="id">ENV-00042</span></div></div>
+            <button class="sec sm" disabled type="button">Prepare cluster</button>
+          </div>
+          <div class="ledgerrow">
+            <div><div class="lt">Schema migration ordering</div><div class="lm">validation 0.523 / threshold 0.30 · 14 tasks · <span class="id">ENV-00044</span></div></div>
+            <button class="sec sm" type="button">Prepare cluster</button>
+          </div>
+          <div style="padding:var(--s4);border-top:1px solid var(--line)"><button type="button">Prepare 4 environments for cluster</button></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ################ VARIANT B ################ -->
+  <div class="variant" id="v-b">
+    <div class="intro">
+      <h3>B · One ledger</h3>
+      <p>The six environments become one table, and that table is the page. Every per-environment fact the old page scattered across the inbox, the splits table, the proof report, the gate table, and the cluster ledger is now a column or lives inside the row when you open it. The stage machine collapses from four renderings into one command bar at the top, which is also where the run buttons live.</p>
+      <ul>
+        <li>Environment count is stated once, in the caption tally. The coverage chain is deleted — it was three copies of that number.</li>
+        <li>The learnability gate stops being a separate table: mean, spread, and saturation become three columns beside the reward, so a row either passes or you can see which of the three killed it.</li>
+        <li>Cluster handoff is a per-row action plus one footer button, not a second listing of the same six names.</li>
+        <li>Costs real TSX work — this deletes <b>ProofReport.tsx</b> and most of <b>Stages.tsx</b>.</li>
+      </ul>
+    </div>
+
+    <div class="app">
+      <nav class="rail">
+        <div class="railhead"><span class="wordmark">recursive<span>(</span> <span>)</span></span></div>
+        <a href="#"><span class="n">01</span> Benchmarks</a>
+        <a href="#"><span class="n">02</span> Results</a>
+        <a href="#"><span class="n">03</span> Failure map</a>
+        <a href="#"><span class="n">04</span> Data forge</a>
+        <a href="#" class="on"><span class="n">05</span> Env lab</a>
+        <div class="railfoot">Settings<br><span style="margin-top:6px;display:block"><i>●</i> 4 of 5 gates · 61.2% pass</span></div>
+      </nav>
+
+      <main class="main">
+        <div class="ptitle">
+          <h2>Environment lab</h2>
+          <p>Prime runs the package and the policy model here. A passing local validation unlocks the training handoff.</p>
+        </div>
+
+        <div class="runctx">
+          <div class="left">
+            <span class="code">BR-00017</span>
+            <span class="name">swe-bench-verified · claude-sonnet-4</span>
+            <span class="tally"><span><b>184/301</b><i>criteria</i></span><span><b>41/62</b><i>tasks</i></span><span><b>6</b><i>failure topics</i></span></span>
+          </div>
+          <span class="switch">Switch run</span>
+        </div>
+
+        <div class="cmdbar">
+          <div class="step" data-s="done"><span class="tick">✓</span><span><span class="sl">Package</span><br><span class="ss">6 built</span></span></div>
+          <div class="step" data-s="done"><span class="tick">✓</span><span><span class="sl">RL smoke</span><br><span class="ss">6 scored · 2 rollouts</span></span></div>
+          <div class="step" data-s="active"><span class="tick">3</span><span><span class="sl">Validation</span><br><span class="ss">5 scored · 1 error · 4 rollouts</span></span></div>
+          <div class="step"><span class="tick">4</span><span><span class="sl">Scale</span><br><span class="ss">4 of 6 ready</span></span></div>
+          <div class="grow">
+            <span style="color:var(--text-3);font-size:var(--t-xs);text-align:right">qwen3-8b-instruct<br>concurrency 1 · ~512 model calls</span>
+            <button class="sec" type="button">Rerun RL smoke</button>
+            <button type="button">Rerun validation</button>
+          </div>
+        </div>
+
+        <div class="box">
+          <div class="cap">
+            <h3>Environments</h3>
+            <div class="tally">
+              <span><b>6</b><i>packaged from 64 documents</i></span>
+              <span><b>0.431</b><i>mean reward</i></span>
+              <span class="hot"><b>4</b><i>ready for scale</i></span>
+            </div>
+            <span class="code">EVL-00318</span>
+          </div>
+
+          <table class="grid">
+            <thead>
+              <tr>
+                <th>Environment</th>
+                <th class="n">Tasks</th>
+                <th class="n">RL</th>
+                <th style="min-width:130px">Validation</th>
+                <th class="n">Spread</th>
+                <th class="n">Saturation</th>
+                <th>State</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:var(--wash)">
+                <th>Async error propagation <span class="id" style="margin-left:6px">ENV-00042</span></th>
+                <td class="n">12</td>
+                <td class="n">0.412</td>
+                <td><div style="display:flex;align-items:center;gap:8px"><span class="meter" data-s="fail" style="flex:1"><i style="width:24%"></i><b style="left:30%"></b></span><b style="color:var(--fail);font-weight:600">0.243</b></div></td>
+                <td class="n">0.038</td>
+                <td class="n">0.34</td>
+                <td><span class="badge fail">below floor 0.30</span></td>
+                <td><button class="ghost sm" type="button">Open</button></td>
+              </tr>
+              <tr class="expand"><td colspan="8" style="padding:0;border-bottom:1px solid var(--line)">
+                <div class="expand-inner">
+                  <div class="reading">
+                    <h5>Why it failed</h5>
+                    <p>Validation ran 4 rollouts across 12 tasks and scored 0.243 against a 0.30 floor. Spread is 0.038 — below the 0.05 learnability minimum — so even lifting the mean would not give the cluster a gradient. The RL smoke test at 0.412 was measured on 2 rollouts and did not survive the wider sample.</p>
+                    <div class="flag bad" style="margin-top:var(--s3)"><span>Two gates failed independently. A rerun will not help unless the verifier targets change.</span></div>
+                    <p style="margin-top:var(--s3);font-size:var(--t-sm)">A judge model reads each policy answer against the verifier targets. Reward is the fraction of target behavior found, not a human approval score.</p>
+                    <p class="path" style="margin-top:var(--s3)">~/.recursive/envs/async-error-propagation/</p>
+                  </div>
+                  <div>
+                    <span class="eyebrow">Package</span>
+                    <dl class="kv" style="margin-top:8px">
+                      <dt>Tasks</dt><dd>12</dd>
+                      <dt>train.jsonl</dt><dd>8</dd>
+                      <dt>canary.jsonl</dt><dd>2</dd>
+                      <dt>heldout.jsonl</dt><dd>2</dd>
+                      <dt>Pass floor</dt><dd>0.30</dd>
+                      <dt>Package model</dt><dd>qwen3-8b-instruct</dd>
+                    </dl>
+                    <div style="display:flex;gap:var(--s2);margin-top:var(--s4)">
+                      <button class="sec sm" type="button">Rerun validation</button>
+                      <button class="ghost sm" type="button">Open job log</button>
+                    </div>
+                  </div>
+                </div>
+              </td></tr>
+
+              <tr>
+                <th>Retry budget accounting <span class="id" style="margin-left:6px">ENV-00043</span></th>
+                <td class="n">9</td><td class="n">0.388</td>
+                <td><div style="display:flex;align-items:center;gap:8px"><span class="meter" style="flex:1"><i style="width:40%"></i><b style="left:30%"></b></span><b>0.401</b></div></td>
+                <td class="n">0.042</td><td class="n">0.51</td>
+                <td><span class="badge pending">spread below 0.05</span></td>
+                <td><button class="ghost sm" type="button">Open</button></td>
+              </tr>
+              <tr>
+                <th>Schema migration ordering <span class="id" style="margin-left:6px">ENV-00044</span></th>
+                <td class="n">14</td><td class="n">0.501</td>
+                <td><div style="display:flex;align-items:center;gap:8px"><span class="meter" style="flex:1"><i style="width:52%"></i><b style="left:30%"></b></span><b>0.523</b></div></td>
+                <td class="n">0.088</td><td class="n">0.44</td>
+                <td><span class="badge ready">ready for scale</span></td>
+                <td><button class="sec sm" type="button">Prepare</button></td>
+              </tr>
+              <tr>
+                <th>Timezone boundary math <span class="id" style="margin-left:6px">ENV-00045</span></th>
+                <td class="n">11</td><td class="n">0.463</td>
+                <td><div style="display:flex;align-items:center;gap:8px"><span class="meter" style="flex:1"><i style="width:47%"></i><b style="left:30%"></b></span><b>0.471</b></div></td>
+                <td class="n">0.071</td><td class="n">0.39</td>
+                <td><span class="badge ready">ready for scale</span></td>
+                <td><button class="sec sm" type="button">Prepare</button></td>
+              </tr>
+              <tr>
+                <th>Partial-failure fan-out <span class="id" style="margin-left:6px">ENV-00046</span></th>
+                <td class="n">8</td><td class="n">0.552</td>
+                <td><div style="display:flex;align-items:center;gap:8px"><span class="meter" style="flex:1"><i style="width:59%"></i><b style="left:30%"></b></span><b>0.591</b></div></td>
+                <td class="n">0.064</td><td class="n">0.62</td>
+                <td><span class="badge ready">ready for scale</span></td>
+                <td><button class="sec sm" type="button">Prepare</button></td>
+              </tr>
+              <tr>
+                <th>Idempotency key reuse <span class="id" style="margin-left:6px">ENV-00047</span></th>
+                <td class="n">10</td><td class="n">0.409</td>
+                <td><div style="display:flex;align-items:center;gap:8px"><span class="meter" data-s="err" style="flex:1"><i style="width:100%"></i></span><span class="badge error">error</span></div></td>
+                <td class="n">—</td><td class="n">—</td>
+                <td><span class="badge error">judge timeout ×4</span></td>
+                <td><button class="ghost sm" type="button">Open</button></td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr><th>6 environments</th><td class="n">64</td><td class="n">0.454</td><td>0.431 mean</td><td class="n">0.061</td><td class="n">0.46</td><td>4 ready · 2 gated</td><td></td></tr>
+            </tfoot>
+          </table>
+
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--s3);padding:var(--s4);border-top:1px solid var(--line)">
+            <p class="note" style="max-width:62ch">Gates are independent: mean ≥ floor, spread ≥ 0.05, saturation ≤ 0.80. Healthy signal is a 0.35–0.75 mean. A high reward with no spread teaches nothing.</p>
+            <button type="button">Prepare 4 environments for cluster</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Job log</h3><span class="code">JOB-01907 · SUCCEEDED</span></div>
+          <div style="padding:var(--s3) var(--s4)">
+            <div class="mono-legit" style="border:0;background:transparent;padding:0">14:22:07  rollout 3/4  env=async-error-propagation  reward=0.412
+14:22:09  rollout 4/4  env=async-error-propagation  reward=0.388
+14:22:14  env=idempotency-key-reuse  judge request timed out after 60s (attempt 4/4)
+14:22:14  env=idempotency-key-reuse  ERROR  no reward recorded</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ################ VARIANT C ################ -->
+  <div class="variant" id="v-c">
+    <div class="intro">
+      <h3>C · Workbench</h3>
+      <p>Keeps the queue-and-detail split — it is the best-working part of the current page — and makes it the <i>whole</i> page. Everything below it today either moves into the detail pane, moves into the header strip, or is deleted. One environment is in focus at a time, and that environment carries its own actions instead of sending you down to a shared subway panel.</p>
+      <ul>
+        <li>The aggregate row at the top is the only place a total appears. No readiness tally plus proof tiles plus footer row saying variations of the same six numbers.</li>
+        <li>Per-environment run buttons sit next to the number they will change. The global “run everything” buttons stay in the header.</li>
+        <li>Detail tabs go from three to two: <b>Signal</b> (reward, gates, next action) and <b>Package</b> (verifier, splits, paths). The old “Proof signal” tab and the proof report were the same content.</li>
+        <li>Best fit if the mental model is genuinely “work one environment at a time”. B is better if it is “compare six at a glance”.</li>
+      </ul>
+    </div>
+
+    <div class="app">
+      <nav class="rail">
+        <div class="railhead"><span class="wordmark">recursive<span>(</span> <span>)</span></span></div>
+        <a href="#"><span class="n">01</span> Benchmarks</a>
+        <a href="#"><span class="n">02</span> Results</a>
+        <a href="#"><span class="n">03</span> Failure map</a>
+        <a href="#"><span class="n">04</span> Data forge</a>
+        <a href="#" class="on"><span class="n">05</span> Env lab</a>
+        <div class="railfoot">Settings<br><span style="margin-top:6px;display:block"><i>●</i> 4 of 5 gates · 61.2% pass</span></div>
+      </nav>
+
+      <main class="main">
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--s4);padding-bottom:var(--s3);border-bottom:1px solid var(--line)">
+          <div>
+            <h2 style="color:var(--text-1);font:700 var(--t-xl)/1.2 var(--sans);letter-spacing:-.02em">Environment lab</h2>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;color:var(--text-3);font-size:var(--t-sm)">
+              <span class="code">BR-00017</span><span>swe-bench-verified</span><span>·</span><span>qwen3-8b-instruct policy</span><span>·</span><span>6 environments from 64 documents</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:var(--s2);align-items:center">
+            <button class="ghost" type="button">Switch run</button>
+            <button class="sec" type="button">Rerun RL smoke</button>
+            <button type="button">Rerun validation</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:var(--s4)">
+          <div style="background:var(--panel);padding:12px 14px">
+            <small style="display:block;color:var(--text-3);font-size:var(--t-xs)">Mean reward</small>
+            <strong style="display:block;margin-top:2px;color:var(--text-1);font:600 var(--t-2xl)/1 var(--sans);letter-spacing:-.02em">0.431</strong>
+          </div>
+          <div style="background:var(--panel);padding:12px 14px">
+            <small style="display:block;color:var(--text-3);font-size:var(--t-xs)">Ready for scale</small>
+            <strong style="display:block;margin-top:2px;color:var(--brand-ink);font:600 var(--t-2xl)/1 var(--sans);letter-spacing:-.02em">4<span style="color:var(--text-4);font-size:var(--t-lg)">/6</span></strong>
+          </div>
+          <div style="background:var(--panel);padding:12px 14px">
+            <small style="display:block;color:var(--text-3);font-size:var(--t-xs)">Needs attention</small>
+            <strong style="display:block;margin-top:2px;color:var(--fail);font:600 var(--t-2xl)/1 var(--sans);letter-spacing:-.02em">2</strong>
+          </div>
+          <div style="background:var(--panel);padding:12px 14px">
+            <small style="display:block;color:var(--text-3);font-size:var(--t-xs)">Last run</small>
+            <strong style="display:block;margin-top:5px;color:var(--text-1);font:600 var(--t-sm)/1.4 var(--sans)">Validation · 4 rollouts<br><span style="font-weight:400;color:var(--text-3);font-size:var(--t-xs)">14:22 UTC · <span class="id">EVL-00318</span></span></strong>
+          </div>
+        </div>
+
+        <div class="box" style="margin-top:var(--s3)">
+          <div class="split">
+            <div class="queue">
+              <div class="queue-tools">
+                <button class="qfilter on" type="button">Needs attention 2</button>
+                <button class="qfilter" type="button">Ready 4</button>
+                <button class="qfilter" type="button">All 6</button>
+              </div>
+              <button class="qrow on" type="button"><i class="dot bad"></i><span><strong>Async error propagation</strong><small>Validation 0.243 below floor 0.30</small></span><span class="badge fail">0.243</span></button>
+              <button class="qrow" type="button"><i class="dot bad"></i><span><strong>Idempotency key reuse</strong><small>Judge timed out on all 4 attempts</small></span><span class="badge error">error</span></button>
+              <button class="qrow" type="button"><i class="dot wait"></i><span><strong>Retry budget accounting</strong><small>Spread 0.042 under the 0.05 minimum</small></span><span class="badge pending">0.401</span></button>
+              <button class="qrow" type="button"><i class="dot ok"></i><span><strong>Schema migration ordering</strong><small>All three gates clear</small></span><span class="badge ready">0.523</span></button>
+              <button class="qrow" type="button"><i class="dot ok"></i><span><strong>Timezone boundary math</strong><small>All three gates clear</small></span><span class="badge ready">0.471</span></button>
+              <button class="qrow" type="button"><i class="dot ok"></i><span><strong>Partial-failure fan-out</strong><small>All three gates clear</small></span><span class="badge ready">0.591</span></button>
+              <div style="margin-top:auto;padding:var(--s3);border-top:1px solid var(--line)"><button style="width:100%" type="button">Prepare 4 for cluster</button></div>
+            </div>
+
+            <div class="detail">
+              <div class="detail-head">
+                <div>
+                  <h4>Async error propagation</h4>
+                  <div class="detail-meta">
+                    <span class="id">ENV-00042</span><span>12 tasks</span><span>pass floor 0.30</span><span>qwen3-8b-instruct</span>
+                  </div>
+                </div>
+                <div style="display:flex;gap:var(--s2)">
+                  <button class="ghost sm" type="button">Job log</button>
+                  <button class="sec sm" type="button">Rerun validation</button>
+                </div>
+              </div>
+
+              <div class="tabs">
+                <button class="on" type="button">Signal</button>
+                <button type="button">Package</button>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--s5);padding-top:var(--s4)">
+                <div>
+                  <span class="eyebrow">Validation · 4 rollouts</span>
+                  <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px">
+                    <strong style="color:var(--fail);font:600 var(--t-2xl)/1 var(--sans);letter-spacing:-.02em">0.243</strong>
+                    <span style="color:var(--text-3);font-size:var(--t-sm)">floor 0.30</span>
+                  </div>
+                  <span class="meter" data-s="fail" style="margin-top:10px;height:9px"><i style="width:24%"></i><b style="left:30%"></b></span>
+                  <p style="color:var(--text-3);font-size:var(--t-xs);margin-top:8px">12 tasks scored · spread ±0.038<br>RL smoke recorded 0.412 on 2 rollouts</p>
+                </div>
+                <div>
+                  <span class="eyebrow">Learnability gates</span>
+                  <div style="margin-top:8px;border:1px solid var(--line-soft)">
+                    <div style="display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line-soft)">
+                      <span style="color:var(--text-2);font-size:var(--t-sm)">Mean ≥ 0.30</span>
+                      <span><b style="color:var(--text-1);font-weight:600;font-size:var(--t-sm)">0.243</b> &nbsp;<span class="badge fail">fail</span></span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line-soft)">
+                      <span style="color:var(--text-2);font-size:var(--t-sm)">Spread ≥ 0.05</span>
+                      <span><b style="color:var(--text-1);font-weight:600;font-size:var(--t-sm)">0.038</b> &nbsp;<span class="badge fail">fail</span></span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;gap:10px;padding:9px 12px">
+                      <span style="color:var(--text-2);font-size:var(--t-sm)">Saturation ≤ 0.80</span>
+                      <span><b style="color:var(--text-1);font-weight:600;font-size:var(--t-sm)">0.340</b> &nbsp;<span class="badge pass">pass</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flag bad" style="margin-top:var(--s4)">
+                <span><b>Two gates failed independently.</b> The mean is under the floor and the spread is too flat to give the cluster a gradient. Rerunning will not change either unless the verifier targets move.</span>
+              </div>
+
+              <div class="reading" style="margin-top:var(--s4)">
+                <p>A judge model reads each policy answer against the verifier targets. Reward is the fraction of target behavior it finds, not a human approval score. Validation uses 4 rollouts to match what the cluster will do.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<section class="block">
+  <h2><span class="num">06</span> Beyond stage 05</h2>
+  <p class="lede">The same three fixes apply everywhere, and the counts above were taken across all ten stylesheets — this is not an env-lab problem that happens to be visible on the env lab.</p>
+  <div class="cardgrid">
+    <div class="card">
+      <h3>Data forge (04)</h3>
+      <p>Nine mono declarations, seven of them at 10px uppercase — the review inbox collapse toggle, the recommended-path chip, the queue meta. Its inbox is the pattern the env lab copied, so it gets the same treatment and both get more consistent for free.</p>
+    </div>
+    <div class="card">
+      <h3>Results (03)</h3>
+      <p>Owns all four hardcoded <b>'Inter'</b> rules. Those are the panel captions used on every page, so this one file is why headings across the whole app render in a family that <b>--sans</b> never mentions. Fixing it is a four-line change with app-wide effect — and then Inter can come out of <b>--sans</b> and out of the font request entirely.</p>
+    </div>
+    <div class="card">
+      <h3>Layout / rail</h3>
+      <p>Carries the 9px sizes — stage numbers and the gate readout. They are the smallest text in the app and sit in the least-read corner, which is the wrong way round. Both go to 11–12px.</p>
+    </div>
+    <div class="card">
+      <h3>Loading cost</h3>
+      <p>Dropping Inter and the 650/700 weights takes the Google Fonts request from twelve files to four. Deleting the duplicate local <b>@font-face</b> for IBM Plex Mono and the unreferenced <b>dm-mono-500.woff2</b> removes three more files from <b>public/fonts/</b>.</p>
+    </div>
+  </div>
+</section>
+
+<p class="footnote">mockups/type-system.html · counts taken from public/css/*.css and src/views/tabs/env-lab/*.tsx on branch v22</p>
+
+</div>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var btn = document.getElementById('themeBtn');
+  btn.addEventListener('click', function(){
+    var dark = root.getAttribute('data-theme') === 'dark';
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+    btn.textContent = dark ? 'Dark' : 'Light';
+  });
+
+  var hint = document.getElementById('compareHint');
+  var hints = {
+    a: 'Layout is identical to today — only type changed',
+    b: 'Seven regions collapse into one table',
+    c: 'The queue/detail split becomes the whole page'
+  };
+  document.querySelectorAll('.switcher button[data-v]').forEach(function(b){
+    if (b.id === 'compareHint') return;
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.switcher button[data-v]').forEach(function(x){
+        if (x.id !== 'compareHint') x.classList.remove('on');
+      });
+      b.classList.add('on');
+      document.querySelectorAll('.variant').forEach(function(v){ v.classList.remove('on'); });
+      document.getElementById('v-' + b.dataset.v).classList.add('on');
+      hint.textContent = hints[b.dataset.v];
+      window.scrollTo({ top: b.closest('.switcher').offsetTop - 8, behavior: 'smooth' });
+    });
+  });
+
+  document.querySelectorAll('.qrow').forEach(function(r){
+    r.addEventListener('click', function(){
+      r.parentElement.querySelectorAll('.qrow').forEach(function(x){ x.classList.remove('on'); });
+      r.classList.add('on');
+    });
+  });
+  document.querySelectorAll('.tabs button, .qfilter').forEach(function(t){
+    t.addEventListener('click', function(){
+      t.parentElement.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); });
+      t.classList.add('on');
+    });
+  });
+})();
+</script>
+</body>
+</html>

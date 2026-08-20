@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-case="lower">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>(recursive) — logo explorations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bodoni+Moda:wght@500&family=Bricolage+Grotesque:wght@500&family=DM+Mono:wght@500&family=EB+Garamond:wght@500&family=Fragment+Mono&family=Fraunces:wght@500&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif&family=JetBrains+Mono:wght@500&family=Major+Mono+Display&family=Newsreader:wght@400&family=Sometype+Mono:wght@400&family=Space+Mono:wght@400&family=Syne:wght@600&family=Unbounded:wght@500&family=VT323&family=Young+Serif&display=swap" rel="stylesheet">
+<style>
+  :root[data-theme='dark'] {
+    --ground: #050505; --panel: #0a0a0a; --deep: #080808; --chip: #101010;
+    --text-1: #f2f2f0; --text-3: #7c7c79; --text-4: #60605d;
+    --line: #232321; --line-soft: #1a1a18;
+    --grid: rgba(255,255,255,.028); --wash: rgba(255,255,255,.04);
+    --brand: #ff5c35;
+  }
+  :root[data-theme='light'] {
+    --ground: #eff2f0; --panel: #fafbfa; --deep: #eaeeec; --chip: #e6ebe8;
+    --text-1: #101314; --text-3: #636c6e; --text-4: #868f91;
+    --line: #cfd5d3; --line-soft: #dfe3e2;
+    --grid: rgba(16,19,20,.05); --wash: rgba(16,19,20,.045);
+    --brand: #c8452a;
+  }
+  :root {
+    --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --mark-size: 76px;
+    --track: 0em;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--mono);
+    background: var(--ground);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 96px 96px;
+    color: var(--text-1);
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--brand); color: var(--ground); }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: none; }
+
+  .sheet { max-width: 1280px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 56px) 120px; }
+
+  .hero { padding: clamp(40px, 7vh, 88px) 0 28px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between; }
+  .hero-mark { font-size: clamp(40px, 6.4vw, 84px); font-weight: 500; letter-spacing: -0.01em; }
+  .hero-sub { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); padding-bottom: 10px; }
+  .hero-sub b { color: var(--text-1); font-weight: 500; }
+
+  .mark { font-family: var(--ff, var(--mono)); font-size: var(--mark-size); letter-spacing: var(--track); white-space: nowrap; }
+  .par { color: var(--brand); }
+  .word { padding: 0 .07em; }
+  html[data-case='upper'] .word { text-transform: uppercase; }
+  html[data-case='title'] .word { text-transform: capitalize; }
+
+  .toolbar {
+    position: sticky; top: 0; z-index: 40;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center;
+    padding: 10px 0; margin-bottom: 56px;
+  }
+  .ctl { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+  .ctl output { color: var(--text-1); min-width: 7ch; }
+  input[type='range'] { appearance: none; width: 110px; height: 1px; background: var(--line); }
+  input[type='range']::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: var(--brand); border-radius: 0; }
+  input[type='range']::-moz-range-thumb { width: 10px; height: 10px; background: var(--brand); border: 0; border-radius: 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); }
+  .seg button { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 12px; color: var(--text-3); }
+  .seg button.on { background: var(--text-1); color: var(--ground); }
+  .toggler { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 12px; border: 1px solid var(--line); color: var(--text-3); }
+  .toggler[aria-pressed='true'] { color: var(--brand); border-color: var(--brand); }
+  .hint { margin-left: auto; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-4); }
+
+  #pins { position: sticky; top: 43px; z-index: 30; background: var(--deep); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 20px; padding: 10px 0; overflow-x: auto; }
+  #pins[hidden] { display: none; }
+  .pins-label { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--brand); flex: none; }
+  #pinRow { display: flex; gap: 12px; }
+  .pin-chip { flex: none; display: flex; flex-direction: column; gap: 2px; background: var(--chip); border: 1px solid var(--line); padding: 8px 14px; text-align: left; }
+  .pin-chip:hover { border-color: var(--brand); }
+  .chip-name { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+  .chip-mark { font-family: var(--ff, var(--mono)); font-size: 30px; letter-spacing: var(--track); white-space: nowrap; }
+
+  .group { display: flex; align-items: center; gap: 16px; margin: 44px 0 0; color: var(--text-3); }
+  .group span { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; }
+  .group::after { content: ''; height: 1px; background: var(--line-soft); flex: 1; }
+
+  .specimen {
+    position: relative;
+    display: grid; grid-template-columns: 250px 1fr; gap: 24px; align-items: center;
+    min-height: 138px; padding: 14px 8px 14px 0;
+    border-bottom: 1px solid var(--line-soft);
+    cursor: pointer;
+    opacity: 0; transform: translateY(6px);
+    transition: opacity .5s var(--ease, ease), transform .5s ease, background .15s;
+  }
+  body.ready .specimen { opacity: 1; transform: none; transition-delay: calc(var(--i) * 26ms); }
+  .specimen:hover { background: var(--wash); }
+  .specimen.pinned { box-shadow: inset 3px 0 0 var(--brand); }
+  .specimen:hover .par { text-shadow: 0 0 26px color-mix(in srgb, var(--brand) 55%, transparent); }
+
+  .meta { display: grid; gap: 3px; align-content: center; }
+  .idx { font-size: 10px; color: var(--text-4); letter-spacing: .12em; }
+  .fname { font-size: 12.5px; font-weight: 500; }
+  .ftag { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--brand); }
+  .fnote { font-size: 11px; color: var(--text-3); max-width: 34ch; }
+  .specimen.pinned .idx::after { content: ' · pinned'; color: var(--brand); }
+
+  .mark-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
+  .mark-wrap::before { content: ''; position: absolute; left: 50%; top: 50%; width: 1px; height: 14px; background: var(--line); translate: -50% -50%; }
+  .mark { overflow: hidden; text-overflow: clip; }
+
+  html[data-guides] .specimen::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--line); pointer-events: none; }
+
+  footer { margin-top: 72px; font-size: 11px; color: var(--text-4); letter-spacing: .06em; }
+
+  @media (max-width: 860px) {
+    .specimen { grid-template-columns: 1fr; gap: 10px; min-height: 0; }
+    .meta { grid-template-columns: auto 1fr; }
+    .fnote { grid-column: 1 / -1; }
+    .hint { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .specimen { transition: none; opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+
+  <header class="hero">
+    <div class="hero-mark mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div>
+    <p class="hero-sub"><b>logo explorations</b> · 20 typefaces · <span style="color:var(--brand)">orange parens constant</span></p>
+  </header>
+
+  <div class="toolbar">
+    <div class="seg" role="group" aria-label="letter case">
+      <button data-case-btn="lower" class="on">lower</button>
+      <button data-case-btn="upper">upper</button>
+      <button data-case-btn="title">title</button>
+    </div>
+    <label class="ctl">size <input type="range" id="size" min="40" max="120" value="76"> <output id="sizeOut" for="size">76px</output></label>
+    <label class="ctl">track <input type="range" id="track" min="-5" max="25" value="0"> <output id="trackOut" for="track">0.00em</output></label>
+    <button class="toggler" id="guidesBtn" aria-pressed="false">guides</button>
+    <button class="toggler" id="themeBtn" aria-pressed="false">light ground</button>
+    <span class="hint">click a row to pin it to the compare strip</span>
+  </div>
+
+  <aside id="pins" hidden>
+    <span class="pins-label">compare</span>
+    <div id="pinRow"></div>
+  </aside>
+
+  <section class="group"><span>mono / terminal</span></section>
+
+  <section class="specimen" style="--ff:'IBM Plex Mono';--i:0" data-name="IBM Plex Mono">
+    <div class="meta"><span class="idx">01</span><span class="fname">IBM Plex Mono</span><span class="ftag">mono · house</span><span class="fnote">the app already speaks this — the zero-risk extension of the ui into a mark</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'JetBrains Mono';--i:1" data-name="JetBrains Mono">
+    <div class="meta"><span class="idx">02</span><span class="fname">JetBrains Mono</span><span class="ftag">mono</span><span class="fnote">tall x-height, rounded terminals — the friendly coder default</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Space Mono';--i:2" data-name="Space Mono">
+    <div class="meta"><span class="idx">03</span><span class="fname">Space Mono</span><span class="ftag">mono</span><span class="fnote">quirky retro-futurist — those parens practically orbit the word</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'DM Mono';--i:3" data-name="DM Mono">
+    <div class="meta"><span class="idx">04</span><span class="fname">DM Mono</span><span class="ftag">mono</span><span class="fnote">quiet, low-contrast — lets the orange do all the talking</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Fragment Mono';--i:4" data-name="Fragment Mono">
+    <div class="meta"><span class="idx">05</span><span class="fname">Fragment Mono</span><span class="ftag">mono</span><span class="fnote">helvetica neutralised into a mono — the most invisible option here</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Sometype Mono';--i:5" data-name="Sometype Mono">
+    <div class="meta"><span class="idx">06</span><span class="fname">Sometype Mono</span><span class="ftag">mono</span><span class="fnote">humanist and gentle — a softer read on the same idea</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'VT323';--i:6" data-name="VT323">
+    <div class="meta"><span class="idx">07</span><span class="fname">VT323</span><span class="ftag">mono · crt</span><span class="fnote">dec terminal phosphor — leans hard into the lab-instrument story</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Silkscreen';--i:7" data-name="Silkscreen">
+    <div class="meta"><span class="idx">08</span><span class="fname">Silkscreen</span><span class="ftag">mono · bitmap</span><span class="fnote">pixel bitmap — wants to be tiny on a favicon, huge nowhere else</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Major Mono Display';--i:8" data-name="Major Mono Display">
+    <div class="meta"><span class="idx">09</span><span class="fname">Major Mono Display</span><span class="ftag">mono · display</span><span class="fnote">mixed-case stencil oddity — a whole identity in one font</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+
+  <section class="group"><span>serif</span></section>
+
+  <section class="specimen" style="--ff:'Instrument Serif';--i:9" data-name="Instrument Serif">
+    <div class="meta"><span class="idx">10</span><span class="fname">Instrument Serif</span><span class="ftag">serif · editorial</span><span class="fnote">elegant and tight — the paren pair reads like a whisper of code</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Young Serif';--i:10" data-name="Young Serif">
+    <div class="meta"><span class="idx">11</span><span class="fname">Young Serif</span><span class="ftag">serif · chunky</span><span class="fnote">contemporary, sturdy, warm — friendly without being soft</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Fraunces';--i:11" data-name="Fraunces">
+    <div class="meta"><span class="idx">12</span><span class="fname">Fraunces</span><span class="ftag">serif · wonky</span><span class="fnote">old-style with a crooked smile — character in every curve</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'EB Garamond';--i:12" data-name="EB Garamond">
+    <div class="meta"><span class="idx">13</span><span class="fname">EB Garamond</span><span class="ftag">serif · classical</span><span class="fnote">bookish and old — recasts the lab as a library, not a terminal</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Bodoni Moda';--i:13" data-name="Bodoni Moda">
+    <div class="meta"><span class="idx">14</span><span class="fname">Bodoni Moda</span><span class="ftag">serif · didone</span><span class="fnote">poster contrast — high fashion, thin hairlines, big ego</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Newsreader';--i:14" data-name="Newsreader">
+    <div class="meta"><span class="idx">15</span><span class="fname">Newsreader</span><span class="ftag">serif · text</span><span class="fnote">quiet authority — the masthead of a very small newspaper</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+
+  <section class="group"><span>grotesk / display</span></section>
+
+  <section class="specimen" style="--ff:'Bricolage Grotesque';--i:15" data-name="Bricolage Grotesque">
+    <div class="meta"><span class="idx">16</span><span class="fname">Bricolage Grotesque</span><span class="ftag">grotesk</span><span class="fnote">characterful and current — a grotesque with opinions</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Archivo Black';--i:16" data-name="Archivo Black">
+    <div class="meta"><span class="idx">17</span><span class="fname">Archivo Black</span><span class="ftag">grotesk · heavy</span><span class="fnote">full-weight poster — the parens become load-bearing structure</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Anton';--i:17" data-name="Anton">
+    <div class="meta"><span class="idx">18</span><span class="fname">Anton</span><span class="ftag">display · condensed</span><span class="fnote">condensed impact — shortest optical length of the sans options</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Unbounded';--i:18" data-name="Unbounded">
+    <div class="meta"><span class="idx">19</span><span class="fname">Unbounded</span><span class="ftag">display · geometric</span><span class="fnote">wide geometric futurism — sprawls, needs room to breathe</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+  <section class="specimen" style="--ff:'Syne';--i:19" data-name="Syne">
+    <div class="meta"><span class="idx">20</span><span class="fname">Syne</span><span class="ftag">display · art-institution</span><span class="fnote">the art-gallery oddball — wide u's, stretched everywhere</span></div>
+    <div class="mark-wrap"><div class="mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></div></div>
+  </section>
+
+  <footer>recursive_lab · logo exploration sheet · fonts served from google fonts, nothing is local · this file is scratch, not part of the app</footer>
+</main>
+
+<script>
+  const root = document.documentElement;
+
+  document.querySelectorAll('[data-case-btn]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      root.dataset.case = btn.dataset.caseBtn;
+      document.querySelectorAll('[data-case-btn]').forEach(b => b.classList.toggle('on', b === btn));
+    });
+  });
+
+  const size = document.getElementById('size');
+  const sizeOut = document.getElementById('sizeOut');
+  size.addEventListener('input', () => {
+    root.style.setProperty('--mark-size', size.value + 'px');
+    sizeOut.value = size.value + 'px';
+  });
+
+  const track = document.getElementById('track');
+  const trackOut = document.getElementById('trackOut');
+  track.addEventListener('input', () => {
+    const em = (track.value / 100).toFixed(2);
+    root.style.setProperty('--track', em + 'em');
+    trackOut.value = em + 'em';
+  });
+
+  const themeBtn = document.getElementById('themeBtn');
+  themeBtn.addEventListener('click', () => {
+    const dark = root.dataset.theme === 'dark';
+    root.dataset.theme = dark ? 'light' : 'dark';
+    themeBtn.textContent = dark ? 'dark ground' : 'light ground';
+    themeBtn.setAttribute('aria-pressed', String(dark));
+  });
+
+  const guidesBtn = document.getElementById('guidesBtn');
+  guidesBtn.addEventListener('click', () => {
+    const on = root.hasAttribute('data-guides');
+    on ? root.removeAttribute('data-guides') : root.setAttribute('data-guides', '');
+    guidesBtn.setAttribute('aria-pressed', String(!on));
+  });
+
+  const pins = document.getElementById('pins');
+  const pinRow = document.getElementById('pinRow');
+  const pinned = new Map();
+
+  function syncPins() {
+    pins.hidden = pinned.size === 0;
+  }
+  function addPin(spec) {
+    const name = spec.dataset.name;
+    spec.classList.add('pinned');
+    const chip = document.createElement('button');
+    chip.className = 'pin-chip';
+    chip.style.setProperty('--ff', spec.style.getPropertyValue('--ff'));
+    chip.innerHTML = '<span class="chip-name"></span><span class="chip-mark"><span class="par">(</span><span class="word">recursive</span><span class="par">)</span></span>';
+    chip.querySelector('.chip-name').textContent = name;
+    chip.addEventListener('click', () => removePin(spec));
+    pinRow.appendChild(chip);
+    pinned.set(name, { spec, chip });
+    syncPins();
+  }
+  function removePin(spec) {
+    const name = spec.dataset.name;
+    const entry = pinned.get(name);
+    if (!entry) return;
+    spec.classList.remove('pinned');
+    entry.chip.remove();
+    pinned.delete(name);
+    syncPins();
+  }
+  document.querySelectorAll('.specimen').forEach(spec => {
+    spec.addEventListener('click', () => pinned.has(spec.dataset.name) ? removePin(spec) : addPin(spec));
+  });
+
+  document.fonts.ready.then(() => document.body.classList.add('ready'));
+  setTimeout(() => document.body.classList.add('ready'), 2500);
+</script>
+</body>
+</html>

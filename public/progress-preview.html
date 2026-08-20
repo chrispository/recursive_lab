@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Progress Bar Preview — 03 Failure Map & 04 Data Forge · recursive( )</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================================
+       DESIGN TOKENS (Faithful to Recursive Lab tokens.css)
+       ========================================================================= */
+    :root, :root[data-theme='light'] {
+      color-scheme: light;
+      --text-1: #101314;
+      --text-2: #3f4749;
+      --text-3: #636c6e;
+      --text-4: #868f91;
+
+      --line-soft: #dfe3e2;
+      --line: #cfd5d3;
+      --edge: #7f8886;
+
+      --black: #eff2f0;
+      --deeper: #e3e8e5;
+      --deep: #eaeeec;
+      --panel: #fafbfa;
+      --raised: #e6ebe8;
+      --raised-2: #dbe1de;
+      --code-bg: #dfe5e2;
+      --focus-bg: #fdfffe;
+
+      --brand: #c8452a;
+      --brand-ink: #9b3520;
+      --brand-press: #a8371f;
+      --btn-ink: #fdf7f5;
+      --pass: #26654a;
+      --fail: #9c3126;
+      --run: #1c6178;
+      --warn: #7f5610;
+
+      --grid: rgba(16, 19, 20, 0.05);
+      --scanline: rgba(16, 19, 20, 0.02);
+      --glow: rgba(16, 19, 20, 0.16);
+      --inset: rgba(16, 19, 20, 0.025);
+      --wash: rgba(16, 19, 20, 0.045);
+      --wash-2: rgba(16, 19, 20, 0.08);
+      --shadow: rgba(25, 45, 40, 0.18);
+    }
+
+    :root[data-theme='dark'] {
+      color-scheme: dark;
+      --text-1: #f2f2f0;
+      --text-2: #b3b3af;
+      --text-3: #7c7c79;
+      --text-4: #60605d;
+
+      --line-soft: #1a1a18;
+      --line: #232321;
+      --edge: #5d5d59;
+
+      --black: #050505;
+      --deeper: #070707;
+      --deep: #080808;
+      --panel: #0a0a0a;
+      --raised: #101010;
+      --raised-2: #151515;
+      --code-bg: #060606;
+      --focus-bg: #0c0c0c;
+
+      --brand: #ff5c35;
+      --brand-ink: #ff5c35;
+      --brand-press: #d9481f;
+      --btn-ink: #160a05;
+      --pass: #4fa76f;
+      --fail: #e46452;
+      --run: #5aa9d6;
+      --warn: #d9a441;
+
+      --grid: rgba(255, 255, 255, 0.027);
+      --scanline: rgba(255, 255, 255, 0.025);
+      --glow: rgba(255, 255, 255, 0.75);
+      --inset: rgba(255, 255, 255, 0.012);
+      --wash: rgba(255, 255, 255, 0.04);
+      --wash-2: rgba(255, 255, 255, 0.07);
+      --shadow: rgba(0, 0, 0, 0.5);
+    }
+
+    :root {
+      --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: 'Inter', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+      --s1: 4px;
+      --s2: 8px;
+      --s3: 12px;
+      --s4: 16px;
+      --s5: 24px;
+      --s6: 32px;
+      --t-micro: 10px;
+      --t-label: 11px;
+      --t-body: 12.5px;
+      --t-data: 13px;
+      --t-sub: 17px;
+    }
+
+    /* Base Reset */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      color: var(--text-2);
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        var(--black);
+      background-size: 32px 32px;
+      font: var(--t-body) / 1.6 var(--sans);
+      font-variant-numeric: tabular-nums;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 80px;
+    }
+
+    /* Top Preview Control Bar (Floating Control Deck) */
+    .preview-deck {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--panel);
+      border-bottom: 2px solid var(--brand);
+      padding: 10px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+    .preview-deck-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .preview-tag {
+      background: var(--brand);
+      color: var(--btn-ink);
+      font: 700 10px/1 var(--mono);
+      padding: 3px 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .preview-deck-title strong {
+      color: var(--text-1);
+      font-size: 13px;
+      letter-spacing: -0.01em;
+    }
+    .preview-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+    }
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font: 500 11px/1 var(--mono);
+      color: var(--text-3);
+      text-transform: uppercase;
+    }
+    .btn-group {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      background: var(--raised);
+    }
+    .btn-group button {
+      background: transparent;
+      border: 0;
+      padding: 5px 10px;
+      font: 600 11px/1 var(--sans);
+      color: var(--text-3);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-group button.active {
+      background: var(--brand);
+      color: var(--btn-ink);
+    }
+    .btn-group button + button {
+      border-left: 1px solid var(--line);
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    /* Section Headers */
+    .demo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .demo-header h2 {
+      font-size: 18px;
+      color: var(--text-1);
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    .demo-header span {
+      font: 500 11px/1 var(--mono);
+      color: var(--brand-ink);
+      text-transform: uppercase;
+    }
+
+    /* Run Context Bar */
+    .m-context {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s4);
+      min-height: 48px;
+      padding: 10px 14px;
+      margin-bottom: var(--s4);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--brand);
+      background: var(--panel);
+    }
+    .m-context-copy {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: var(--t-data);
+    }
+    .m-context-copy strong { color: var(--text-1); }
+    .m-context-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font: 500 var(--t-micro)/1 var(--mono);
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .m-context-meta b { color: var(--text-1); font-size: 12px; }
+
+    /* Badges */
+    .m-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 7px;
+      border: 1px solid var(--line);
+      background: var(--raised);
+      color: var(--text-2);
+      font: 600 var(--t-micro)/1.3 var(--mono);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .m-badge[data-state='ready'] {
+      border-color: var(--pass);
+      background: rgba(38, 101, 74, 0.12);
+      color: var(--pass);
+    }
+    .m-badge[data-state='failed'] {
+      border-color: var(--fail);
+      background: rgba(156, 49, 38, 0.12);
+      color: var(--fail);
+    }
+    .m-badge[data-state='pending'] {
+      color: var(--text-4);
+    }
+
+    .m-id {
+      font-family: var(--mono);
+      font-weight: 500;
+      color: var(--text-3);
+      letter-spacing: 0.03em;
+    }
+
+    /* Cards & Layout */
+    .m-forge-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+      gap: var(--s4);
+      margin-top: var(--s4);
+    }
+    .m-forge-card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: inset 0 0 0 1px var(--inset);
+    }
+    .m-forge-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--s4);
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--deep);
+    }
+    .m-forge-card-head h3 {
+      color: var(--text-1);
+      font-size: var(--t-data);
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .m-forge-card-head p {
+      max-width: 60ch;
+      margin-top: 5px;
+      font-size: var(--t-label);
+      color: var(--text-3);
+    }
+    .m-forge-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--s4);
+      padding: var(--s4);
+    }
+    .m-forge-field {
+      display: grid;
+      gap: 6px;
+    }
+    .m-forge-field.full, .m-forge-actions.full {
+      grid-column: 1 / -1;
+    }
+    .m-forge-field label {
+      color: var(--text-2);
+      font: 650 var(--t-label)/1.2 var(--sans);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .m-input {
+      min-height: 34px;
+      padding: 7px 10px;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      color: var(--text-1);
+      font: var(--t-data)/1.4 var(--sans);
+    }
+    input, select, textarea {
+      min-height: 34px;
+      padding: 7px 10px;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      color: var(--text-1);
+      font: var(--t-data)/1.4 var(--sans);
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--brand);
+      background: var(--focus-bg);
+    }
+    .m-field-note {
+      color: var(--text-3);
+      font: 500 var(--t-micro)/1.45 var(--sans);
+    }
+    .m-forge-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--s3);
+      padding-top: var(--s2);
+      border-top: 1px solid var(--line-soft);
+    }
+    button.primary, .m-forge-actions button {
+      min-height: 34px;
+      padding: 0 16px;
+      background: var(--brand);
+      color: var(--btn-ink);
+      border: 0;
+      font: 650 var(--t-label)/1 var(--sans);
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    button.primary:hover, .m-forge-actions button:hover {
+      background: var(--brand-press);
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .m-forge-check {
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr);
+      gap: 9px;
+      align-items: start;
+      color: var(--text-2);
+      font-size: var(--t-label);
+    }
+    .m-forge-check small {
+      display: block;
+      color: var(--text-3);
+      margin-top: 2px;
+    }
+
+    /* 03 Failure Analysis Handoff Card */
+    .m-analysis-handoff {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--s4);
+      padding: var(--s4);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      margin-bottom: var(--s4);
+    }
+    .m-analysis-handoff-copy h3 {
+      font-size: 15px;
+      color: var(--text-1);
+      font-weight: 650;
+      margin-bottom: 4px;
+    }
+    .m-analysis-handoff-copy p {
+      color: var(--text-3);
+      font-size: var(--t-data);
+      max-width: 65ch;
+    }
+    .m-analysis-meta {
+      display: flex;
+      gap: 16px;
+      margin-top: 10px;
+      font: 500 var(--t-micro)/1 var(--mono);
+      color: var(--text-3);
+      text-transform: uppercase;
+    }
+    .m-analysis-meta b { color: var(--text-1); }
+    .m-analysis-action {
+      display: grid;
+      justify-items: end;
+      gap: var(--s2);
+    }
+    .m-analysis-action small {
+      color: var(--text-4);
+      font: 500 var(--t-micro)/1 var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* ============================================================================
+       PROGRESS BAR DESIGNS (Integrated clean version)
+       ========================================================================= */
+
+    .m-analysis-progress {
+      display: grid;
+      gap: 6px;
+      color: var(--brand-ink);
+      font: 500 var(--t-label) / 1.3 var(--sans);
+      margin-top: 14px;
+    }
+    .m-analysis-progress-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s3);
+      letter-spacing: 0.02em;
+    }
+    .m-analysis-progress-step {
+      color: var(--brand-ink);
+      font-weight: 500;
+    }
+    .m-analysis-progress-track {
+      position: relative;
+      height: 5px;
+      overflow: hidden;
+      background: var(--raised-2);
+      border: 1px solid var(--line);
+    }
+    .m-analysis-progress-fill {
+      position: absolute;
+      inset: 0 auto 0 -38%;
+      width: 38%;
+      background: var(--brand);
+      box-shadow: 0 0 9px var(--brand);
+      animation: m-analysis-sweep 1.25s linear infinite;
+    }
+    @keyframes m-analysis-sweep {
+      from { transform: translateX(0); }
+      to { transform: translateX(365%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .m-analysis-progress-fill {
+        animation: none;
+        inset: 0;
+        width: 100%;
+        opacity: 0.55;
+      }
+    }
+
+    .m-analysis-handoff > .m-analysis-progress,
+    .m-analysis-handoff > .m-analysis-status {
+      grid-column: 1 / -1;
+      padding-top: var(--s3);
+      border-top: 1px solid var(--line-soft);
+    }
+
+    /* Fallback status row */
+    .m-analysis-status {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-3);
+      font: 500 11px / 1.5 var(--sans);
+      overflow-wrap: anywhere;
+      margin-top: 14px;
+    }
+
+    /* Comparison Split View */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 16px;
+    }
+    @media (max-width: 900px) {
+      .comparison-grid { grid-template-columns: 1fr; }
+      .m-forge-layout { grid-template-columns: 1fr; }
+    }
+    .comparison-pane {
+      background: var(--black);
+      border: 1px solid var(--line);
+      padding: 16px;
+    }
+    .pane-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed var(--line);
+    }
+    .pane-title {
+      font: 700 11px/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .pane-title.before { color: var(--text-3); }
+    .pane-title.after { color: var(--brand-ink); }
+
+    /* Tab switcher */
+    .tab-nav {
+      display: flex;
+      gap: 2px;
+      background: var(--deeper);
+      padding: 3px;
+      border: 1px solid var(--line);
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 8px 16px;
+      border: 0;
+      background: transparent;
+      font: 600 12px/1 var(--sans);
+      color: var(--text-3);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .tab-btn.active {
+      background: var(--panel);
+      color: var(--text-1);
+      box-shadow: 0 1px 3px var(--shadow);
+    }
+
+    .view-panel { display: none; }
+    .view-panel.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Sticky Control Deck -->
+  <header class="preview-deck">
+    <div class="preview-deck-title">
+      <span class="preview-tag">Implemented Design</span>
+      <strong>Clean Orange Progress Bar (No Square Badge)</strong>
+    </div>
+    <div class="preview-controls">
+      <div class="control-group">
+        <span>Theme:</span>
+        <div class="btn-group" id="themeToggle">
+          <button data-theme-val="light" class="active">Light (Ink)</button>
+          <button data-theme-val="dark">Dark (Instrument)</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <span>State:</span>
+        <div class="btn-group" id="stateToggle">
+          <button data-state-val="running" class="active">Live Running</button>
+          <button data-state-val="ready">Completed</button>
+          <button data-state-val="failed">Failed</button>
+          <button data-state-val="idle">Idle</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- View navigation tabs -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="tab-forge">04 · Data Forge Page</button>
+      <button class="tab-btn" data-tab="tab-failures">03 · Failure Map Page</button>
+      <button class="tab-btn" data-tab="tab-comparison">Before &amp; After Comparison</button>
+    </nav>
+
+    <!-- ======================================================================
+         TAB 1: DATA FORGE PAGE PREVIEW
+         ====================================================================== -->
+    <div id="tab-forge" class="view-panel active">
+      <div class="demo-header">
+        <h2>04 · Data Forge Novel Training Documents</h2>
+        <span>Active Stage: 04 Data Forge</span>
+      </div>
+
+      <!-- Run context header -->
+      <div class="m-context">
+        <div class="m-context-copy">
+          <span class="m-id" style="color: var(--brand-ink); font-weight:700;">BR-00011</span>
+          <strong>Harvey Labs</strong>
+          <span class="m-id">glm-5.2</span>
+        </div>
+        <div class="m-context-meta">
+          <span><b>17/23</b> Criteria</span>
+          <span><b>0/1</b> Tasks</span>
+          <span style="text-decoration: underline; cursor: pointer;">Switch run</span>
+        </div>
+      </div>
+
+      <!-- Forge Layout Grid -->
+      <div class="m-forge-layout">
+        <!-- Left Column: Data Forge Run Form Card -->
+        <section class="m-forge-card">
+          <div class="m-forge-card-head">
+            <div>
+              <h3>Data forge run</h3>
+              <p>Recommended: choose NVIDIA Data Designer; it calls the frontier LLM.</p>
+            </div>
+            <span class="m-id" style="font-size:10px;">RECOMMENDED PATH</span>
+          </div>
+
+          <form class="m-forge-form" onsubmit="event.preventDefault();">
+            <div class="m-forge-field full">
+              <label>Completed failure map + taxonomy</label>
+              <div class="m-input m-id" style="font-weight: 600;">FM-00001</div>
+            </div>
+
+            <div class="m-forge-field">
+              <label>Generation backend</label>
+              <select id="forgeBackendSelect">
+                <option selected>NVIDIA Data Designer</option>
+                <option>Direct frontier model</option>
+              </select>
+            </div>
+
+            <div class="m-forge-field">
+              <label>Frontier API model</label>
+              <input value="deepseek-v4-flash" />
+            </div>
+
+            <div class="m-forge-field">
+              <label>Documents per failure topic</label>
+              <input type="number" value="1" />
+            </div>
+
+
+            <div class="m-forge-field">
+              <label>Max source similarity</label>
+              <input type="number" step="0.01" value="0.22" />
+            </div>
+
+            <div class="m-forge-actions full">
+              <button type="submit" id="forgeActionBtn" class="primary" disabled>
+                Generation running…
+              </button>
+              <label class="m-forge-check">
+                <input type="checkbox" />
+                <span>
+                  <b>Auto-approve novel documents</b>
+                  <small>Novel artifacts skip the manual review queue; rejected artifacts can never be approved.</small>
+                </span>
+              </label>
+            </div>
+          </form>
+        </section>
+
+        <!-- Right Column: Document Generation Prompt Card -->
+        <section class="m-forge-card">
+          <div class="m-forge-card-head">
+            <div>
+              <h3>Document generation prompt</h3>
+              <p>Choose a revision to inspect or use for the next forge run.</p>
+            </div>
+            <span class="m-badge">REV-00003</span>
+          </div>
+          <div style="padding: 16px; display: grid; gap: 12px;">
+            <textarea readonly style="width: 100%; height: 185px; font-family: var(--sans); font-size: 11.5px; line-height: 1.5; color: var(--text-2); background: var(--raised); border: 1px solid var(--line); resize: none; padding: 10px;">You create genuinely novel synthetic legal-agent training tasks from abstract capability specifications.
+
+Anti-benchmax rules:
+- You will not receive the original benchmark documents. Do not ask for them.
+- Invent a new matter, parties, chronology, facts, figures, jurisdictions, and document structure.
+- Do not paraphrase or lightly perturb a benchmark task.
+- Teach the underlying capability through a fresh scenario with independently derived facts.</textarea>
+            <span class="m-field-note">Saving creates a new immutable revision and makes it active. Existing forge runs stay pinned to their original revision.</span>
+          </div>
+        </section>
+      </div>
+
+      <!-- Live Data Forge Status Region -->
+      <div id="data-forge-status" class="m-analysis-progress" role="status" aria-live="polite">
+        <div class="m-analysis-progress-label">
+          <span class="m-analysis-progress-step" id="forgeStepText">asking the document generator</span>
+          <span class="m-id" id="forgeJobCode">JOB-00023</span>
+        </div>
+        <div class="m-analysis-progress-track" id="forgeTrack" role="progressbar" aria-label="Generation in progress">
+          <span class="m-analysis-progress-fill" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         TAB 2: 03 FAILURE MAP PAGE PREVIEW
+         ====================================================================== -->
+    <div id="tab-failures" class="view-panel">
+      <div class="demo-header">
+        <h2>03 · Turn Misses into Capability Topics</h2>
+        <span>Active Stage: 03 Failure Map</span>
+      </div>
+
+      <!-- Run context header -->
+      <div class="m-context">
+        <div class="m-context-copy">
+          <span class="m-id" style="color: var(--brand-ink); font-weight:700;">BR-00011</span>
+          <strong>Harvey Labs</strong>
+          <span class="m-id">glm-5.2</span>
+        </div>
+        <div class="m-context-meta">
+          <span><b>17/23</b> Criteria</span>
+          <span><b>0/1</b> Tasks</span>
+          <span style="text-decoration: underline; cursor: pointer;">Switch run</span>
+        </div>
+      </div>
+
+      <!-- Failure Analysis Split Grid Layout -->
+      <div class="m-forge-layout">
+        <!-- Left Column: Failure Analysis Run Form Card -->
+        <section class="m-forge-card">
+          <div class="m-forge-card-head">
+            <div>
+              <h3>Failure analysis run</h3>
+              <p>The frontier analyst will inspect each failed criterion and group the signal into a failure map.</p>
+            </div>
+            <span class="m-code">next step · 03</span>
+          </div>
+
+          <form class="m-forge-form" onsubmit="event.preventDefault();">
+            <div class="m-forge-field full">
+              <label>Selected benchmark run</label>
+              <div class="m-input">BR-00011 · Harvey Labs</div>
+            </div>
+
+            <div class="m-forge-field">
+              <label>Analyst model</label>
+              <input value="deepseek-v4-flash" disabled />
+            </div>
+
+            <div class="m-forge-field">
+              <label>Failed criteria</label>
+              <div class="m-input">17 criteria</div>
+            </div>
+
+            <div class="m-forge-actions full">
+              <button type="submit" id="failureActionBtn" class="primary" disabled>
+                Analysis running…
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Right Column: Failure Analysis Prompt Card -->
+        <section class="m-forge-card">
+          <div class="m-forge-card-head">
+            <div>
+              <h3>Failure analysis prompt</h3>
+              <p>Choose a revision to inspect or use for the next analysis run.</p>
+            </div>
+            <span class="m-badge">REV-00001</span>
+          </div>
+          <div style="padding: 16px; display: grid; gap: 12px;">
+            <textarea readonly style="width: 100%; height: 140px; font-family: var(--sans); font-size: 11.5px; line-height: 1.5; color: var(--text-2); background: var(--raised); border: 1px solid var(--line); resize: none; padding: 10px;">You are a benchmark capability analyst. Group criterion-level failures into durable, trainable capability topics.
+
+Rules:
+- Describe the general capability gap, never the benchmark answer.
+- Remove matter-specific names, dates, amounts, quotations, and document titles.
+- Split failures when they need meaningfully different training examples or verifiers.
+- Each failure_id must appear exactly once.
+- verifier_strategy must describe an observable success condition, not an answer key.</textarea>
+            <span class="m-field-note">Saving creates a new immutable revision and makes it active. Existing runs stay pinned to their original revision.</span>
+          </div>
+        </section>
+      </div>
+
+      <!-- Failure Map Progress Area -->
+      <div id="failure-analysis-status" class="m-analysis-progress" role="status" aria-live="polite">
+        <div class="m-analysis-progress-label">
+          <span class="m-analysis-progress-step" id="failureStepText">extracting failure patterns</span>
+          <span class="m-id" id="failureJobCode">JOB-00018</span>
+        </div>
+        <div class="m-analysis-progress-track" id="failureTrack" role="progressbar" aria-label="Analysis in progress">
+          <span class="m-analysis-progress-fill" aria-hidden="true"></span>
+        </div>
+      </div>
+
+
+      <!-- Topic Table Mockup Placeholder -->
+      <div style="border: 1px solid var(--line); background: var(--panel); padding: 16px; margin-top: 16px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+          <strong style="font-size: 12px; text-transform: uppercase; color: var(--text-1);">Topics extracted from failed criteria</strong>
+          <span class="m-id">FM-00001 (IN PROGRESS)</span>
+        </div>
+        <div style="padding: 30px 20px; text-align: center; color: var(--text-3); font-size: 12px; background: var(--raised); border: 1px dashed var(--line);">
+          Failure map analysis is currently extracting topics and synthesizing taxonomy. Results will populate here upon completion.
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         TAB 3: SIDE-BY-SIDE BEFORE & AFTER
+         ====================================================================== -->
+    <div id="tab-comparison" class="view-panel">
+      <div class="demo-header">
+        <h2>Side-by-Side Visual Comparison</h2>
+        <span>Before vs After</span>
+      </div>
+
+      <div class="comparison-grid">
+        <!-- Before Pane -->
+        <div class="comparison-pane">
+          <div class="pane-header">
+            <span class="pane-title before">Before (Old Square Badge)</span>
+            <span class="m-badge" data-state="pending">Square Badge Only</span>
+          </div>
+          <p style="font-size: 11px; color: var(--text-3); margin-bottom: 14px;">
+            Contained redundant square "generation running" / "analysis running" boxes without an animated progress track.
+          </p>
+
+          <div style="background: var(--panel); border: 1px solid var(--line); padding: 14px;">
+            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-3); margin-bottom: 10px;">
+              Data Forge:
+            </div>
+            <div class="m-analysis-status" style="margin-top: 0;">
+              <span class="m-badge" style="border-color: var(--run); background: rgba(28, 97, 120, 0.12); color: var(--run);">generation running</span>
+              <span>asking the document generator · JOB-00023</span>
+            </div>
+
+            <div style="height: 1px; background: var(--line-soft); margin: 16px 0;"></div>
+
+            <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-3); margin-bottom: 10px;">
+              03 Failure Map:
+            </div>
+            <div class="m-analysis-status" style="margin-top: 0;">
+              <span class="m-badge" style="border-color: var(--run); background: rgba(28, 97, 120, 0.12); color: var(--run);">analysis running</span>
+              <span>extracting failure patterns · JOB-00018</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- After Pane -->
+        <div class="comparison-pane">
+          <div class="pane-header">
+            <span class="pane-title after">After (Clean Orange Sweep Track)</span>
+            <span class="m-id" style="color: var(--brand-ink); font-weight:700;">No Square Badge</span>
+          </div>
+          <p style="font-size: 11px; color: var(--text-3); margin-bottom: 14px;">
+            Clean step label on left, job code on right, with the signature brand orange sweep bar below.
+          </p>
+
+          <div style="background: var(--panel); border: 1px solid var(--line); padding: 14px; display: grid; gap: 16px;">
+            <div>
+              <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--brand-ink); margin-bottom: 6px;">
+                Data Forge:
+              </div>
+              <div class="m-analysis-progress" style="margin-top: 0;">
+                <div class="m-analysis-progress-label">
+                  <span class="m-analysis-progress-step">asking the document generator</span>
+                  <span class="m-id">JOB-00023</span>
+                </div>
+                <div class="m-analysis-progress-track">
+                  <span class="m-analysis-progress-fill"></span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--brand-ink); margin-bottom: 6px;">
+                03 Failure Map:
+              </div>
+              <div class="m-analysis-progress" style="margin-top: 0;">
+                <div class="m-analysis-progress-label">
+                  <span class="m-analysis-progress-step">extracting failure patterns</span>
+                  <span class="m-id">JOB-00018</span>
+                </div>
+                <div class="m-analysis-progress-track">
+                  <span class="m-analysis-progress-fill"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Theme switching
+    document.querySelectorAll('#themeToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#themeToggle button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.documentElement.dataset.theme = btn.dataset.themeVal;
+      });
+    });
+
+    // State simulation switching
+    document.querySelectorAll('#stateToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#stateToggle button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyState(btn.dataset.stateVal);
+      });
+    });
+
+    function applyState(state) {
+      const forgeEl = document.getElementById('data-forge-status');
+      const failEl = document.getElementById('failure-analysis-status');
+      const forgeBtn = document.getElementById('forgeActionBtn');
+      const failBtn = document.getElementById('failureActionBtn');
+
+      if (state === 'running') {
+        forgeEl.className = 'm-analysis-progress';
+        forgeEl.innerHTML = `
+          <div class="m-analysis-progress-label">
+            <span class="m-analysis-progress-step">asking the document generator</span>
+            <span class="m-id">JOB-00023</span>
+          </div>
+          <div class="m-analysis-progress-track" role="progressbar" aria-label="Generation in progress">
+            <span class="m-analysis-progress-fill" aria-hidden="true"></span>
+          </div>`;
+        if (forgeBtn) { forgeBtn.textContent = 'Generation running…'; forgeBtn.disabled = true; }
+
+        failEl.className = 'm-analysis-progress';
+        failEl.innerHTML = `
+          <div class="m-analysis-progress-label">
+            <span class="m-analysis-progress-step">extracting failure patterns</span>
+            <span class="m-id">JOB-00018</span>
+          </div>
+          <div class="m-analysis-progress-track" role="progressbar" aria-label="Analysis in progress">
+            <span class="m-analysis-progress-fill" aria-hidden="true"></span>
+          </div>`;
+        if (failBtn) { failBtn.textContent = 'Analysis running…'; failBtn.disabled = true; }
+      } else if (state === 'ready') {
+        forgeEl.className = 'm-analysis-status';
+        forgeEl.innerHTML = `<span class="m-badge" data-state="ready">data forge ready</span><span>DF-00001</span>`;
+        if (forgeBtn) { forgeBtn.textContent = 'Fill remaining slots'; forgeBtn.disabled = false; }
+
+        failEl.className = 'm-analysis-status';
+        failEl.innerHTML = `<span class="m-badge" data-state="ready">failure map ready</span>`;
+        if (failBtn) { failBtn.textContent = 'Failure map created'; failBtn.disabled = true; }
+      } else if (state === 'failed') {
+        forgeEl.className = 'm-analysis-status';
+        forgeEl.innerHTML = `<span class="m-badge" data-state="failed">generation failed</span><span>Frontier LLM provider timed out</span>`;
+        if (forgeBtn) { forgeBtn.textContent = 'Retry data forge'; forgeBtn.disabled = false; }
+
+        failEl.className = 'm-analysis-status';
+        failEl.innerHTML = `<span class="m-badge" data-state="failed">analysis failed</span><span>Analysis job failed to complete</span>`;
+        if (failBtn) { failBtn.textContent = 'Retry failure map'; failBtn.disabled = false; }
+      } else if (state === 'idle') {
+        forgeEl.className = 'm-analysis-status';
+        forgeEl.innerHTML = `<span class="m-badge" data-state="pending">not started</span><span>Send a completed failure map here to create novel training documents.</span>`;
+        if (forgeBtn) { forgeBtn.textContent = 'Start data forge'; forgeBtn.disabled = false; }
+
+        failEl.className = 'm-analysis-status';
+        failEl.innerHTML = `<span class="m-badge" data-state="pending">not started</span><span>Use the selected run's failed criteria to create a map.</span>`;
+        if (failBtn) { failBtn.textContent = 'Create failure map + topics'; failBtn.disabled = false; }
+      }
+    }
+  </script>
+</body>
+</html>

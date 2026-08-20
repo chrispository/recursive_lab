@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run context bar options</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500;600&family=DM+Mono:wght@500&family=Fragment+Mono&family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@400;500;600;700&family=Martian+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #050505;
+      --panel: #090a0a;
+      --bar: #0c0d0d;
+      --bar-raised: #101111;
+      --text: #f2f2ee;
+      --muted: #999b96;
+      --dim: #696c68;
+      --line: #292b29;
+      --line-soft: #1c1e1c;
+      --blue: #94c8dd;
+      --mint: #9fd5bd;
+      --violet: #bdb5e9;
+      --sans: "Manrope", sans-serif;
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --page: #ecefec;
+      --panel: #f6f7f5;
+      --bar: #fafbf9;
+      --bar-raised: #fff;
+      --text: #151817;
+      --muted: #626965;
+      --dim: #8b928e;
+      --line: #ccd1cd;
+      --line-soft: #e0e4e1;
+      --blue: #236e8c;
+      --mint: #277758;
+      --violet: #6655a4;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px),
+        var(--page);
+      background-size: 32px 32px;
+      color: var(--text);
+      font: 12.5px/1.5 var(--sans);
+      transition: background-color 180ms ease, color 180ms ease;
+    }
+
+    button { font: inherit; }
+
+    .shell {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 64px 0 96px;
+    }
+
+    .page-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font: 500 10px/1 "IBM Plex Mono", monospace;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 43px);
+      line-height: 1.05;
+      letter-spacing: -.045em;
+    }
+
+    .intro {
+      max-width: 530px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .theme-toggle {
+      flex: 0 0 auto;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: var(--bar);
+      color: var(--muted);
+      cursor: pointer;
+      font: 500 10px/1 "IBM Plex Mono", monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .options {
+      display: grid;
+      gap: 42px;
+      margin-top: 42px;
+    }
+
+    .option-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 11px;
+    }
+
+    .option-title {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin: 0;
+      font-size: 13px;
+      letter-spacing: -.01em;
+    }
+
+    .number {
+      color: var(--dim);
+      font: 500 10px/1 "IBM Plex Mono", monospace;
+      letter-spacing: .08em;
+    }
+
+    .note {
+      color: var(--dim);
+      font: 500 9px/1 "IBM Plex Mono", monospace;
+      letter-spacing: .08em;
+      text-align: right;
+      text-transform: uppercase;
+    }
+
+    .stage {
+      padding: 28px;
+      border: 1px solid var(--line-soft);
+      background: var(--panel);
+      box-shadow: 0 18px 45px rgba(0,0,0,.13);
+    }
+
+    .bar {
+      position: relative;
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      background: var(--bar);
+      overflow: hidden;
+    }
+
+    .copy {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      min-width: 0;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .run-id {
+      flex: 0 0 auto;
+      color: var(--text);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1;
+      letter-spacing: .07em;
+    }
+
+    .name {
+      min-width: 0;
+      color: var(--text);
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .tally {
+      display: inline-flex;
+      align-items: baseline;
+      margin-left: 2px;
+      border-left: 1px solid var(--line-soft);
+    }
+
+    .tally span {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+      padding: 0 11px;
+      border-right: 1px solid var(--line-soft);
+    }
+
+    .tally span:last-child { border-right: 0; }
+
+    .tally b {
+      color: var(--text);
+      font: 500 12px/1 "IBM Plex Mono", monospace;
+    }
+
+    .tally i {
+      color: var(--muted);
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 500;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .switch {
+      position: relative;
+      z-index: 1;
+      flex: 0 0 auto;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .switch::after {
+      content: "⌄";
+      display: inline-block;
+      margin-left: 6px;
+      color: var(--dim);
+      transform: translateY(-1px);
+    }
+
+    /* 01: the selected quiet baseline, used as the control. */
+
+    /* 02: a directional gradient that reads as depth rather than decoration. */
+    .option-2 .bar {
+      background:
+        linear-gradient(105deg,
+          color-mix(in srgb, var(--blue) 9%, var(--bar)) 0%,
+          var(--bar) 38%,
+          color-mix(in srgb, var(--violet) 7%, var(--bar)) 100%);
+    }
+
+    /* 03: two broad radial fields create a soft aurora surface. */
+    .option-3 .bar {
+      background:
+        radial-gradient(65% 220% at 10% 40%, color-mix(in srgb, var(--blue) 13%, transparent), transparent 65%),
+        radial-gradient(55% 230% at 78% 130%, color-mix(in srgb, var(--mint) 9%, transparent), transparent 72%),
+        var(--bar);
+    }
+
+    /* 04: a low-contrast engineering grid, clipped inside the bar. */
+    .option-4 .bar {
+      background:
+        linear-gradient(color-mix(in srgb, var(--text) 3.5%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--text) 3.5%, transparent) 1px, transparent 1px),
+        linear-gradient(100deg, color-mix(in srgb, var(--blue) 5%, var(--bar)), var(--bar) 55%),
+        var(--bar);
+      background-size: 16px 16px, 16px 16px, 100% 100%, 100% 100%;
+    }
+
+    /* 05: a fine diagonal weave adds texture without becoming a focal point. */
+    .option-5 .bar {
+      background:
+        repeating-linear-gradient(135deg,
+          transparent 0 7px,
+          color-mix(in srgb, var(--blue) 5%, transparent) 7px 8px),
+        linear-gradient(90deg, var(--bar), color-mix(in srgb, var(--violet) 5%, var(--bar)));
+    }
+
+    .footer-note {
+      margin: 42px 0 0;
+      padding-top: 16px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--dim);
+      font-size: 11px;
+    }
+
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 24px, 580px); padding-top: 32px; }
+      .page-head { align-items: start; }
+      .stage { padding: 16px; }
+      .bar { align-items: flex-start; }
+      .copy { flex-wrap: wrap; gap: 8px 12px; }
+      .name { flex-basis: calc(100% - 120px); }
+      .tally { flex-basis: 100%; margin-left: 0; border-left: 0; }
+      .tally span:first-child { padding-left: 0; }
+      .switch { margin-top: 2px; }
+      .note { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      .page-head { display: block; }
+      .theme-toggle { margin-top: 18px; }
+      .options { gap: 34px; }
+      .stage { margin-inline: -12px; padding: 12px; }
+      .bar { display: block; }
+      .switch { margin-top: 10px; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="page-head">
+      <div>
+        <span class="eyebrow">Recursive Lab · Component Study</span>
+        <h1>Run context surfaces.</h1>
+        <p class="intro">Five background treatments on the chosen Quiet baseline. Typography, spacing, border, content, and behavior stay identical so only the surface changes.</p>
+      </div>
+      <button class="theme-toggle" type="button" aria-label="Toggle light and dark theme">Light mode</button>
+    </header>
+
+    <div class="options">
+      <section class="option option-1">
+        <header class="option-head">
+          <h2 class="option-title"><span class="number">01</span> Quiet baseline</h2>
+          <span class="note">Current selection · solid neutral</span>
+        </header>
+        <div class="stage">
+          <div class="bar">
+            <div class="copy">
+              <span class="run-id">BR-00421</span>
+              <span class="name">Terminal-Bench 2.0</span>
+              <span class="tally"><span><b>184/200</b><i>criteria</i></span><span><b>43/50</b><i>tasks</i></span></span>
+            </div>
+            <button class="switch" type="button">Switch run</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="option option-2">
+        <header class="option-head">
+          <h2 class="option-title"><span class="number">02</span> Spectral sweep</h2>
+          <span class="note">Directional blue · violet gradient</span>
+        </header>
+        <div class="stage">
+          <div class="bar">
+            <div class="copy">
+              <span class="run-id">BR-00421</span>
+              <span class="name">Terminal-Bench 2.0</span>
+              <span class="tally"><span><b>184/200</b><i>criteria</i></span><span><b>43/50</b><i>tasks</i></span></span>
+            </div>
+            <button class="switch" type="button">Switch run</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="option option-3">
+        <header class="option-head">
+          <h2 class="option-title"><span class="number">03</span> Aurora field</h2>
+          <span class="note">Broad blue · green radial glow</span>
+        </header>
+        <div class="stage">
+          <div class="bar">
+            <div class="copy">
+              <span class="run-id">BR-00421</span>
+              <span class="name">Terminal-Bench 2.0</span>
+              <span class="tally"><span><b>184/200</b><i>criteria</i></span><span><b>43/50</b><i>tasks</i></span></span>
+            </div>
+            <button class="switch" type="button">Switch run</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="option option-4">
+        <header class="option-head">
+          <h2 class="option-title"><span class="number">04</span> Technical grid</h2>
+          <span class="note">16px grid · slight cool wash</span>
+        </header>
+        <div class="stage">
+          <div class="bar">
+            <div class="copy">
+              <span class="run-id">BR-00421</span>
+              <span class="name">Terminal-Bench 2.0</span>
+              <span class="tally"><span><b>184/200</b><i>criteria</i></span><span><b>43/50</b><i>tasks</i></span></span>
+            </div>
+            <button class="switch" type="button">Switch run</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="option option-5">
+        <header class="option-head">
+          <h2 class="option-title"><span class="number">05</span> Diagonal weave</h2>
+          <span class="note">Fine hatch · violet falloff</span>
+        </header>
+        <div class="stage">
+          <div class="bar">
+            <div class="copy">
+              <span class="run-id">BR-00421</span>
+              <span class="name">Terminal-Bench 2.0</span>
+              <span class="tally"><span><b>184/200</b><i>criteria</i></span><span><b>43/50</b><i>tasks</i></span></span>
+            </div>
+            <button class="switch" type="button">Switch run</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <p class="footer-note">Standalone mockup only. No application styles or components are changed.</p>
+  </main>
+
+  <script>
+    const root = document.documentElement;
+    const toggle = document.querySelector('.theme-toggle');
+
+    toggle.addEventListener('click', () => {
+      const light = root.dataset.theme !== 'light';
+      root.dataset.theme = light ? 'light' : 'dark';
+      toggle.textContent = light ? 'Dark mode' : 'Light mode';
+    });
+
+  </script>
+</body>
+</html>
