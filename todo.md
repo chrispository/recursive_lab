@@ -5,3 +5,4 @@
 - [ ] Retry logic for various gen
 - [ ] On Data Forge - review the "button" names like "all slots filled'
 - [ ] Canary vs. train
+- [ ] Fix the semantic status bug where a failed environment evaluation can still close its job as succeeded; make terminal job status reflect errored evaluation results.

@@ -1,7 +1,6 @@
 /**
- * Env lab fragments — build packages, start local proof, prepare the cluster.
- * Actions return the owned `#env-lab-body` region as an OOB swap when their
- * persisted job state changes, while the status poll owns its smaller region.
+ * Env lab fragments — build packages and run local proof. Cluster preparation
+ * owns a separate page/region so the Env Lab remains focused on evidence.
  */
 import { Elysia } from 'elysia';
 import * as environments from '../../domain/environments/service.ts';
@@ -12,6 +11,7 @@ import * as settings from '../../gym/settings.ts';
 import { piInstalled } from '../../gym/pi.ts';
 import { Badge } from '../../views/ui/Badge.tsx';
 import { EnvLabBody, EnvLabStatus, type EnvLabSettings } from '../../views/tabs/EnvLab.tsx';
+import { ClusterHandoffBody } from '../../views/tabs/ClusterHandoff.tsx';
 import { EnvironmentInbox } from '../../views/tabs/env-lab/EnvironmentInbox.tsx';
 import { JobLog } from '../../views/jobs/Log.tsx';
 import { benchmarkRunIdOf, errorMessage, recordBody } from '../request.ts';
@@ -85,6 +85,18 @@ async function body(runId: number, oob = false) {
   );
 }
 
+async function clusterBody(runId: number, notice?: string) {
+  const selectedProgress = await progress.byBenchmarkRun(runId);
+  return (
+    <ClusterHandoffBody
+      benchmarkRun={selectedProgress ? await runs.byBenchmarkRunId(runId) : null}
+      environments={selectedProgress ? await environments.listByBenchmarkRun(runId) : []}
+      validation={selectedProgress ? await environments.latestEvaluationOfKind(runId, 'validation') : null}
+      notice={notice}
+    />
+  );
+}
+
 export const environmentsUi = new Elysia({ name: 'environments-ui' })
   .post('/ui/env-lab/build', async ({ body: payload }) => {
     const runId = benchmarkRunIdOf(payload);
@@ -135,8 +147,8 @@ export const environmentsUi = new Elysia({ name: 'environments-ui' })
     const environmentCode = typeof source.environment_code === 'string' ? source.environment_code.trim() : '';
     try {
       await environments.prepareCluster(runId, environmentCode || undefined);
-      return await body(runId);
+      return await clusterBody(runId);
     } catch (error) {
-      return errorStatus(errorMessage(error));
+      return await clusterBody(runId, errorMessage(error));
     }
   });

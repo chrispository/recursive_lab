@@ -76,7 +76,7 @@
   place-items: center;
   color: var(--text-3);
   border: 1px solid var(--line);
-  font-size: 16px;
+  font-size: var(--t-lg);
 }
 .m-settings-link:hover {
   color: var(--text-1);
@@ -107,9 +107,8 @@
 }
 .m-config-field label {
   color: var(--text-2);
-  font: 650 var(--t-label) / 1.2 var(--sans);
+  font: 600 var(--t-xs) / 1.2 var(--sans);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 .m-help {
   display: inline-grid;
@@ -121,7 +120,7 @@
 }
 .m-config-note {
   color: var(--text-3);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   line-height: 1.45;
 }
 .m-import {
@@ -136,10 +135,9 @@
   padding: 10px 12px;
   color: var(--text-3);
   cursor: pointer;
-  font: 650 var(--t-label) / 1.2 var(--sans);
+  font: 600 var(--t-xs) / 1.2 var(--sans);
   letter-spacing: 0.06em;
   list-style: none;
-  text-transform: uppercase;
 }
 .m-import > summary::-webkit-details-marker,
 .m-advanced > summary::-webkit-details-marker {
@@ -168,7 +166,7 @@
 }
 .m-import-body p {
   padding-top: 10px;
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-import-controls {
   display: grid;
@@ -185,7 +183,7 @@
   display: none;
   gap: 6px;
   color: var(--brand-ink);
-  font: 500 var(--t-label) / 1.3 var(--sans);
+  font: 500 var(--t-xs) / 1.3 var(--sans);
 }
 .htmx-request .m-import-progress.htmx-indicator {
   display: grid;
@@ -250,7 +248,7 @@
   color: var(--text-2);
   border-bottom: 1px solid var(--line-soft);
   cursor: pointer;
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   line-height: 1.35;
 }
 /* `.m-task-row { display: grid }` beats the UA `[hidden] { display: none }`,
@@ -313,9 +311,8 @@
 .m-advanced-group-head span,
 .m-run-kicker {
   color: var(--text-4);
-  font: 500 10.5px / 1.2 var(--sans);
+  font: 500 var(--t-xs) / 1.2 var(--sans);
   letter-spacing: 0.012em;
-  text-transform: uppercase;
 }
 .m-config-grid {
   display: grid;
@@ -355,18 +352,16 @@
 }
 .m-run-card strong {
   color: var(--text-1);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-run-card > div > span:last-child {
   color: var(--text-3);
-  font-size: var(--t-micro);
-  text-transform: uppercase;
+  font-size: var(--t-xs);
 }
 .m-run-card label {
   color: var(--text-1);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   font-weight: 600;
-  text-transform: uppercase;
 }
 .m-run-card label input {
   display: inline-block;
@@ -385,7 +380,7 @@
   min-height: 0;
   padding: 0 var(--s4) var(--s4);
   color: var(--text-3);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 
 /* The run moves from one stage to the next without being selected again. */
@@ -405,12 +400,12 @@
 .m-handoff-what {
   min-width: 0;
   color: var(--text-2);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   overflow-wrap: anywhere;
 }
 .m-handoff-what b {
   color: var(--text-1);
-  font: 500 11px / 1 var(--mono);
+  font: 500 var(--t-xs) / 1 var(--sans);
   letter-spacing: 0.07em;
 }
 .m-handoff-actions {
@@ -424,7 +419,7 @@
   align-items: center;
   gap: 5px;
   color: var(--text-3);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-handoff-back:hover {
   color: var(--text-1);
@@ -443,12 +438,18 @@
   background: var(--brand);
   border: 1px solid var(--brand);
   border-radius: 0;
-  font: 600 12px / 1 var(--sans);
+  font: 600 var(--t-xs) / 1 var(--sans);
 }
 .m-handoff-go:hover {
   color: var(--btn-ink);
   background: var(--brand-press);
   border-color: var(--brand-press);
+}
+.m-handoff-terminal {
+  color: var(--text-3);
+  font: 600 var(--t-xs) / 1.2 var(--sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 /* Blocked handoffs are spans without href, so they need their own muted state. */
 .m-handoff-go.is-disabled {

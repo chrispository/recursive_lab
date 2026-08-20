@@ -1,6 +1,7 @@
 /**
- * Env lab orchestration: package the run's topics as PI environments, prove
- * them locally with `prime eval`, and write the cluster handoff.
+ * Env lab orchestration: package the run's topics as PI environments and prove
+ * them locally with `prime eval`. Cluster handoff preparation lives on the
+ * following page but remains coordinated by this domain service.
  *
  * Stages mirror the page: Build (packages) → RL test (rewards at expected
  * level) → Validation (learnability gate unlocks scale) → Prepare cluster
@@ -23,7 +24,7 @@ import {
   type PiPackageSpec,
 } from '../../gym/pi.ts';
 import * as repo from './repo.ts';
-import { taskOf, type BuildTopic, type EnvironmentRow, type EvaluationMetrics } from './model.ts';
+import { evaluationEnvironmentOf, labelOf, measureOf, mean, round, taskOf, type BuildTopic, type EnvironmentRow, type EvaluationMetrics, type EvaluationEnvironmentInput } from './model.ts';
 
 export type { EnvironmentRow, EvaluationSummary } from './model.ts';
 export const listByBenchmarkRun = repo.listByBenchmarkRun;
@@ -252,15 +253,19 @@ async function executeEval(input: {
   const outputDir = resolve(benchmarkRunDir(input.runCode), 'pi-evals', `${input.kind}-${new Date().toISOString().replace(/[:.]/g, '-')}`);
   const entries: NonNullable<EvaluationMetrics['environments']> = [];
   const resultPaths: Record<string, string> = {};
+  const evaluationEnvironments: EvaluationEnvironmentInput[] = [];
 
   for (const [index, environment] of input.environments.entries()) {
     if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
     await trace.step(`${index} of ${input.environments.length} environments complete`, index / input.environments.length);
     const splits = (['train', 'canary', 'heldout'] as const).filter((split) => environment.taskCounts[split] > 0);
     const rollouts: Array<{ exampleId: number; reward: number }> = [];
+    let exampleOffset = 0;
+    let currentSplit: 'train' | 'canary' | 'heldout' | null = null;
     try {
       if (!splits.length) throw new Error('No taskset examples are available to score.');
       for (const split of splits) {
+        currentSplit = split;
         if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
         const outcome = await runEval(
           {
@@ -283,13 +288,27 @@ async function executeEval(input: {
             onSpawn: (pgid) => trace.setPgid(pgid),
           },
         );
+        resultPaths[`${environment.slug}:${split}`] = outcome.resultsPath;
+        const splitRewards = outcome.rollouts.flatMap((rollout) =>
+          rollout.reward === null ? [] : [{ exampleId: rollout.exampleId, reward: rollout.reward }],
+        );
+        const splitMeasure = measureOf(splitRewards);
+        evaluationEnvironments.push(evaluationEnvironmentOf({
+          environmentId: environment.environmentId,
+          split,
+          taskCount: environment.taskCounts[split],
+          rolloutsPerExample: input.rollouts,
+          outcome,
+          measure: splitMeasure,
+          threshold: DEFAULT_THRESHOLD,
+        }));
         const rolloutError = outcome.rollouts.find((rollout) => rollout.error);
         if (rolloutError?.error) throw new Error(`${split} rollout ${rolloutError.exampleId} failed: ${rolloutError.error}`);
-        rollouts.push(...outcome.rollouts.map((rollout) => ({
-          exampleId: rollouts.length + rollout.exampleId,
+        rollouts.push(...splitRewards.map((rollout) => ({
+          exampleId: exampleOffset + rollout.exampleId,
           reward: rollout.reward,
         })));
-        resultPaths[`${environment.slug}:${split}`] = outcome.resultsPath;
+        exampleOffset += environment.taskCounts[split];
       }
       const measure = measureOf(rollouts);
       const avgReward = mean(rollouts.map((rollout) => rollout.reward));
@@ -310,6 +329,24 @@ async function executeEval(input: {
       if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
       const message = error instanceof Error ? error.message : String(error);
       await trace.log(`${environment.slug}  failed: ${message}`, 'err');
+      const failedSplit = currentSplit ?? splits[0] ?? 'train';
+      if (!evaluationEnvironments.some((entry) => entry.environmentId === environment.environmentId && entry.split === failedSplit)) {
+        evaluationEnvironments.push({
+          environmentId: environment.environmentId,
+          split: failedSplit,
+          taskCount: environment.taskCounts[failedSplit],
+          rolloutsPerExample: input.rollouts,
+          meanReward: null,
+          passRate: null,
+          withinTaskStd: null,
+          saturatedFraction: null,
+          tasksScored: 0,
+          error: message,
+          resultPath: null,
+          metrics: {},
+          rollouts: [],
+        });
+      }
       entries.push({
         environment_id: environment.environmentId,
         mean_reward: 0,
@@ -336,19 +373,25 @@ async function executeEval(input: {
     errored_environments: entries.length - ok.length,
     environments: entries,
   };
-  await repo.insertEvaluation({
+  const evaluationId = await repo.insertEvaluation({
     benchmarkRunId: input.benchmarkRunId,
+    jobId: trace.jobId,
     kind: input.kind,
     model: input.policy.model,
     endpointLabel: labelOf(input.policy.baseUrl),
+    judgeModel: input.judge.model,
+    judgeEndpointLabel: labelOf(input.judge.baseUrl),
     rolloutsPerExample: input.rollouts,
     maxConcurrent: input.maxConcurrent,
     environmentIds: entries.map((entry) => entry.environment_id),
     metrics,
     resultPaths,
+    environments: evaluationEnvironments,
   });
-  await audit.audit('environment_evaluations', input.benchmarkRunId, `eval:${input.kind}`, {
+  await audit.audit('environment_evaluations', evaluationId, `eval:${input.kind}`, {
+    evaluationId,
     benchmarkRunId: input.benchmarkRunId,
+    jobId: trace.jobId,
     kind: input.kind,
     meanReward: metrics.mean_reward,
     environments: entries.length,
@@ -376,6 +419,7 @@ async function executeEval(input: {
   await trace.succeed(
     {
       environments: entries.length,
+      evaluationId,
       evaluatedEnvironments: metrics.evaluated_environments,
       erroredEnvironments: metrics.errored_environments,
       meanReward: metrics.mean_reward,
@@ -383,48 +427,6 @@ async function executeEval(input: {
     `Local proof complete${errorSuffix}`,
   );
 }
-
-/** Aggregates rollouts into the learnability measures. Pure — unit-tested. */
-export function measureOf(rollouts: Array<{ exampleId: number; reward: number }>): {
-  passRate: number;
-  withinTaskStd: number;
-  saturatedFraction: number;
-  tasksScored: number;
-} {
-  const byExample = new Map<number, number[]>();
-  for (const rollout of rollouts) {
-    const list = byExample.get(rollout.exampleId) ?? [];
-    list.push(rollout.reward);
-    byExample.set(rollout.exampleId, list);
-  }
-  if (!byExample.size) {
-    return { passRate: 0, withinTaskStd: 0, saturatedFraction: 0, tasksScored: 0 };
-  }
-  const exampleMeans = [...byExample.values()].map((rewards) => mean(rewards));
-  const exampleStds = [...byExample.values()].map((rewards) => std(rewards));
-  return {
-    passRate: exampleMeans.filter((value) => value >= DEFAULT_THRESHOLD).length / byExample.size,
-    withinTaskStd: mean(exampleStds),
-    saturatedFraction: exampleMeans.filter((value) => value >= 0.99).length / byExample.size,
-    tasksScored: byExample.size,
-  };
-}
-
-const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
-const std = (values: number[]) => {
-  if (values.length < 2) return 0;
-  const m = mean(values);
-  return Math.sqrt(mean(values.map((value) => (value - m) ** 2)));
-};
-const round = (value: number) => Math.round(value * 1000) / 1000;
-
-const labelOf = (baseUrl: string) => {
-  try {
-    return new URL(baseUrl).host;
-  } catch {
-    return baseUrl;
-  }
-};
 
 // --- cluster handoff ---------------------------------------------------------
 

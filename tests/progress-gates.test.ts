@@ -15,7 +15,13 @@ function progressWithFailureMap(entity: string | null): BenchmarkRunProgress {
     failureMap: step(entity),
     topicCount: 0,
     dataForgeRun: step(null),
+    dataForgeRequested: 0,
+    dataForgeCreated: 0,
+    dataForgePending: 0,
+    dataForgeRejected: 0,
     environments: step(null),
+    scaleReadyEnvironments: 0,
+    clusterHandoff: step(null),
   };
 }
 
@@ -38,9 +44,25 @@ describe('handoff gates', () => {
   it('keeps Env lab closed until an approved document exists', () => {
     const progress = progressWithFailureMap('FM-00001');
     progress.dataForgeRun = { entity: 'DF-00001', count: 0 };
+    progress.dataForgeRequested = 1;
     expect(handoffGate('env-lab', progress).open).toBe(false);
 
     progress.dataForgeRun.count = 1;
     expect(handoffGate('env-lab', progress)).toEqual({ open: true, reason: null });
+  });
+
+  it('opens the forge review page once a forge run exists', () => {
+    const progress = progressWithFailureMap('FM-00001');
+    progress.dataForgeRun = { entity: 'DF-00001', count: 0 };
+    expect(handoffGate('forge-review', progress)).toEqual({ open: true, reason: null });
+  });
+
+  it('keeps the cluster handoff closed until local validation unlocks an environment', () => {
+    const progress = progressWithFailureMap('FM-00001');
+    progress.environments = { entity: 'BR-00001', count: 1 };
+    expect(handoffGate('cluster', progress).open).toBe(false);
+
+    progress.scaleReadyEnvironments = 1;
+    expect(handoffGate('cluster', progress)).toEqual({ open: true, reason: null });
   });
 });

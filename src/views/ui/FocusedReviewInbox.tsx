@@ -95,7 +95,8 @@ export function FocusedReviewInbox({ benchmarkRunId, dataForge, documents }: { b
   const initialBucket: ReviewBucket = pending.length ? 'pending' : approved.length ? 'approved' : 'blocked';
   const selected = (initialBucket === 'pending' ? pending : initialBucket === 'approved' ? approved : blocked)[0] ?? documents[0] ?? null;
   const complete = Boolean(dataForge && dataForge.novelDocuments >= dataForge.requestedDocuments);
-  const handoffReady = complete && pending.length === 0 && blocked.length === 0;
+  const manuallyRejected = documents.some((document) => document.noveltyStatus === 'passed' && document.reviewStatus === 'rejected');
+  const handoffReady = complete && pending.length === 0 && !manuallyRejected;
 
   return (
     <details

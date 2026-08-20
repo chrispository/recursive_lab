@@ -1,8 +1,8 @@
 /**
- * The five pipeline stages plus settings.
+ * The seven pipeline stages plus settings.
  *
  * Order is the pipeline order and is load bearing: the rail numbers stages
- * 01–05 by position, and `gates` counts how far down this list the current
+ * 01–07 by position, and `gates` counts how far down this list the current
  * progress reaches. `settings` is deliberately not a stage — it is reached from
  * the rail head, not the numbered list.
  */
@@ -12,7 +12,9 @@ export const STAGES = [
   { tab: 'results', label: 'Results', title: 'Benchmark results' },
   { tab: 'failures', label: 'Failure map', title: 'Failure map' },
   { tab: 'forge', label: 'Data forge', title: 'Forge training documents' },
+  { tab: 'forge-review', label: 'Forge review', title: 'Review training documents' },
   { tab: 'env-lab', label: 'Env lab', title: 'Environment lab' },
+  { tab: 'cluster', label: 'Cluster handoff', title: 'Cluster handoff' },
 ] as const;
 
 export type Stage = (typeof STAGES)[number];

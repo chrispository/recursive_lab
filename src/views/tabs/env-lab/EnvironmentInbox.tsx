@@ -127,6 +127,55 @@ function MeasureSummary({ label, measure, threshold, running = false }: { label:
   );
 }
 
+function LearnabilityGates({ environment, measure, running = false }: { environment: EnvironmentRow; measure: EnvironmentMeasure | null; running?: boolean }) {
+  const errored = Boolean(measure?.error);
+  const available = measure !== null && !errored;
+  const gates = [
+    {
+      label: `Mean ≥ ${environment.passThreshold.toFixed(2)}`,
+      value: measure?.meanReward,
+      passed: available && measure.meanReward !== null && measure.meanReward >= environment.passThreshold,
+    },
+    {
+      label: 'Spread ≥ 0.05',
+      value: measure?.withinTaskStd,
+      passed: available && measure.withinTaskStd >= 0.05,
+    },
+    {
+      label: 'Saturation ≤ 0.80',
+      value: measure?.saturatedFraction,
+      passed: available && measure.saturatedFraction <= 0.8,
+    },
+  ];
+
+  return (
+    <div class="m-env-inbox-gates">
+      <div class="m-env-inbox-gates-head">
+        <div>
+          <h5>Learnability gates</h5>
+          <p>Validation must clear all three independently; a run mean cannot hide a weak topic.</p>
+        </div>
+        <Badge state={environment.scaleReady ? 'ready' : 'pending'}>{environment.scaleReady ? 'READY FOR SCALE' : 'GATED'}</Badge>
+      </div>
+      <div class="m-env-inbox-gate-list">
+        {gates.map((gate) => {
+          const state = running ? 'active' : errored ? 'error' : !available ? 'pending' : gate.passed ? 'ready' : 'failed';
+          return (
+            <div class="m-env-inbox-gate" data-state={state}>
+              <div>
+                <small>{gate.label}</small>
+                <strong>{running ? '…' : errored ? '—' : gate.value === null || gate.value === undefined ? '—' : gate.value.toFixed(3)}</strong>
+              </div>
+              <Badge state={state}>{running ? 'running' : errored ? 'ERROR' : !available ? '—' : gate.passed ? 'PASS' : 'FAIL'}</Badge>
+            </div>
+          );
+        })}
+      </div>
+      <p class="m-env-inbox-gates-note">Healthy signal is usually a 0.35–0.75 mean with spread ≥ 0.05 and saturation ≤ 0.80. High reward with no spread teaches nothing.</p>
+    </div>
+  );
+}
+
 function EnvironmentDetail({ environment, selected, activeStage, liveEvaluation }: { environment: EnvironmentRow; selected: boolean; activeStage: ActiveStage; liveEvaluation: LiveEvaluation | null }) {
   const bucket = bucketOf(environment, activeStage, liveEvaluation);
   const packageState = stageState(packageReady(environment), environment.status === 'failed');
@@ -145,7 +194,6 @@ function EnvironmentDetail({ environment, selected, activeStage, liveEvaluation 
     <article id={`environment-review-detail-${environment.environmentCode}`} class="m-review-detail" data-review-detail={environment.environmentCode} hidden={!selected}>
       <div class="m-review-detail-head">
         <div>
-          <div class="m-review-eyebrow">{environment.topicName} / environment</div>
           <h4>{environment.topicName}</h4>
           <div class="m-review-meta">
             <span><Id value={environment.environmentCode} /></span>
@@ -177,7 +225,7 @@ function EnvironmentDetail({ environment, selected, activeStage, liveEvaluation 
           <MeasureSummary label={activeStage === 'rl_test' ? 'RL test · current run' : 'RL test · 2 rollouts'} measure={rlMeasure} threshold={environment.passThreshold} running={rlRunning} />
           <MeasureSummary label={activeStage === 'validation' ? 'Validation · current run' : 'Validation · 4 rollouts'} measure={validationMeasure} threshold={environment.passThreshold} running={validationRunning} />
         </div>
-        <div class="m-env-inbox-next"><span>Next action</span><strong>{nextAction(environment, activeStage, liveEvaluation)}</strong></div>
+        <LearnabilityGates environment={environment} measure={validationMeasure} running={validationRunning} />
       </div>
 
       <div class="m-review-reading" data-review-tab-panel="verifier" hidden>
@@ -200,10 +248,6 @@ function EnvironmentDetail({ environment, selected, activeStage, liveEvaluation 
         {environment.localPath ? <p class="m-env-inbox-path"><Id value={environment.environmentCode} /> · {environment.localPath}</p> : <p class="m-env-inbox-path">Package path will appear after the build completes.</p>}
       </div>
 
-      <div class="m-review-actions">
-        <span><Id value={environment.environmentCode} /> · local environment</span>
-        <span class="m-env-inbox-action">{nextAction(environment, activeStage, liveEvaluation)}</span>
-      </div>
     </article>
   );
 }
@@ -220,33 +264,18 @@ export function EnvironmentInbox({ environments, buildJob, evalJob, oob = false 
   const initialEnvironments = initialBucket === 'active' ? active : initialBucket === 'pending' ? pending : initialBucket === 'error' ? errors : ready;
   const selected = initialEnvironments[0] ?? environments[0] ?? null;
   const liveCompleted = liveEvaluation?.environments.length ?? 0;
-  const liveErrors = liveEvaluation?.environments.filter((entry) => Boolean(entry.error)).length ?? 0;
-  const liveStageName = activeStage === 'validation' ? 'Validation' : 'RL test';
 
   return (
-    <details
+    <div
       id="environment-review-inbox"
       class="m-review-inbox m-env-inbox"
       data-review-inbox
       data-review-status-filter={initialBucket}
       data-review-selected={selected?.environmentCode ?? ''}
       hx-swap-oob={oob ? 'true' : undefined}
-      open
     >
-      <summary class="m-review-inbox-head">
-        <div>
-          <h3>Environment review queue</h3>
-          <p>{environments.length} package{environments.length === 1 ? '' : 's'}, one environment open, one next action at a time.</p>
-        </div>
-        <span class="m-review-head-tools"><span class="m-review-recommended">recommended path</span><span class="m-review-collapse"><span class="m-review-collapse-open">collapse</span><span class="m-review-collapse-closed">open</span></span></span>
-      </summary>
-
-      <div class="m-review-decision-bar m-env-inbox-decision">
-        <div class="m-review-decision-copy">
-          <strong>{activeStage && activeStage !== 'package' && liveEvaluation?.kind === activeStage ? `${active.length} environment${active.length === 1 ? '' : 's'} in progress${liveCompleted ? ` · ${liveCompleted} complete` : ''}` : activeStage ? `${active.length} environment${active.length === 1 ? '' : 's'} in progress` : pending.length ? `${pending.length} environment${pending.length === 1 ? '' : 's'} need the next step` : errors.length ? `${errors.length} environment${errors.length === 1 ? '' : 's'} need attention` : 'All local proof stages have recorded results'}</strong>
-          <p>{activeStage && activeStage !== 'package' && liveEvaluation?.kind === activeStage ? `${liveStageName} is running; ${liveCompleted} of ${environments.length} environments have finished${liveErrors ? `, including ${liveErrors} error${liveErrors === 1 ? '' : 's'}` : ''}.` : activeStage ? `${activeStage === 'package' ? 'Packages are building' : activeStage === 'rl_test' ? 'The RL smoke test is running' : 'Validation is running'}; displayed rewards are from the last completed run until this job finishes.` : 'Select an environment to inspect its verifier, taskset split, and latest reward signal. Run controls stay in the Prove locally panel below.'}</p>
-        </div>
-        <div class="m-env-inbox-flow" aria-label="Recommended environment workflow"><span><b>01</b> package</span><i>→</i><span><b>02</b> RL smoke</span><i>→</i><span><b>03</b> validation</span></div>
+      <div class="m-env-inbox-status" role="status" aria-live="polite">
+        <strong>{activeStage && activeStage !== 'package' && liveEvaluation?.kind === activeStage ? `${active.length} environment${active.length === 1 ? '' : 's'} in progress${liveCompleted ? ` · ${liveCompleted} complete` : ''}` : activeStage ? `${active.length} environment${active.length === 1 ? '' : 's'} in progress` : pending.length ? `${pending.length} environment${pending.length === 1 ? '' : 's'} need the next step` : errors.length ? `${errors.length} environment${errors.length === 1 ? '' : 's'} need attention` : 'All local proof stages have recorded results'}</strong>
       </div>
 
       <div class="m-review-split">
@@ -278,6 +307,6 @@ export function EnvironmentInbox({ environments, buildJob, evalJob, oob = false 
           {!environments.length ? <div class="m-review-empty m-review-empty-detail">Build the approved documents to create the first environment package.</div> : null}
         </div>
       </div>
-    </details>
+    </div>
   );
 }

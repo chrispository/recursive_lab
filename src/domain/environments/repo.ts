@@ -2,13 +2,14 @@
  * SQL for environments. Writes happen here too — the service orchestrates,
  * this file owns every query touching environments/verifiers/evaluations.
  */
-import { all, insert, json, one, now, run, type Row } from '../../db/client.ts';
+import { all, db, insert, json, one, now, run, type Row } from '../../db/client.ts';
 import { code, parse } from '../../db/ids.ts';
 import type {
   BuildDocument,
   BuildTopic,
   EnvironmentMeasure,
   EnvironmentRow,
+  EvaluationEnvironmentInput,
   EvaluationMetrics,
   EvaluationSummary,
 } from './model.ts';
@@ -27,6 +28,7 @@ type EnvironmentDb = Row & {
   pass_threshold: number;
   local_path: string | null;
   scale_ready: number;
+  training_toml: string;
   train: number;
   canary: number;
   heldout: number;
@@ -36,7 +38,7 @@ export async function listByBenchmarkRun(benchmarkRunId: number): Promise<Enviro
   const rows = await all<EnvironmentDb>(
     `SELECT e.id, e.topic_id, tp.name AS topic_name, tp.description AS topic_description,
             tp.verifier_strategy, e.slug, e.status, e.base_model, e.inference_model,
-            v.name AS verifier_name, v.pass_threshold, e.local_path, e.scale_ready,
+            v.name AS verifier_name, v.pass_threshold, e.local_path, e.scale_ready, e.training_toml,
             (SELECT count(*) FROM environment_documents ed
               JOIN documents d ON d.id = ed.document_id
               WHERE ed.environment_id = e.id AND ed.role = 'train') AS train,
@@ -75,6 +77,7 @@ export async function listByBenchmarkRun(benchmarkRunId: number): Promise<Enviro
       passThreshold: Number(row.pass_threshold),
       localPath: row.local_path,
       scaleReady: row.scale_ready === 1,
+      clusterPrepared: Boolean(row.training_toml),
       taskCounts: { tasks: train + canary + heldout, train, canary, heldout },
       rlTest: measures.rl_test.get(row.id) ?? null,
       validation: measures.validation.get(row.id) ?? null,
@@ -129,15 +132,20 @@ async function evaluationOf(
 ): Promise<EvaluationSummary | null> {
   const row = await one<Row & {
     id: number;
+    benchmark_run_id: number;
+    job_id: number;
     kind: EvaluationSummary['kind'];
     model: string;
     endpoint_label: string;
+    judge_model: string;
+    judge_endpoint_label: string;
     created_at: string;
     rollouts_per_example: number;
     max_concurrent: number;
     metrics_json: string;
   }>(
-    `SELECT id, kind, model, endpoint_label, rollouts_per_example, max_concurrent, metrics_json, created_at
+    `SELECT id, benchmark_run_id, job_id, kind, model, endpoint_label, judge_model,
+            judge_endpoint_label, rollouts_per_example, max_concurrent, metrics_json, created_at
        FROM environment_evaluations
       WHERE benchmark_run_id = ? ${kind ? 'AND kind = ?' : ''}
       ORDER BY created_at DESC, id DESC LIMIT 1`,
@@ -149,9 +157,13 @@ async function evaluationOf(
   return {
     evaluationId: row.id,
     evaluationCode: code('environment_evaluations', row.id),
+    benchmarkRunId: row.benchmark_run_id,
+    jobId: row.job_id,
     kind: row.kind,
     model: row.model,
     endpointLabel: row.endpoint_label,
+    judgeModel: row.judge_model,
+    judgeEndpointLabel: row.judge_endpoint_label,
     createdAt: row.created_at,
     rolloutsPerExample: row.rollouts_per_example,
     maxConcurrent: row.max_concurrent,
@@ -314,35 +326,124 @@ export async function attachDocument(
 
 export async function insertEvaluation(input: {
   benchmarkRunId: number;
+  jobId: number;
   kind: EvaluationSummary['kind'];
   model: string;
   endpointLabel: string;
+  judgeModel: string;
+  judgeEndpointLabel: string;
   rolloutsPerExample: number;
   maxConcurrent: number;
   environmentIds: number[];
   metrics: EvaluationMetrics;
   resultPaths: Record<string, string>;
+  environments: EvaluationEnvironmentInput[];
 }): Promise<number> {
   const at = now();
-  return insert(
-    `INSERT INTO environment_evaluations
-       (benchmark_run_id, kind, model, endpoint_label, rollouts_per_example, max_concurrent,
-        environment_ids_json, metrics_json, result_paths_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      input.benchmarkRunId,
-      input.kind,
-      input.model,
-      input.endpointLabel,
-      input.rolloutsPerExample,
-      input.maxConcurrent,
-      JSON.stringify(input.environmentIds),
-      JSON.stringify(input.metrics),
-      JSON.stringify(input.resultPaths),
-      at,
-      at,
-    ],
-  );
+  await db.execute('BEGIN');
+  try {
+    const evaluationId = await insert(
+      `INSERT INTO environment_evaluations
+         (benchmark_run_id, job_id, kind, model, endpoint_label, judge_model, judge_endpoint_label,
+          rollouts_per_example, max_concurrent, environment_ids_json, metrics_json, result_paths_json,
+          created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        input.benchmarkRunId,
+        input.jobId,
+        input.kind,
+        input.model,
+        input.endpointLabel,
+        input.judgeModel,
+        input.judgeEndpointLabel,
+        input.rolloutsPerExample,
+        input.maxConcurrent,
+        JSON.stringify(input.environmentIds),
+        JSON.stringify(input.metrics),
+        JSON.stringify(input.resultPaths),
+        at,
+        at,
+      ],
+    );
+
+    for (const environment of input.environments) {
+      const evaluationEnvironmentId = await insert(
+        `INSERT INTO environment_evaluation_environments
+           (evaluation_id, environment_id, split, task_count, rollouts_per_example,
+            mean_reward, pass_rate, within_task_std, saturated_fraction, tasks_scored,
+            error, result_path, metrics_json, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          evaluationId,
+          environment.environmentId,
+          environment.split,
+          environment.taskCount,
+          environment.rolloutsPerExample,
+          environment.meanReward,
+          environment.passRate,
+          environment.withinTaskStd,
+          environment.saturatedFraction,
+          environment.tasksScored,
+          environment.error,
+          environment.resultPath,
+          JSON.stringify(environment.metrics),
+          at,
+        ],
+      );
+      for (const rollout of environment.rollouts) {
+        const rolloutId = await insert(
+          `INSERT INTO environment_evaluation_rollouts
+             (evaluation_environment_id, document_id, example_index, rollout_index, trial_name,
+              reward, outcome, error, result_path, agent_input_tokens, agent_output_tokens,
+              agent_turns, judge_input_tokens, judge_output_tokens, judge_wall_clock_seconds,
+              metadata_json, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            evaluationEnvironmentId,
+            rollout.documentId,
+            rollout.exampleIndex,
+            rollout.rolloutIndex,
+            rollout.trialName,
+            rollout.reward,
+            rollout.outcome,
+            rollout.error,
+            rollout.resultPath,
+            rollout.agentInputTokens,
+            rollout.agentOutputTokens,
+            rollout.agentTurns,
+            rollout.judgeInputTokens,
+            rollout.judgeOutputTokens,
+            rollout.judgeWallClockSeconds,
+            JSON.stringify(rollout.metadata),
+            at,
+          ],
+        );
+        for (const target of rollout.targetScores) {
+          await run(
+            `INSERT INTO environment_evaluation_target_scores
+               (rollout_id, target_index, target_text, score, verdict, judge_model, error, details_json, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              rolloutId,
+              target.targetIndex,
+              target.targetText,
+              target.score,
+              target.verdict,
+              target.judgeModel,
+              target.error,
+              JSON.stringify(target.details),
+              at,
+            ],
+          );
+        }
+      }
+    }
+    await db.execute('COMMIT');
+    return evaluationId;
+  } catch (error) {
+    await db.execute('ROLLBACK').catch(() => undefined);
+    throw error;
+  }
 }
 
 export async function markScaleReady(environmentId: number, trainingToml: string): Promise<void> {

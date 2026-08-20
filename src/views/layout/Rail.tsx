@@ -1,7 +1,7 @@
 /**
  * The 186px left index rail — the app's only navigation.
  *
- * It carries three things, top to bottom: identity (wordmark), the five numbered
+ * It carries three things, top to bottom: identity (wordmark), the seven numbered
  * pipeline stages, and the gate readout. The gate
  * readout is derived from the current progress on every render and never stored.
  */
@@ -15,7 +15,7 @@ export type RailState = {
   model: string | null;
   /** Criteria pass rate 0–1, shown in the rail foot. */
   passRate: number | null;
-  /** How many of the five stages are satisfied. Drives `done` vs `active`. */
+  /** How many of the seven stages are satisfied. Drives `done` vs `active`. */
   gates: number;
 };
 

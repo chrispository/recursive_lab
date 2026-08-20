@@ -1,7 +1,7 @@
 /**
- * Env lab, stage 05: prove PI environments locally, then hand them to the
- * cluster. One region — `#env-lab-body` — owns everything below the run
- * context, so build/prepare swap it whole and the job status polls separately.
+ * Env lab, stage 06: prove PI environments locally. One region —
+ * `#env-lab-body` — owns everything below the run context, so build/evaluation
+ * actions swap it whole and the job status polls separately.
  */
 import type { EnvironmentRow, EvaluationSummary } from '../../domain/environments/model.ts';
 import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
@@ -9,11 +9,9 @@ import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { isLive, type JobLogLine, type JobRow } from '../../domain/jobs/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Cap } from '../ui/Cap.tsx';
-import { Id } from '../ui/Id.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
 import { EnvironmentInbox } from './env-lab/EnvironmentInbox.tsx';
-import { ProofReport } from './env-lab/ProofReport.tsx';
 import { EnvLabStages } from './env-lab/Stages.tsx';
 import { Handoff } from '../layout/Handoff.tsx';
 import { RunContext } from '../layout/RunContext.tsx';
@@ -110,9 +108,45 @@ export function EnvLabBody({
   const rlPassed = built.filter((e) => e.rlTest && !e.rlTest.error && e.rlTest.meanReward !== null && e.rlTest.meanReward >= e.passThreshold).length;
   const validated = built.filter((e) => e.validation && !e.validation.error && e.validation.meanReward !== null && e.validation.meanReward >= e.passThreshold).length;
   const scaleReady = environments.filter((e) => e.scaleReady);
+  const hasDocuments = (progress?.dataForgeRun.count ?? 0) > 0;
+  const packageComplete = environments.length > 0 && built.length === environments.length;
+  const canBuild = Boolean(benchmarkRun && hasDocuments && settings.primeInstalled && !packageComplete);
+  const canEval = built.length > 0
+    && settings.policyConfigured && settings.judgeConfigured && settings.primeInstalled;
+  const evalBusy = isLive(evalJob);
+  const cleanRl = Boolean(rlTest && rlTest.erroredEnvironments === 0 && rlTest.tasksScored > 0);
 
   return (
     <div id="env-lab-body" hx-swap-oob={oob ? 'true' : undefined}>
+      <form
+        id="env-lab-run-form"
+        class="m-env-run-form"
+        hx-post="/ui/env-lab/start"
+        hx-target="#env-lab-status"
+        hx-swap="none"
+        hx-disabled-elt="find button"
+      >
+        <input type="hidden" name="benchmark_run_id" value={String(benchmarkRun?.benchmarkRunId ?? 0)} />
+        <EnvLabStages
+          environments={environments}
+          rlTest={rlTest}
+          validation={validation}
+          buildJob={buildJob}
+          evalJob={evalJob}
+          canBuild={canBuild}
+          canRunRl={canEval && !evalBusy}
+          canRunValidation={canEval && cleanRl && !evalBusy}
+          policyModel={settings.policyModel}
+        />
+        <ProveLocally
+          environments={environments}
+          progress={progress}
+          rlTest={rlTest}
+          validation={validation}
+          settings={settings}
+        />
+      </form>
+
       <TableBox>
         <Cap title="Environment readiness" code={validation?.evaluationCode ?? rlTest?.evaluationCode ?? undefined}>
           <Tally items={[
@@ -127,17 +161,6 @@ export function EnvLabBody({
         <EnvironmentInbox environments={environments} buildJob={buildJob} evalJob={evalJob} />
       </TableBox>
 
-      <ProveLocally
-        benchmarkRun={benchmarkRun}
-        environments={environments}
-        progress={progress}
-        rlTest={rlTest}
-        validation={validation}
-        buildJob={buildJob}
-        evalJob={evalJob}
-        settings={settings}
-      />
-
       <EnvLabStatus
         runId={benchmarkRun?.benchmarkRunId ?? null}
         buildJob={buildJob}
@@ -148,44 +171,23 @@ export function EnvLabBody({
 
       <JobLog job={jobLog.job} lines={jobLog.lines} />
 
-      <ProofReport rlTest={rlTest} validation={validation} environments={environments} evalJob={evalJob} />
-
-      <ClusterHandoff
-        benchmarkRun={benchmarkRun}
-        environments={environments}
-        validation={validation}
-      />
     </div>
   );
 }
 
 function ProveLocally({
-  benchmarkRun,
   environments,
   progress,
   rlTest,
   validation,
-  buildJob,
-  evalJob,
   settings,
 }: {
-  benchmarkRun: BenchmarkRunSummary | null;
   environments: EnvironmentRow[];
   progress: BenchmarkRunProgress | null;
   rlTest: EvaluationSummary | null;
   validation: EvaluationSummary | null;
-  buildJob: JobRow | null;
-  evalJob: JobRow | null;
   settings: EnvLabSettings;
 }) {
-  const runId = benchmarkRun?.benchmarkRunId ?? 0;
-  const hasDocuments = (progress?.dataForgeRun.count ?? 0) > 0;
-  const built = environments.filter((e) => e.status === 'built' || e.status === 'ready');
-  const packageComplete = environments.length > 0 && built.length === environments.length;
-  const canBuild = Boolean(benchmarkRun && hasDocuments && settings.primeInstalled && !packageComplete);
-  const canEval = built.length > 0
-    && settings.policyConfigured && settings.judgeConfigured && settings.primeInstalled;
-  const evalBusy = isLive(evalJob);
   const cleanRl = Boolean(rlTest && rlTest.erroredEnvironments === 0 && rlTest.tasksScored > 0);
   const totals = environments.reduce(
     (sum, e) => ({
@@ -207,35 +209,14 @@ function ProveLocally({
         <span class="m-code">RUN SETTINGS · COVERAGE</span>
       </div>
 
-      <form
-        class="m-env-run-form"
-        hx-post="/ui/env-lab/start"
-        hx-target="#env-lab-status"
-        hx-swap="none"
-        hx-disabled-elt="find button"
-      >
-        <input type="hidden" name="benchmark_run_id" value={String(runId)} />
-        <EnvLabStages
-          environments={environments}
-          rlTest={rlTest}
-          validation={validation}
-          buildJob={buildJob}
-          evalJob={evalJob}
-          canBuild={canBuild}
-          canRunRl={canEval && !evalBusy}
-          canRunValidation={canEval && cleanRl && !evalBusy}
-        />
-
-        <div class="m-env-run-settings">
-          <div><small>Local inference model</small><strong>{settings.policyModel || 'not configured'}</strong></div>
-          <div><small>Rollouts per task</small><strong>RL smoke 2 · validation 4</strong></div>
-          <label class="m-env-field">
-            <span>Local concurrency</span>
-            <input type="number" name="max_concurrent" min="1" max="8" value="1" />
-          </label>
-          <div class="m-env-cost"><small>Estimated validation cost</small><strong>{estimatedRollouts} rollouts · ~{estimatedRollouts * 2} model calls</strong><span>train + canary + heldout · each rollout calls policy + judge</span></div>
-        </div>
-      </form>
+      <div class="m-env-run-settings">
+        <div><small>Rollouts per task</small><strong>RL smoke 2 · validation 4</strong></div>
+        <label class="m-env-field">
+          <span>Local concurrency</span>
+          <input type="number" name="max_concurrent" min="1" max="8" value="1" />
+        </label>
+        <div class="m-env-cost"><small>Estimated validation cost</small><strong>{estimatedRollouts} rollouts · ~{estimatedRollouts * 2} model calls</strong><span>train + canary + heldout · each rollout calls policy + judge</span></div>
+      </div>
 
       {!settings.policyConfigured || !settings.judgeConfigured ? (
         <div class="m-env-settings-note"><span class="m-field-note">Configure the policy key and judge key + model in Settings first.</span></div>
@@ -375,69 +356,4 @@ export function EnvLabStatus({
     );
   }
   return <div id={id} class="m-analysis-status"><Badge state="pending">idle</Badge><span>Build packages, then run the RL test and validation.</span></div>;
-}
-
-function ClusterHandoff({
-  benchmarkRun,
-  environments,
-  validation,
-}: {
-  benchmarkRun: BenchmarkRunSummary | null;
-  environments: EnvironmentRow[];
-  validation: EvaluationSummary | null;
-}) {
-  const ready = environments.filter((e) => e.scaleReady);
-  const gated = environments.filter((e) => !e.scaleReady);
-  const runId = benchmarkRun?.benchmarkRunId ?? 0;
-  const passed = validation !== null && environments.some((e) => e.validation && !e.validation.error && e.validation.meanReward !== null && e.validation.meanReward >= e.passThreshold);
-
-  return (
-    <TableBox>
-      <Cap title="Hand off to the cluster" code={passed ? 'UNLOCKED BY LOCAL VALIDATION' : 'GATED BY LOCAL VALIDATION'}>
-        <Tally items={[
-          { value: ready.length, label: 'scale ready', hot: ready.length > 0 },
-          { value: gated.length, label: 'gated' },
-        ]} />
-      </Cap>
-      <div class="m-env-cluster">
-        <p class="m-env-cluster-note">
-          {passed
-            ? 'Preparing writes the immutable taskset and the cluster training TOML next to each package; the cluster then trains on all of train.jsonl.'
-            : 'Local validation has not passed yet — the handoff stays gated until the learnability gate opens.'}
-        </p>
-        {environments.length ? (
-          <div class="m-env-ledger">
-            {environments.map((environment) => (
-              <div class="m-env-ledger-row" data-ready={environment.scaleReady ? '1' : undefined}>
-                <div class="m-env-ledger-main">
-                  <div class="m-env-ledger-title">{environment.topicName}</div>
-                  <div class="m-env-ledger-meta">
-                    {environment.validation?.error
-                      ? 'validation errored — inspect the job log'
-                      : environment.validation?.meanReward === null
-                      ? 'validation not scored'
-                      : environment.validation
-                      ? `validation ${environment.validation.meanReward.toFixed(3)} / threshold ${environment.passThreshold.toFixed(2)} · ${environment.taskCounts.tasks} ${environment.taskCounts.tasks === 1 ? 'task' : 'tasks'}`
-                      : 'not validated'}
-                    {environment.localPath ? <span class="m-env-ledger-path"><Id value={environment.environmentCode} /> · {environment.slug}</span> : null}
-                  </div>
-                </div>
-                <form hx-post="/ui/env-lab/prepare" hx-target="#env-lab-body" hx-swap="outerHTML" hx-disabled-elt="find button">
-                  <input type="hidden" name="benchmark_run_id" value={String(runId)} />
-                  <input type="hidden" name="environment_code" value={environment.environmentCode} />
-                  <button class="ghost compact" type="submit" disabled={!environment.scaleReady}>
-                    Prepare cluster
-                  </button>
-                </form>
-              </div>
-            ))}
-          </div>
-        ) : <div class="m-empty">No environments to hand off.</div>}
-        <form class="m-env-cluster-actions" hx-post="/ui/env-lab/prepare" hx-target="#env-lab-body" hx-swap="outerHTML" hx-disabled-elt="find button">
-          <input type="hidden" name="benchmark_run_id" value={String(runId)} />
-          <button type="submit" disabled={!ready.length}>Prepare {ready.length || ''} {ready.length === 1 ? 'environment' : 'environments'} for cluster</button>
-        </form>
-      </div>
-    </TableBox>
-  );
 }

@@ -26,11 +26,17 @@ export type BenchmarkRunProgress = {
   failureMap: ProgressStep;
   topicCount: number;
   dataForgeRun: ProgressStep;
+  dataForgeRequested: number;
+  dataForgeCreated: number;
+  dataForgePending: number;
+  dataForgeRejected: number;
   environments: ProgressStep;
+  scaleReadyEnvironments: number;
+  clusterHandoff: ProgressStep;
 };
 
 /** The pipeline destinations that can be reached by a handoff action. */
-export type HandoffTarget = 'benchmarks' | 'results' | 'failures' | 'forge' | 'env-lab';
+export type HandoffTarget = 'benchmarks' | 'results' | 'failures' | 'forge' | 'forge-review' | 'env-lab' | 'cluster';
 
 /** A handoff's current availability and the explanation shown when it is closed. */
 export type GateDecision = {
@@ -41,7 +47,7 @@ export type GateDecision = {
 const EMPTY: ProgressStep = { entity: null, count: 0 };
 
 /**
- * How many of the five rail stages are satisfied.
+ * How many of the seven rail stages are satisfied.
  *
  * Each rail stage is satisfied by its own downstream entity. A benchmark run
  * opens stage 01; its first task result opens stage 02.
@@ -52,8 +58,21 @@ export function gatesOf(progress: BenchmarkRunProgress | null): number {
   if (progress.benchmarkResult.entity) gates++;
   if (progress.failureMap.entity) gates++;
   if (progress.dataForgeRun.entity) gates++;
-  if (progress.environments.count > 0) gates++;
+  if (reviewComplete(progress)) gates++;
+  if (progress.environments.count > 0 && progress.scaleReadyEnvironments >= progress.environments.count) gates++;
+  if (progress.clusterHandoff.count > 0 && progress.clusterHandoff.count >= progress.scaleReadyEnvironments) gates++;
   return gates;
+}
+
+/** Every requested novel slot must be approved before environments are built. */
+export function reviewComplete(progress: BenchmarkRunProgress | null): boolean {
+  return Boolean(
+    progress?.dataForgeRun.entity
+      && progress.dataForgeRequested > 0
+      && progress.dataForgeRun.count >= progress.dataForgeRequested
+      && progress.dataForgePending === 0
+      && progress.dataForgeRejected === 0,
+  );
 }
 
 /**
@@ -65,8 +84,8 @@ export function gatesOf(progress: BenchmarkRunProgress | null): number {
  * is eventually started.
  *
  * The transitions are ordered prerequisites: benchmark results unlock failure
- * analysis, a stored failure map unlocks Data forge, and at least one generated
- * document unlocks the environment stage.
+ * analysis, a stored failure map unlocks Data forge, a complete human review
+ * unlocks Env lab, and local validation unlocks the cluster handoff.
  */
 export function handoffGate(target: HandoffTarget, progress: BenchmarkRunProgress | null): GateDecision {
   if ((target === 'results' || target === 'failures') && !progress?.benchmarkResult.entity) {
@@ -81,10 +100,22 @@ export function handoffGate(target: HandoffTarget, progress: BenchmarkRunProgres
       reason: 'Create a failure map before sending this run to Data forge.',
     };
   }
-  if (target === 'env-lab' && (!progress?.dataForgeRun.entity || progress.dataForgeRun.count < 1)) {
+  if (target === 'forge-review' && !progress?.dataForgeRun.entity) {
     return {
       open: false,
-      reason: 'Generate at least one reviewed data-forged document before sending this run to Env lab.',
+      reason: 'Start a data forge run before opening document review.',
+    };
+  }
+  if (target === 'env-lab' && !reviewComplete(progress)) {
+    return {
+      open: false,
+      reason: 'Fill every requested forge slot and approve every novel document before sending this run to Env lab.',
+    };
+  }
+  if (target === 'cluster' && (!progress?.environments.count || progress.scaleReadyEnvironments < 1)) {
+    return {
+      open: false,
+      reason: 'Pass local validation for at least one environment before opening the cluster handoff.',
     };
   }
   return { open: true, reason: null };

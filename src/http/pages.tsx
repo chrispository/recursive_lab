@@ -25,7 +25,9 @@ import { Benchmarks } from '../views/tabs/Benchmarks.tsx';
 import { EnvLab } from '../views/tabs/EnvLab.tsx';
 import { Failures } from '../views/tabs/Failures.tsx';
 import { DataForge } from '../views/tabs/DataForge.tsx';
+import { DataForgeReview } from '../views/tabs/DataForgeReview.tsx';
 import { Results } from '../views/tabs/Results.tsx';
+import { ClusterHandoffPage } from '../views/tabs/ClusterHandoff.tsx';
 import { Settings } from '../views/tabs/Settings.tsx';
 
 export const pages = new Elysia({ name: 'pages' })
@@ -147,6 +149,20 @@ export const pages = new Elysia({ name: 'pages' })
         );
         break;
       }
+      case 'forge-review': {
+        const availableRuns = await runs.list();
+        const reviewDataForge = selectedProgress ? await dataForge.byBenchmarkRun(selectedProgress.benchmarkRunId) : null;
+        body = (
+          <DataForgeReview
+            benchmarkRun={benchmarkRun}
+            progress={selectedProgress}
+            availableRuns={availableRuns}
+            dataForge={reviewDataForge}
+            documents={reviewDataForge ? await dataForge.documents(reviewDataForge.dataForgeCode) : []}
+          />
+        );
+        break;
+      }
       case 'env-lab': {
         const availableRuns = await runs.list();
         const envJobs = selectedProgress ? await jobs.listByBenchmarkRun(selectedProgress.benchmarkRunId) : [];
@@ -172,6 +188,19 @@ export const pages = new Elysia({ name: 'pages' })
               judgeConfigured: savedSettings.has_judge_key && Boolean(savedSettings.judge_model_name),
               primeInstalled: savedSettings.status.prime_cli === 'ready',
             }}
+          />
+        );
+        break;
+      }
+      case 'cluster': {
+        const availableRuns = await runs.list();
+        body = (
+          <ClusterHandoffPage
+            benchmarkRun={benchmarkRun}
+            progress={selectedProgress}
+            availableRuns={availableRuns}
+            environments={selectedProgress ? await environments.listByBenchmarkRun(selectedProgress.benchmarkRunId) : []}
+            validation={selectedProgress ? await environments.latestEvaluationOfKind(selectedProgress.benchmarkRunId, 'validation') : null}
           />
         );
         break;

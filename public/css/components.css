@@ -3,23 +3,21 @@
 /* Entity ids: FM-00004, TP-00012. Always mono, always quiet. */
 .m-id {
   color: var(--text-3);
-  font: 500 var(--t-micro) / 1 var(--mono);
+  font: 500 var(--t-2xs) / 1 var(--mono);
   letter-spacing: 0.08em;
 }
 /* Codes and machine-facing labels stay mono; surrounding copy stays sans. */
 .m-code {
   color: var(--text-3);
-  font-family: var(--mono);
-  font-size: var(--t-label);
+  font-family: var(--sans);
+  font-size: var(--t-xs);
+  font-weight: 500;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
-/* Helper text under a control, and the lead paragraph of a panel. It is meant
-   to be read, so it sits at the label size rather than the 10px micro size —
-   which is reserved for things you scan, like ids and tallies. */
+/* Helper text under a control, and the lead paragraph of a panel. */
 .m-note {
   color: var(--text-3);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   line-height: 1.55;
 }
 
@@ -29,9 +27,8 @@
 }
 .m-field label {
   color: var(--text-2);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .m-actions {
@@ -48,14 +45,14 @@
   align-items: center;
   gap: 8px;
   color: var(--text-3);
-  font: 500 11px / 1.5 var(--sans);
+  font: 500 var(--t-xs) / 1.5 var(--sans);
   overflow-wrap: anywhere;
 }
 .m-analysis-progress {
   display: grid;
   gap: 6px;
   color: var(--brand-ink);
-  font: 500 var(--t-label) / 1.3 var(--sans);
+  font: 500 var(--t-xs) / 1.3 var(--sans);
 }
 .m-analysis-progress[data-progress='determinate'] .m-analysis-progress-fill {
   inset: 0 auto 0 0;
@@ -126,9 +123,8 @@
   background: var(--raised);
   border: 0;
   border-radius: 0;
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 .m-segmented button + button {
   border-left: 1px solid var(--line);
@@ -154,7 +150,7 @@
 .m-settings-group legend {
   padding: 0 var(--s2);
   color: var(--text-1);
-  font: 650 var(--t-body) / 1.3 var(--sans);
+  font: 600 var(--t-md) / 1.3 var(--sans);
 }
 .m-setting-state,
 .m-status-list > div {
@@ -163,7 +159,7 @@
   justify-content: space-between;
   gap: var(--s3);
   color: var(--text-3);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-status-list {
   display: grid;
@@ -190,12 +186,12 @@
 }
 .m-storage-label {
   color: var(--text-2);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-storage-path {
   overflow-wrap: anywhere;
   color: var(--text-1);
-  font: 400 var(--t-body) / 1.5 var(--mono);
+  font: 400 var(--t-md) / 1.5 var(--mono);
 }
 .m-storage-path.is-unset {
   color: var(--text-3);
@@ -203,7 +199,7 @@
 }
 .m-storage-note {
   color: var(--text-3);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-api-results {
   display: grid;
@@ -220,7 +216,7 @@
   color: var(--text-3);
   background: var(--raised);
   border: 1px solid var(--line);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-api-result strong { color: var(--text-1); font-weight: 500; }
 .m-api-result[data-status='ok'] .m-api-status { color: var(--pass); }
@@ -228,9 +224,8 @@
 
 .m-api-status {
   color: var(--text-3);
-  font: 500 11px / 1.4 var(--sans);
+  font: 500 var(--t-xs) / 1.4 var(--sans);
   letter-spacing: 0.012em;
-  text-transform: uppercase;
 }
 
 .m-input,
@@ -239,12 +234,12 @@
   color: var(--text-1);
   background: var(--raised);
   border: 1px solid var(--line);
-  font: 500 var(--t-data) / 1.4 var(--sans);
+  font: 500 var(--t-sm) / 1.4 var(--sans);
 }
 .m-ta {
   color: var(--text-2);
   background: var(--deeper);
-  font-size: var(--t-micro);
+  font-size: var(--t-xs);
   line-height: 1.7;
   white-space: pre-wrap;
 }
@@ -253,7 +248,7 @@
 .m-badge {
   display: inline;
   color: var(--text-3);
-  font: 500 11px / 1.4 var(--sans);
+  font: 500 var(--t-xs) / 1.4 var(--sans);
 }
 .m-badge[data-state='succeeded'],
 .m-badge[data-state='ready'],
@@ -334,18 +329,18 @@
 .m-ledger-complete { grid-template-columns: 210px minmax(0, 1fr); min-height: 168px; padding: 24px 36px 18px; }
 
 .m-ledger-identity, .m-ledger-progress, .m-ledger-outcome, .m-ledger-scores { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
-.m-ledger-identity > strong, .m-ledger-progress > strong, .m-ledger-scores > strong { font-size: 14px; letter-spacing: -.012em; }
-.m-ledger-live .m-ledger-identity > strong, .m-ledger-complete .m-ledger-identity > strong { font-size: 20px; letter-spacing: -.03em; }
-.m-ledger-live .m-ledger-identity .sub, .m-ledger-complete .m-ledger-identity .sub { font-size: 12px; }
-.m-ledger-progress > strong { font-size: 16px; letter-spacing: -.022em; }
+.m-ledger-identity > strong, .m-ledger-progress > strong, .m-ledger-scores > strong { font-size: var(--t-md); letter-spacing: -.012em; }
+.m-ledger-live .m-ledger-identity > strong, .m-ledger-complete .m-ledger-identity > strong { font-size: var(--t-xl); letter-spacing: -.03em; }
+.m-ledger-live .m-ledger-identity .sub, .m-ledger-complete .m-ledger-identity .sub { font-size: var(--t-xs); }
+.m-ledger-progress > strong { font-size: var(--t-lg); letter-spacing: -.022em; }
 .m-ledger-orb-wrap { display: grid; place-items: center; align-self: center; }
 .m-ledger-run-code { position: absolute; top: 10px; left: 18px; }
-.m-ledger-run-code .m-id { color: var(--run); font-size: 11px; letter-spacing: .07em; }
+.m-ledger-run-code .m-id { color: var(--run); font-size: var(--t-2xs); letter-spacing: .07em; }
 .m-ledger-complete .m-ledger-run-code .m-id { color: var(--pass); }
 .m-ledger-complete[data-state='error'] .m-ledger-run-code .m-id { color: var(--fail); }
 .m-ledger-result-mark { display: inline-flex; width: 17px; height: 17px; align-items: center; justify-content: center; margin-right: 6px; color: currentColor; vertical-align: -4px; }
 .m-ledger-complete[data-state='error'] .m-ledger-result-mark { color: var(--fail); }
-.m-ledger-kicker { display: block; color: var(--run); font-size: 10px; font-weight: 700; letter-spacing: .095em; text-transform: uppercase; }
+.m-ledger-kicker { display: block; color: var(--run); font-size: var(--t-xs); font-weight: 600; letter-spacing: .095em; }
 .m-ledger-track { display: block; width: min(100%, 430px); height: 4px; margin-top: 7px; overflow: hidden; background: var(--line-soft); }
 .m-ledger-track > i { display: block; height: 100%; background: var(--run); }
 .m-ledger-complete .m-ledger-kicker { color: var(--pass); }
@@ -395,7 +390,7 @@
   padding: 10px 12px;
   color: var(--text-2);
   background: var(--raised);
-  font: 500 11px / 1.45 var(--mono);
+  font: 500 var(--t-sm) / 1.45 var(--mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -408,7 +403,6 @@
   padding: var(--s5);
   color: var(--text-4);
   text-align: center;
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
 }

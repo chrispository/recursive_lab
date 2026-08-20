@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { chmod, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { clusterToml, moduleName, runEval, writePackage, type PiPackageSpec } from '../src/gym/pi.ts';
-import { measureOf } from '../src/domain/environments/service.ts';
+import { readSavedResult } from '../src/gym/pi-results.ts';
+import { measureOf } from '../src/domain/environments/model.ts';
 import { taskOf, type BuildDocument } from '../src/domain/environments/model.ts';
 
 const rollout = (exampleId: number, reward: number) => ({ exampleId, reward });
@@ -21,7 +22,7 @@ function spec(): PiPackageSpec {
         {
           question: 'DOCUMENT\n\n---\n\n# Task\n\nIdentify the inconsistencies.',
           answer: 'The doctrine applies uniformly.',
-          info: { verifier_targets: ['flags unit A', 'flags unit B'], title: 'Memo', topic: 'Provision-Fact Matching' },
+          info: { verifier_targets: ['flags unit A', 'flags unit B'], title: 'Memo', topic: 'Provision-Fact Matching', document_id: 1 },
         },
       ],
       canary: [],
@@ -127,6 +128,33 @@ describe('writePackage', () => {
   });
 });
 
+describe('saved verifier target scores', () => {
+  it('joins target-score sidecar rows to the corresponding Prime rollout', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'target-scores-'));
+    try {
+      const resultsPath = join(dir, 'results.jsonl');
+      const targetsPath = join(dir, 'target-scores.jsonl');
+      await writeFile(resultsPath, [
+        JSON.stringify({ example_id: 0, _ng_rollout_index: 0, reward: 0.5, error: null }),
+        JSON.stringify({ example_id: 0, _ng_rollout_index: 1, reward: 1, error: null }),
+      ].join('\n') + '\n');
+      await writeFile(targetsPath, [
+        JSON.stringify({ call_index: 0, document_id: 12, target_index: 0, target_text: 'flags unit A', score: 1, verdict: 'pass', judge_model: 'judge' }),
+        JSON.stringify({ call_index: 0, document_id: 12, target_index: 1, target_text: 'flags unit B', score: 0, verdict: 'fail', judge_model: 'judge' }),
+        JSON.stringify({ call_index: 1, document_id: 12, target_index: 0, target_text: 'flags unit A', score: 1, verdict: 'pass', judge_model: 'judge' }),
+      ].join('\n') + '\n');
+
+      const rollouts = await readSavedResult(resultsPath, targetsPath);
+      expect(rollouts[0]?.documentId).toBe(12);
+      expect(rollouts[0]?.targetScores.map((target) => target.verdict)).toEqual(['pass', 'fail']);
+      expect(rollouts[1]?.targetScores).toHaveLength(1);
+      expect(rollouts[1]?.targetScores[0]?.judgeModel).toBe('judge');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('runEval', () => {
   it('reads Prime results from the nested run directory', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'pi-eval-'));
@@ -169,7 +197,15 @@ await writeFile(join(runDir, 'metadata.json'), JSON.stringify({ avg_reward: 0.75
       });
 
       expect(outcome.avgReward).toBe(0.75);
-      expect(outcome.rollouts).toEqual([{ exampleId: 0, reward: 0.75, error: null }]);
+      expect(outcome.rollouts).toEqual([{
+        exampleId: 0,
+        rolloutIndex: 0,
+        reward: 0.75,
+        error: null,
+        documentId: null,
+        trialName: 'trial-1',
+        targetScores: [],
+      }]);
       expect(outcome.resultsPath).toEndWith('/evals/provision-fact-matching-tp00001--glm-5.2/abc123/results.jsonl');
     } finally {
       if (previousPrime === undefined) delete process.env.PRIME_BIN;

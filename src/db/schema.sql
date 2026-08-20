@@ -487,9 +487,12 @@ CREATE TABLE environment_documents (
 CREATE TABLE environment_evaluations (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   benchmark_run_id     INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE CASCADE,
+  job_id               INTEGER NOT NULL UNIQUE REFERENCES jobs(id) ON DELETE RESTRICT,
   kind                 TEXT    NOT NULL CHECK (kind IN ('rl_test','validation')),
   model                TEXT    NOT NULL,
   endpoint_label       TEXT    NOT NULL DEFAULT '',
+  judge_model          TEXT    NOT NULL DEFAULT '',
+  judge_endpoint_label TEXT    NOT NULL DEFAULT '',
   rollouts_per_example INTEGER NOT NULL DEFAULT 1 CHECK (rollouts_per_example BETWEEN 1 AND 20),
   max_concurrent       INTEGER NOT NULL DEFAULT 1 CHECK (max_concurrent BETWEEN 1 AND 32),
   environment_ids_json TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(environment_ids_json)),
@@ -499,7 +502,131 @@ CREATE TABLE environment_evaluations (
   created_at           TEXT    NOT NULL,
   updated_at           TEXT    NOT NULL
 );
-CREATE INDEX idx_env_evals_benchmark_run ON environment_evaluations(benchmark_run_id, created_at DESC);
+CREATE INDEX idx_env_evals_benchmark_run ON environment_evaluations(benchmark_run_id, created_at DESC, id DESC);
+CREATE INDEX idx_env_evals_job ON environment_evaluations(job_id);
+
+-- One evaluation's attempt to score one environment split. Keeping this row
+-- even when the subprocess errors means an empty rollout set is still
+-- queryable as an attempted evaluation, rather than disappearing.
+CREATE TABLE environment_evaluation_environments (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  evaluation_id        INTEGER NOT NULL REFERENCES environment_evaluations(id) ON DELETE CASCADE,
+  environment_id      INTEGER NOT NULL REFERENCES environments(id) ON DELETE RESTRICT,
+  split                TEXT    NOT NULL CHECK (split IN ('train','canary','heldout')),
+  task_count           INTEGER NOT NULL DEFAULT 0 CHECK (task_count >= 0),
+  rollouts_per_example INTEGER NOT NULL CHECK (rollouts_per_example BETWEEN 1 AND 20),
+  mean_reward          REAL CHECK (mean_reward IS NULL OR (mean_reward >= 0 AND mean_reward <= 1)),
+  pass_rate            REAL CHECK (pass_rate IS NULL OR (pass_rate >= 0 AND pass_rate <= 1)),
+  within_task_std      REAL CHECK (within_task_std IS NULL OR within_task_std >= 0),
+  saturated_fraction   REAL CHECK (saturated_fraction IS NULL OR (saturated_fraction >= 0 AND saturated_fraction <= 1)),
+  tasks_scored         INTEGER NOT NULL DEFAULT 0 CHECK (tasks_scored >= 0),
+  error                TEXT    NOT NULL DEFAULT '',
+  result_path          TEXT,
+  metrics_json         TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metrics_json)),
+  created_at           TEXT    NOT NULL,
+  UNIQUE (evaluation_id, environment_id, split)
+);
+CREATE INDEX idx_env_eval_envs_evaluation ON environment_evaluation_environments(evaluation_id, environment_id);
+CREATE INDEX idx_env_eval_envs_environment ON environment_evaluation_environments(environment_id, created_at DESC);
+
+-- One policy attempt against one task/example. Raw provider output remains in
+-- result_path, while the fields needed for analysis stay queryable here.
+CREATE TABLE environment_evaluation_rollouts (
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  evaluation_environment_id INTEGER NOT NULL REFERENCES environment_evaluation_environments(id) ON DELETE CASCADE,
+  document_id             INTEGER REFERENCES documents(id) ON DELETE RESTRICT,
+  example_index           INTEGER NOT NULL CHECK (example_index >= 0),
+  rollout_index           INTEGER NOT NULL CHECK (rollout_index >= 0),
+  trial_name              TEXT    NOT NULL DEFAULT '',
+  reward                  REAL CHECK (reward IS NULL OR (reward >= 0 AND reward <= 1)),
+  outcome                 TEXT    NOT NULL CHECK (outcome IN ('passed','failed','error','skipped')),
+  error                   TEXT    NOT NULL DEFAULT '',
+  result_path             TEXT,
+  agent_input_tokens      INTEGER NOT NULL DEFAULT 0 CHECK (agent_input_tokens >= 0),
+  agent_output_tokens     INTEGER NOT NULL DEFAULT 0 CHECK (agent_output_tokens >= 0),
+  agent_turns             INTEGER NOT NULL DEFAULT 0 CHECK (agent_turns >= 0),
+  judge_input_tokens      INTEGER NOT NULL DEFAULT 0 CHECK (judge_input_tokens >= 0),
+  judge_output_tokens     INTEGER NOT NULL DEFAULT 0 CHECK (judge_output_tokens >= 0),
+  judge_wall_clock_seconds REAL NOT NULL DEFAULT 0 CHECK (judge_wall_clock_seconds >= 0),
+  metadata_json           TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json)),
+  created_at              TEXT    NOT NULL,
+  UNIQUE (evaluation_environment_id, example_index, rollout_index)
+);
+CREATE INDEX idx_env_eval_rollouts_environment ON environment_evaluation_rollouts(evaluation_environment_id, example_index, rollout_index);
+CREATE INDEX idx_env_eval_rollouts_document ON environment_evaluation_rollouts(document_id, created_at DESC);
+
+-- The individual target decisions that compose a judge-coverage reward.
+CREATE TABLE environment_evaluation_target_scores (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  rollout_id   INTEGER NOT NULL REFERENCES environment_evaluation_rollouts(id) ON DELETE CASCADE,
+  target_index INTEGER NOT NULL CHECK (target_index >= 0),
+  target_text  TEXT    NOT NULL,
+  score        REAL CHECK (score IS NULL OR (score >= 0 AND score <= 1)),
+  verdict      TEXT    NOT NULL CHECK (verdict IN ('pass','fail','error')),
+  judge_model  TEXT    NOT NULL DEFAULT '',
+  error        TEXT    NOT NULL DEFAULT '',
+  details_json TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(details_json)),
+  created_at   TEXT    NOT NULL,
+  UNIQUE (rollout_id, target_index)
+);
+CREATE INDEX idx_env_eval_targets_rollout ON environment_evaluation_target_scores(rollout_id, target_index);
+CREATE INDEX idx_env_eval_targets_verdict ON environment_evaluation_target_scores(verdict, created_at DESC);
+
+-- VR — verifier training ----------------------------------------------------
+-- A training run is metadata and lineage; execution status and logs remain on
+-- its owning jobs row. Checkpoints and artifacts are append-only observations.
+
+CREATE TABLE verifier_training_runs (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  benchmark_run_id INTEGER NOT NULL REFERENCES benchmark_runs(id) ON DELETE RESTRICT,
+  job_id          INTEGER NOT NULL UNIQUE REFERENCES jobs(id) ON DELETE RESTRICT,
+  algorithm       TEXT    NOT NULL DEFAULT '',
+  policy_model    TEXT    NOT NULL DEFAULT '',
+  judge_model     TEXT    NOT NULL DEFAULT '',
+  base_checkpoint TEXT,
+  output_path     TEXT,
+  config_json     TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(config_json)),
+  result_json     TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(result_json)),
+  created_at      TEXT    NOT NULL,
+  updated_at      TEXT    NOT NULL
+);
+CREATE INDEX idx_verifier_training_runs_benchmark ON verifier_training_runs(benchmark_run_id, created_at DESC);
+
+CREATE TABLE verifier_training_environments (
+  training_run_id INTEGER NOT NULL REFERENCES verifier_training_runs(id) ON DELETE CASCADE,
+  environment_id  INTEGER NOT NULL REFERENCES environments(id) ON DELETE RESTRICT,
+  PRIMARY KEY (training_run_id, environment_id)
+);
+
+CREATE TABLE verifier_training_checkpoints (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  training_run_id INTEGER NOT NULL REFERENCES verifier_training_runs(id) ON DELETE CASCADE,
+  step           INTEGER NOT NULL CHECK (step >= 0),
+  epoch          REAL CHECK (epoch IS NULL OR epoch >= 0),
+  label          TEXT    NOT NULL DEFAULT '',
+  path           TEXT    NOT NULL,
+  sha256         TEXT,
+  size_bytes     INTEGER CHECK (size_bytes IS NULL OR size_bytes >= 0),
+  metrics_json   TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metrics_json)),
+  created_at     TEXT    NOT NULL,
+  UNIQUE (training_run_id, step)
+);
+CREATE INDEX idx_verifier_training_checkpoints_run ON verifier_training_checkpoints(training_run_id, step);
+
+CREATE TABLE verifier_training_artifacts (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  training_run_id INTEGER NOT NULL REFERENCES verifier_training_runs(id) ON DELETE CASCADE,
+  checkpoint_id  INTEGER REFERENCES verifier_training_checkpoints(id) ON DELETE SET NULL,
+  kind           TEXT    NOT NULL CHECK (kind IN ('model','checkpoint','config','metrics','logs','dataset','other')),
+  path           TEXT    NOT NULL,
+  sha256         TEXT,
+  size_bytes     INTEGER CHECK (size_bytes IS NULL OR size_bytes >= 0),
+  metadata_json  TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json)),
+  created_at     TEXT    NOT NULL,
+  UNIQUE (training_run_id, path)
+);
+CREATE INDEX idx_verifier_training_artifacts_run ON verifier_training_artifacts(training_run_id, created_at DESC);
+CREATE INDEX idx_verifier_training_artifacts_checkpoint ON verifier_training_artifacts(checkpoint_id);
 
 -- Audit ----------------------------------------------------------------------
 

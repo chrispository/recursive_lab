@@ -19,7 +19,7 @@
 }
 
 /* Rail ---------------------------------------------------------------------
-   The app's only navigation. Identity on top, five numbered stages, gates at
+   The app's only navigation. Identity on top, seven numbered stages, gates at
    the foot pinned by margin-top:auto. */
 
 .m-rail {
@@ -40,7 +40,7 @@
   display: block;
   color: var(--text-1);
   font-family: var(--sans);
-  font-size: 19px;
+  font-size: var(--t-lg);
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.05em;
@@ -49,7 +49,7 @@
 .m-railhead > a.m-wordmark .m-wordmark-mark {
   color: var(--brand);
   font-family: var(--sans);
-  font-size: 1.12em;
+  font-size: inherit;
   font-weight: 500;
   letter-spacing: -0.05em;
   -webkit-text-stroke: 0.55px currentColor;
@@ -64,14 +64,13 @@
   color: var(--text-3);
   border-bottom: 1px solid var(--line-soft);
   cursor: pointer;
-  font: 600 var(--t-label) / 1.3 var(--sans);
+  font: 600 var(--t-xs) / 1.3 var(--sans);
   letter-spacing: 0.05em;
-  text-transform: uppercase;
   transition: 0.16s var(--ease);
 }
 .m-rail > a .n {
   color: var(--text-4);
-  font: 500 9px/1 var(--mono);
+  font: 500 var(--t-2xs) / 1 var(--sans);
   letter-spacing: 0.1em;
 }
 .m-rail > a:hover {
@@ -101,9 +100,8 @@
   display: block;
   margin-bottom: 10px;
   color: var(--text-3);
-  font: 600 var(--t-label) / 1.3 var(--sans);
+  font: 600 var(--t-xs) / 1.3 var(--sans);
   letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 .m-railsettings:hover,
 .m-railsettings.on {
@@ -111,9 +109,8 @@
 }
 .m-gates {
   color: var(--text-4);
-  font: 500 9px/1.7 var(--sans);
+  font: 500 var(--t-xs) / 1.7 var(--sans);
   letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 .m-gates i {
   color: var(--pass);
@@ -174,7 +171,7 @@
 .m-run-context-id {
   flex: 0 0 auto;
   color: var(--text-1);
-  font: 500 11px / 1 var(--mono);
+  font: 500 var(--t-2xs) / 1 var(--mono);
   letter-spacing: 0.07em;
 }
 .m-run-context-name {
@@ -185,7 +182,7 @@
 }
 .m-run-context-model {
   color: var(--text-3);
-  font: 500 11px / 1 var(--mono);
+  font: 500 var(--t-xs) / 1 var(--sans);
 }
 .m-run-context-tally {
   display: inline-flex;
@@ -206,14 +203,13 @@
 }
 .m-run-context-tally b {
   color: var(--text-1);
-  font: 500 12px / 1 var(--mono);
+  font: 500 var(--t-sm) / 1 var(--sans);
 }
 .m-run-context-tally i {
   color: var(--text-3);
-  font: 500 10px / 1 var(--sans);
+  font: 500 var(--t-xs) / 1 var(--sans);
   font-style: normal;
   letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 .m-run-switch {
   position: relative;
@@ -227,7 +223,7 @@
   padding: 4px 0;
   color: var(--text-3);
   cursor: pointer;
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   list-style: none;
 }
 .m-run-switch > summary::-webkit-details-marker {
@@ -252,7 +248,7 @@
 .m-run-switch select {
   min-width: 0;
   padding: 5px 8px;
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 /* A heading that carries a control on its right edge. */
 .m-title-row {

@@ -167,9 +167,9 @@
 /* Theme-independent scales. ------------------------------------------------ */
 
 :root {
-  /* Reading UI is sans. Mono is a stamp: ids, numerals, code, prompts. */
+  /* Reading UI is sans. Mono is reserved for ids, paths, and job-log text. */
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: 'Manrope', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
 
   /* 4px rhythm. */
   --s1: 4px;
@@ -180,12 +180,14 @@
   --s6: 32px;
   --s7: 48px;
 
-  /* Six-step type scale. */
-  --t-micro: 10px;
-  --t-label: 11px;
-  --t-body: 12.5px;
-  --t-data: 13px;
-  --t-sub: 17px;
+  /* Seven-step type scale. Nothing below 11px, and no values between steps. */
+  --t-2xs: 11px; /* ids and column micro-heads only */
+  --t-xs: 12px;   /* labels, badges, secondary meta */
+  --t-sm: 13px;   /* dense table cells, controls, buttons */
+  --t-md: 14px;   /* body / reading default */
+  --t-lg: 17px;   /* section and card headings */
+  --t-xl: 21px;   /* page title */
+  --t-2xl: 28px;  /* the one number that matters */
 
   --measure: 62ch;
   --radius: 0; /* on purpose — this is an instrument, not a card UI */

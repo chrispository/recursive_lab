@@ -9,6 +9,7 @@
  */
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { providerHost, recordError } from './diagnostics.ts';
 import { readOutcome, savedResultPaths } from './pi-results.ts';
@@ -26,7 +27,7 @@ export function piInstalled(): boolean {
 export type PiTask = {
   question: string;
   answer: string;
-  info: { verifier_targets: string[]; title: string; topic: string };
+  info: { verifier_targets: string[]; title: string; topic: string; document_id: number };
 };
 
 /** Everything a generated environment package needs to know. */
@@ -60,6 +61,8 @@ from openai import AsyncOpenAI
 import verifiers as vf
 
 TASKSET_DIR = Path(__file__).parent / "taskset"
+TARGET_SCORES_PATH = os.environ.get("LAB_TARGET_SCORES_PATH", "")
+CALL_INDEX = 0
 JUDGE_PROMPT = """\\
 Task given to the assistant:
 <question>
@@ -92,16 +95,20 @@ def _judge_client() -> AsyncOpenAI:
     )
 
 
-async def _score_target(client: AsyncOpenAI, judge_model: str, question: str, answer: str, target: str, response: str) -> float:
-    prompt = JUDGE_PROMPT.format(question=question, answer=answer, target=target, response=response)
-    completion = await client.chat.completions.create(
-        model=judge_model,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=2048,
-        temperature=0.0,
-    )
-    verdict = (completion.choices[0].message.content or "").upper()
-    return 1.0 if "VERDICT: PASS" in verdict else 0.0
+async def _score_target(client: AsyncOpenAI, judge_model: str, question: str, answer: str, target: str, response: str) -> dict:
+    try:
+        prompt = JUDGE_PROMPT.format(question=question, answer=answer, target=target, response=response)
+        completion = await client.chat.completions.create(
+            model=judge_model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2048,
+            temperature=0.0,
+        )
+        verdict = (completion.choices[0].message.content or "").upper()
+        passed = "VERDICT: PASS" in verdict
+        return {"score": 1.0 if passed else 0.0, "verdict": "pass" if passed else "fail", "error": ""}
+    except Exception as error:
+        return {"score": None, "verdict": "error", "error": f"{type(error).__name__}: {error}"}
 
 
 def _response_text(completion) -> str:
@@ -125,6 +132,9 @@ def _question_text(prompt) -> str:
 
 
 async def judge_coverage(completion, answer, info, prompt=None, **kwargs):
+    global CALL_INDEX
+    call_index = CALL_INDEX
+    CALL_INDEX += 1
     targets = list(info.get("verifier_targets") or [])
     if not targets:
         return 0.0
@@ -136,8 +146,53 @@ async def judge_coverage(completion, answer, info, prompt=None, **kwargs):
         *(_score_target(client, judge_model, prompt_text, str(answer), target, response) for target in targets),
         return_exceptions=True,
     )
-    hits = sum(1.0 for score in scores if score is not None and not isinstance(score, BaseException) and score >= 1.0)
+    example_id = _context_number(kwargs, ("example_id", "_ng_task_index"))
+    rollout_index = _context_number(kwargs, ("rollout_index", "_ng_rollout_index"))
+    document_id = info.get("document_id")
+    events = []
+    for target_index, (target, score) in enumerate(zip(targets, scores)):
+        if isinstance(score, BaseException):
+            item = {"score": None, "verdict": "error", "error": f"{type(score).__name__}: {score}"}
+        else:
+            item = score
+        events.append({
+            "call_index": call_index,
+            "example_id": example_id,
+            "rollout_index": rollout_index,
+            "document_id": document_id,
+            "target_index": target_index,
+            "target_text": target,
+            "score": item.get("score"),
+            "verdict": item.get("verdict", "error"),
+            "judge_model": judge_model,
+            "error": item.get("error", ""),
+        })
+    _write_target_scores(events)
+    hits = sum(1.0 for score in scores if isinstance(score, dict) and score.get("score") == 1.0)
     return hits / len(targets)
+
+
+def _context_number(kwargs, names):
+    sources = [kwargs]
+    state = kwargs.get("state")
+    if isinstance(state, dict):
+        sources.append(state)
+    for source in sources:
+        for name in names:
+            value = source.get(name)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return value
+    return None
+
+
+def _write_target_scores(events):
+    if not TARGET_SCORES_PATH:
+        return
+    path = Path(TARGET_SCORES_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        for event in events:
+            handle.write(json.dumps(event, ensure_ascii=False) + "\\n")
 
 
 def _load_split(name: str) -> list[dict]:
@@ -276,12 +331,34 @@ export type PiEvalRequest = {
   timeoutMs: number;
   /** Selects which generated taskset split `load_environment` exposes. */
   split?: 'train' | 'canary' | 'heldout';
+  /** Internal sidecar path used by the generated verifier to emit target rows. */
+  targetScoresPath?: string;
 };
 
-export type PiRollout = { exampleId: number; reward: number; error: string | null };
+export type PiTargetScore = {
+  targetIndex: number;
+  targetText: string;
+  score: number | null;
+  verdict: 'pass' | 'fail' | 'error';
+  judgeModel: string;
+  error: string;
+  documentId: number | null;
+  details: Record<string, unknown>;
+};
+
+export type PiRollout = {
+  exampleId: number;
+  rolloutIndex: number;
+  reward: number | null;
+  error: string | null;
+  documentId: number | null;
+  trialName: string;
+  targetScores: PiTargetScore[];
+};
 
 export type PiEvalOutcome = {
   resultsPath: string;
+  targetScoresPath: string | null;
   rollouts: PiRollout[];
   avgReward: number;
   passAtK: Record<string, number>;
@@ -296,6 +373,11 @@ export type PiEvalHooks = {
 /** Runs `prime eval run` and parses its saved results. Throws on non-zero exit. */
 export async function runEval(request: PiEvalRequest, hooks: PiEvalHooks = {}): Promise<PiEvalOutcome> {
   await mkdir(request.outputDir, { recursive: true });
+  const targetScoresPath = request.targetScoresPath ?? resolve(
+    request.outputDir,
+    'target-scores',
+    `${request.envId}--${request.split ?? 'default'}-${randomUUID()}.jsonl`,
+  );
   const previousResults = new Set(await savedResultPaths(request));
   const args = [
     'eval', 'run', request.envId,
@@ -323,6 +405,9 @@ export async function runEval(request: PiEvalRequest, hooks: PiEvalHooks = {}): 
       LAB_JUDGE_BASE_URL: request.judge.baseUrl,
       LAB_JUDGE_API_KEY: request.judge.apiKey,
       LAB_JUDGE_MODEL: request.judge.model,
+      LAB_TARGET_SCORES_PATH: targetScoresPath,
+      LAB_EVAL_ENV_ID: request.envId,
+      LAB_EVAL_SPLIT: request.split ?? 'default',
     },
     timeoutMs: request.timeoutMs,
     diagnostic: {
@@ -342,7 +427,7 @@ export async function runEval(request: PiEvalRequest, hooks: PiEvalHooks = {}): 
     onSpawn: hooks.onSpawn,
   });
   try {
-    return await readOutcome(request, previousResults);
+    return await readOutcome({ ...request, targetScoresPath }, previousResults);
   } catch (error) {
     await recordError(prime.diagnostic, 'result parsing', error);
     const message = error instanceof Error ? error.message : String(error);

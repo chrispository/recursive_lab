@@ -11,10 +11,16 @@ type ProgressDbRow = Row & {
   benchmark_result_id: number | null;
   failure_map_id: number | null;
   data_forge_run_id: number | null;
+  data_forge_requested: number;
+  data_forge_created: number;
+  data_forge_pending: number;
+  data_forge_rejected: number;
   failure_count: number;
   topic_count: number;
   document_count: number;
   environment_count: number;
+  scale_ready_environment_count: number;
+  cluster_handoff_count: number;
 };
 
 /**
@@ -38,6 +44,18 @@ const SELECT = `
          (SELECT df.id FROM data_forge_runs df JOIN failure_maps fm ON fm.id = df.failure_map_id
            JOIN benchmark_results r ON r.id = fm.benchmark_result_id
            WHERE r.benchmark_run_id = br.id ORDER BY df.created_at DESC, df.id DESC LIMIT 1) AS data_forge_run_id,
+         coalesce((SELECT df.requested_documents FROM data_forge_runs df JOIN failure_maps fm ON fm.id = df.failure_map_id
+           JOIN benchmark_results r ON r.id = fm.benchmark_result_id
+           WHERE r.benchmark_run_id = br.id ORDER BY df.created_at DESC, df.id DESC LIMIT 1), 0) AS data_forge_requested,
+         (SELECT count(*) FROM documents d JOIN data_forge_runs df ON df.id = d.data_forge_run_id
+           JOIN failure_maps fm ON fm.id = df.failure_map_id JOIN benchmark_results r ON r.id = fm.benchmark_result_id
+          WHERE r.benchmark_run_id = br.id) AS data_forge_created,
+         (SELECT count(*) FROM documents d JOIN data_forge_runs df ON df.id = d.data_forge_run_id
+           JOIN failure_maps fm ON fm.id = df.failure_map_id JOIN benchmark_results r ON r.id = fm.benchmark_result_id
+          WHERE r.benchmark_run_id = br.id AND d.novelty_status = 'passed' AND d.review_status = 'pending') AS data_forge_pending,
+         (SELECT count(*) FROM documents d JOIN data_forge_runs df ON df.id = d.data_forge_run_id
+           JOIN failure_maps fm ON fm.id = df.failure_map_id JOIN benchmark_results r ON r.id = fm.benchmark_result_id
+          WHERE r.benchmark_run_id = br.id AND d.novelty_status = 'passed' AND d.review_status = 'rejected') AS data_forge_rejected,
          (SELECT count(*) FROM failure_items fi JOIN failure_maps fm ON fm.id = fi.failure_map_id
            JOIN benchmark_results r ON r.id = fm.benchmark_result_id WHERE r.benchmark_run_id = br.id) AS failure_count,
          (SELECT count(*) FROM topics tp JOIN failure_maps fm ON fm.id = tp.failure_map_id
@@ -49,6 +67,8 @@ const SELECT = `
             AND d.novelty_status = 'passed'
             AND d.review_status = 'approved') AS document_count,
          (SELECT count(*) FROM environments    WHERE benchmark_run_id = br.id) AS environment_count
+         ,(SELECT count(*) FROM environments WHERE benchmark_run_id = br.id AND scale_ready = 1) AS scale_ready_environment_count
+         ,(SELECT count(*) FROM environments WHERE benchmark_run_id = br.id AND scale_ready = 1 AND training_toml <> '') AS cluster_handoff_count
     FROM benchmark_runs br
     LEFT JOIN benchmark_results result ON result.benchmark_run_id = br.id
 `;
@@ -65,7 +85,13 @@ function toProgress(row: ProgressDbRow): BenchmarkRunProgress {
     failureMap: step('failure_maps', row.failure_map_id, row.failure_count),
     topicCount: row.topic_count,
     dataForgeRun: step('data_forge_runs', row.data_forge_run_id, row.document_count),
+    dataForgeRequested: row.data_forge_requested,
+    dataForgeCreated: row.data_forge_created,
+    dataForgePending: row.data_forge_pending,
+    dataForgeRejected: row.data_forge_rejected,
     environments: step('benchmark_runs', row.environment_count ? row.benchmark_run_id : null, row.environment_count),
+    scaleReadyEnvironments: row.scale_ready_environment_count,
+    clusterHandoff: step('benchmark_runs', row.cluster_handoff_count ? row.benchmark_run_id : null, row.cluster_handoff_count),
   };
 }
 

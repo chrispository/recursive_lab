@@ -3,13 +3,13 @@ import type { DataForgeSummary, DocumentRow } from '../../domain/data_forge/mode
 import type { TopicRow } from '../../domain/topics/model.ts';
 import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
 import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
+import { reviewComplete } from '../../domain/progress/model.ts';
 import { isLive, type JobRow } from '../../domain/jobs/model.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Cap } from '../ui/Cap.tsx';
 import { Table } from '../ui/Table.tsx';
 import { TableBox } from '../ui/TableBox.tsx';
 import { Tally } from '../ui/Tally.tsx';
-import { FocusedReviewInbox } from '../ui/FocusedReviewInbox.tsx';
 import { Icon } from '../ui/Icon.tsx';
 import { PromptCard } from '../ui/PromptCard.tsx';
 import { Handoff } from '../layout/Handoff.tsx';
@@ -138,10 +138,45 @@ export function DataForge({
 
       <TopicTable topics={topics} documents={documents} dataForge={dataForge} failureMapCode={progress?.failureMap.entity ?? null} />
 
-      <FocusedReviewInbox benchmarkRunId={benchmarkRun?.benchmarkRunId ?? null} dataForge={dataForge} documents={documents} />
+      <ReviewHandoff benchmarkRun={benchmarkRun} dataForge={dataForge} progress={progress} />
 
       <Handoff stage="forge" benchmarkRun={benchmarkRun} progress={progress} />
     </>
+  );
+}
+
+function ReviewHandoff({
+  benchmarkRun,
+  dataForge,
+  progress,
+}: {
+  benchmarkRun: BenchmarkRunSummary | null;
+  dataForge: DataForgeSummary | null;
+  progress: BenchmarkRunProgress | null;
+}) {
+  const runId = benchmarkRun?.benchmarkRunId;
+  const reviewReady = reviewComplete(progress);
+  return (
+    <div class="m-forge-review-cta">
+      <div>
+        <span class="m-code">05 · HUMAN GATE</span>
+        <h3>Review the generated documents</h3>
+        <p>
+          {reviewReady
+            ? 'Every novel document is approved. The review queue remains available for audit.'
+            : dataForge
+            ? `${dataForge.pendingReview} novel document${dataForge.pendingReview === 1 ? '' : 's'} need a decision. Novelty failures remain permanently blocked.`
+            : 'A completed forge run opens the document review queue.'}
+        </p>
+      </div>
+      {runId ? (
+        <a class="m-forge-review-cta-action" href={`/forge-review?run=${runId}`}>
+          {reviewReady ? 'Review complete · open' : 'Open review'}
+        </a>
+      ) : (
+        <span class="m-forge-review-cta-action is-disabled">Select a run first</span>
+      )}
+    </div>
   );
 }
 

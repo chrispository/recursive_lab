@@ -65,6 +65,9 @@ export async function listByBenchmarkRun(benchmarkRunId: number): Promise<JobRow
     `SELECT ${JOB_COLS}
        FROM jobs j
       WHERE (j.subject_type = 'benchmark_runs' AND j.subject_id = ?)
+         OR j.id IN (
+              SELECT ee.job_id FROM environment_evaluations ee WHERE ee.benchmark_run_id = ?
+            )
          OR j.subject_id IN (
               SELECT fm.id FROM failure_maps fm
                JOIN benchmark_results brs ON brs.id = fm.benchmark_result_id
@@ -76,8 +79,6 @@ export async function listByBenchmarkRun(benchmarkRunId: number): Promise<JobRow
               WHERE brs.benchmark_run_id = ?
               UNION ALL
               SELECT e.id FROM environments e WHERE e.benchmark_run_id = ?
-              UNION ALL
-              SELECT ee.id FROM environment_evaluations ee WHERE ee.benchmark_run_id = ?
             )
       ORDER BY j.created_at ASC, j.id ASC`,
     [benchmarkRunId, benchmarkRunId, benchmarkRunId, benchmarkRunId, benchmarkRunId],

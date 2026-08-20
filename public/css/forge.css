@@ -26,12 +26,12 @@
 }
 .m-forge-card-head h3 {
   color: var(--text-1);
-  font-size: var(--t-data);
+  font-size: var(--t-sm);
 }
 .m-forge-card-head p {
   max-width: 60ch;
   margin-top: 5px;
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-forge-form {
   display: grid;
@@ -51,9 +51,8 @@
 }
 .m-forge-field label {
   color: var(--text-2);
-  font: 650 var(--t-label) / 1.2 var(--sans);
+  font: 600 var(--t-xs) / 1.2 var(--sans);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 .m-forge-field input,
 .m-forge-field select {
@@ -61,7 +60,7 @@
 }
 .m-field-note {
   color: var(--text-3);
-  font: 500 var(--t-micro) / 1.45 var(--sans);
+  font: 500 var(--t-xs) / 1.45 var(--sans);
 }
 .m-forge-check {
   display: grid;
@@ -69,7 +68,7 @@
   gap: 9px;
   align-items: start;
   color: var(--text-2);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-forge-check input {
   width: 14px;
@@ -122,7 +121,7 @@
   color: var(--text-2);
   background: var(--raised);
   border-color: var(--line);
-  font: 500 var(--t-micro) / 1.2 var(--mono);
+  font: 500 var(--t-xs) / 1.2 var(--sans);
 }
 .m-prompt-revision-picker select:hover:not(:disabled) {
   color: var(--text-1);
@@ -150,7 +149,7 @@
   color: var(--pass);
   border: 1px solid var(--line);
   background: var(--wash);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-prompt-notice.is-error {
   color: var(--fail);
@@ -170,9 +169,8 @@
 }
 .m-prompt-label {
   color: var(--text-2);
-  font: 650 var(--t-label) / 1.2 var(--sans);
+  font: 600 var(--t-xs) / 1.2 var(--sans);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 .m-prompt-label span {
   color: var(--text-4);
@@ -185,7 +183,7 @@
   resize: vertical;
   color: var(--text-1);
   background: var(--deeper);
-  font: 400 var(--t-label) / 1.55 var(--mono);
+  font: 400 var(--t-xs) / 1.55 var(--sans);
 }
 .m-dialog-actions {
   display: flex;
@@ -206,23 +204,23 @@
   display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s4); padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--deep); cursor: pointer; list-style: none; user-select: none;
 }
 .m-review-inbox-head::-webkit-details-marker { display: none; }
-.m-review-inbox-head h3 { color: var(--text-1); font-size: var(--t-data); }
-.m-review-inbox-head p { margin-top: 5px; font-size: var(--t-label); }
-.m-review-head-tools { display: flex; align-items: center; gap: var(--s3); } .m-review-collapse { color: var(--text-3); font: 600 var(--t-micro) / 1.2 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; }
+.m-review-inbox-head h3 { color: var(--text-1); font-size: var(--t-sm); }
+.m-review-inbox-head p { margin-top: 5px; font-size: var(--t-xs); }
+.m-review-head-tools { display: flex; align-items: center; gap: var(--s3); } .m-review-collapse { color: var(--text-3); font: 600 var(--t-xs) / 1.2 var(--sans); letter-spacing: 0.05em; }
 .m-review-collapse-closed { display: none; } .m-review-inbox:not([open]) .m-review-collapse-open { display: none; } .m-review-inbox:not([open]) .m-review-collapse-closed { display: inline; }
 .m-review-recommended,
 .m-review-badge {
-  display: inline-flex; align-items: center; min-height: 20px; padding: 2px 6px; color: var(--text-3); border: 1px solid currentColor; font: 600 var(--t-micro) / 1.2 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
+  display: inline-flex; align-items: center; min-height: 20px; padding: 2px 6px; color: var(--text-3); border: 1px solid currentColor; font: 600 var(--t-xs) / 1.2 var(--sans); letter-spacing: 0.05em; white-space: nowrap;
 }
 .m-review-recommended { color: var(--run); }
 .m-review-badge.pending { color: var(--warn); } .m-review-badge.approved { color: var(--pass); } .m-review-badge.blocked { color: var(--fail); }
 .m-review-decision-bar {
   display: grid; grid-template-columns: minmax(220px, 1fr) minmax(210px, 0.75fr) auto; gap: var(--s4); align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); border-top: 3px solid var(--brand); background: var(--panel);
 }
-.m-review-decision-copy strong { color: var(--text-1); font-size: var(--t-data); }
-.m-review-decision-copy p { margin-top: 4px; font-size: var(--t-label); }
+.m-review-decision-copy strong { color: var(--text-1); font-size: var(--t-sm); }
+.m-review-decision-copy p { margin-top: 4px; font-size: var(--t-xs); }
 .m-review-auto {
-  display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--text-2); font-size: var(--t-label);
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--text-2); font-size: var(--t-xs);
 }
 .m-review-auto input { width: 14px; height: 14px; margin-top: 2px; accent-color: var(--brand); }
 .m-review-auto span,
@@ -233,7 +231,7 @@
 }
 .m-review-decision-actions button { min-width: 0; }
 .m-review-send {
-  display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 0 12px; color: var(--btn-ink); background: var(--brand); border: 1px solid var(--brand); font: 600 11.5px / 1 var(--sans);
+  display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 0 12px; color: var(--btn-ink); background: var(--brand); border: 1px solid var(--brand); font: 600 var(--t-xs) / 1 var(--sans);
 }
 .m-review-send:hover { color: var(--btn-ink); background: var(--brand-press); border-color: var(--brand-press); }
 .m-review-split {
@@ -246,13 +244,13 @@
   display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 8px; border-bottom: 1px solid var(--line-soft);
 }
 .m-review-topic-filter {
-  display: inline-flex; align-items: center; gap: 6px; margin-right: 3px; color: var(--text-3); font-size: var(--t-label);
+  display: inline-flex; align-items: center; gap: 6px; margin-right: 3px; color: var(--text-3); font-size: var(--t-xs);
 }
 .m-review-topic-filter select {
-  width: 132px; min-width: 0; max-width: 132px; min-height: 30px; padding: 0 26px 0 8px; color: var(--text-2); background: var(--raised); border-color: var(--line); font-size: var(--t-label);
+  width: 132px; min-width: 0; max-width: 132px; min-height: 30px; padding: 0 26px 0 8px; color: var(--text-2); background: var(--raised); border-color: var(--line); font-size: var(--t-xs);
 }
 .m-review-filter {
-  min-width: 0; min-height: 30px; padding: 0 8px; color: var(--text-3); background: transparent; border-color: var(--line); font-size: var(--t-label);
+  min-width: 0; min-height: 30px; padding: 0 8px; color: var(--text-3); background: transparent; border-color: var(--line); font-size: var(--t-xs);
 }
 .m-review-filter:hover,
 .m-review-filter.is-active {
@@ -294,7 +292,7 @@
   display: block;
   margin-top: 4px;
   color: var(--text-3);
-  font: 500 var(--t-micro) / 1.45 var(--mono);
+  font: 500 var(--t-xs) / 1.45 var(--sans);
 }
 .m-review-dot {
   width: 7px;
@@ -322,16 +320,15 @@
 .m-review-detail-head h4 {
   max-width: 760px;
   color: var(--text-1);
-  font-size: 18px;
+  font-size: var(--t-lg);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 .m-review-eyebrow {
   margin-bottom: 6px;
   color: var(--brand-ink);
-  font: 600 var(--t-micro) / 1 var(--mono);
+  font: 600 var(--t-xs) / 1 var(--sans);
   letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 .m-review-meta {
   display: flex;
@@ -339,7 +336,7 @@
   gap: 8px 18px;
   margin-top: 11px;
   color: var(--text-3);
-  font: 500 var(--t-micro) / 1.2 var(--mono);
+  font: 500 var(--t-xs) / 1.2 var(--sans);
 }
 .m-review-tabs {
   display: flex;
@@ -357,7 +354,7 @@
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-review-tabs button:hover,
 .m-review-tabs button.is-active {
@@ -369,15 +366,14 @@
   max-width: 86ch;
   padding-top: 18px;
   color: var(--text-2);
-  font-size: var(--t-body);
+  font-size: var(--t-md);
   line-height: 1.75;
 }
 .m-review-reading h5 {
   margin-bottom: 6px;
   color: var(--text-1);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 .m-review-reading ul {
   display: grid;
@@ -397,7 +393,7 @@
 .m-review-empty {
   padding: var(--s5);
   color: var(--text-3);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
 }
 .m-review-reading[hidden],
 .m-review-detail[hidden],
@@ -408,6 +404,55 @@
   display: grid;
   place-items: center;
   text-align: center;
+}
+.m-forge-review-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin-top: var(--s4);
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand);
+  background: var(--panel);
+}
+.m-forge-review-cta h3 {
+  margin-top: 5px;
+  color: var(--text-1);
+  font-size: var(--t-lg);
+  font-weight: 600;
+}
+.m-forge-review-cta p {
+  margin-top: 5px;
+  font-size: var(--t-xs);
+}
+.m-forge-review-cta-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  color: var(--btn-ink);
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  font: 600 var(--t-xs) / 1 var(--sans);
+}
+.m-forge-review-cta-action:hover {
+  color: var(--btn-ink);
+  background: var(--brand-press);
+  border-color: var(--brand-press);
+}
+.m-forge-review-cta-action.is-disabled {
+  color: var(--text-3);
+  background: var(--raised);
+  border-color: var(--line);
+}
+.m-forge-review-note {
+  margin: var(--s3) var(--s4) var(--s4);
+  color: var(--text-2);
+  font-size: var(--t-xs);
+  line-height: 1.55;
 }
 .m-split {
   display: grid;
@@ -452,8 +497,8 @@
 }
 .m-analysis-handoff-copy h3 {
   color: var(--text-1);
-  font-size: 16px;
-  font-weight: 650;
+  font-size: var(--t-lg);
+  font-weight: 600;
   letter-spacing: -0.02em;
   text-transform: none;
 }
@@ -467,14 +512,13 @@
   gap: 17px;
   margin-top: 11px;
   color: var(--text-3);
-  font: 500 var(--t-micro) / 1 var(--mono);
+  font: 500 var(--t-xs) / 1 var(--sans);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 .m-analysis-meta b {
   margin-right: 4px;
   color: var(--fail);
-  font-size: var(--t-label);
+  font-size: var(--t-xs);
   letter-spacing: 0;
 }
 .m-analysis-action {
@@ -484,9 +528,8 @@
 }
 .m-analysis-action small {
   color: var(--text-4);
-  font: 500 var(--t-micro) / 1 var(--mono);
+  font: 500 var(--t-xs) / 1 var(--sans);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 .m-analysis-action button {
   min-width: 180px;

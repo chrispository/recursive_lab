@@ -28,7 +28,7 @@
     .viewport { position: fixed; inset: 58px 0 0; overflow: hidden; cursor: grab; background: radial-gradient(circle at 50% 35%, var(--wash), transparent 48%), var(--black); }
     .viewport:active { cursor: grabbing; }
     .viewport::before { position: absolute; inset: 0; content: ''; pointer-events: none; opacity: .7; background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 32px 32px; }
-    .world { position: absolute; width: 3900px; height: 2700px; transform-origin: 0 0; }
+    .world { position: absolute; width: 4700px; height: 3400px; transform-origin: 0 0; }
     .edges { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
     .edge { fill: none; stroke: var(--brand, #c8452a); opacity: .72; }
     .edge.logical { stroke: var(--text-4, #868f91); stroke-dasharray: 6 5; }
@@ -81,7 +81,7 @@
 <body>
   <header class="schema-head">
     <div class="wordmark">recursive<span>( )</span><b> /</b></div>
-    <div class="head-copy"><strong id="view-title">Schema map</strong><small id="view-sub">24 tables · 1 derived progress read · drag the canvas or any table</small></div>
+    <div class="head-copy"><strong id="view-title">Schema map</strong><small id="view-sub">31 tables · 1 derived progress read · drag the canvas or any table</small></div>
     <div class="hint">pan · move · wheel zoom · layout persists locally</div>
     <div class="toolbar">
       <input id="search" type="search" placeholder="filter tables or fields" aria-label="Filter tables or fields">
@@ -96,7 +96,7 @@
     </div>
   </header>
   <main class="viewport" id="viewport" aria-label="Interactive database schema diagram">
-    <div class="world" id="world"><svg class="edges" id="edges" viewBox="0 0 3900 2700" aria-hidden="true"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--brand)"></path></marker><marker id="arrow-logical" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--text-4)"></path></marker></defs></svg></div>
+    <div class="world" id="world"><svg class="edges" id="edges" viewBox="0 0 4700 3400" aria-hidden="true"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--brand)"></path></marker><marker id="arrow-logical" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--text-4)"></path></marker></defs></svg></div>
   </main>
   <div class="legend"><span><i></i>foreign key</span><span><i class="dashed"></i>logical / polymorphic reference</span><span>◆ primary key</span><span>dashed card = derived, not stored</span><span>← drag empty space to pan</span></div>
   <div class="zoom"><button id="zoom-out" type="button" aria-label="Zoom out">−</button><button id="zoom-in" type="button" aria-label="Zoom in">+</button></div>
@@ -124,7 +124,14 @@
       spec('verifiers', ['id|INTEGER|pk','topic_id|INTEGER|fk:topics.id','name|TEXT|','version|INTEGER|','kind|TEXT|','status|TEXT|','description|TEXT|','rubric_json|TEXT|','code|TEXT|','pass_threshold|REAL|','created_at|TEXT|','updated_at|TEXT|'], 2400, 100, 'runtime'),
       spec('environments', ['id|INTEGER|pk','benchmark_run_id|INTEGER|fk:benchmark_runs.id','topic_id|INTEGER|fk:topics.id','verifier_id|INTEGER|fk:verifiers.id','name|TEXT|','slug|TEXT|','status|TEXT|','base_model|TEXT|','inference_model|TEXT|','harness|TEXT|','local_path|TEXT|nullable','package_hash|TEXT|nullable','scale_ready|INTEGER|','scale_ready_at|TEXT|nullable','taskset_json|TEXT|','training_toml|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 2780, 430, 'runtime'),
       spec('environment_documents', ['environment_id|INTEGER|pk fk:environments.id','document_id|INTEGER|pk fk:documents.id','role|TEXT|'], 2780, 1030, 'join'),
-      spec('environment_evaluations', ['id|INTEGER|pk','benchmark_run_id|INTEGER|fk:benchmark_runs.id','kind|TEXT|','model|TEXT|','endpoint_label|TEXT|','rollouts_per_example|INTEGER|','max_concurrent|INTEGER|','environment_ids_json|TEXT|','metrics_json|TEXT|','result_paths_json|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 3160, 100, 'runtime'),
+      spec('environment_evaluations', ['id|INTEGER|pk','benchmark_run_id|INTEGER|fk:benchmark_runs.id','job_id|INTEGER|fk:jobs.id','kind|TEXT|','model|TEXT|','endpoint_label|TEXT|','judge_model|TEXT|','judge_endpoint_label|TEXT|','rollouts_per_example|INTEGER|','max_concurrent|INTEGER|','environment_ids_json|TEXT|','metrics_json|TEXT|','result_paths_json|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 3160, 100, 'runtime'),
+      spec('environment_evaluation_environments', ['id|INTEGER|pk','evaluation_id|INTEGER|fk:environment_evaluations.id','environment_id|INTEGER|fk:environments.id','split|TEXT|','task_count|INTEGER|','rollouts_per_example|INTEGER|','mean_reward|REAL|nullable','pass_rate|REAL|nullable','within_task_std|REAL|nullable','saturated_fraction|REAL|nullable','tasks_scored|INTEGER|','error|TEXT|','result_path|TEXT|nullable','metrics_json|TEXT|','created_at|TEXT|'], 3160, 650, 'result'),
+      spec('environment_evaluation_rollouts', ['id|INTEGER|pk','evaluation_environment_id|INTEGER|fk:environment_evaluation_environments.id','document_id|INTEGER|nullable fk:documents.id','example_index|INTEGER|','rollout_index|INTEGER|','trial_name|TEXT|','reward|REAL|nullable','outcome|TEXT|','error|TEXT|','result_path|TEXT|nullable','agent_input_tokens|INTEGER|','agent_output_tokens|INTEGER|','agent_turns|INTEGER|','judge_input_tokens|INTEGER|','judge_output_tokens|INTEGER|','judge_wall_clock_seconds|REAL|','metadata_json|TEXT|','created_at|TEXT|'], 3160, 1200, 'result'),
+      spec('environment_evaluation_target_scores', ['id|INTEGER|pk','rollout_id|INTEGER|fk:environment_evaluation_rollouts.id','target_index|INTEGER|','target_text|TEXT|','score|REAL|nullable','verdict|TEXT|','judge_model|TEXT|','error|TEXT|','details_json|TEXT|','created_at|TEXT|'], 3160, 1850, 'result'),
+      spec('verifier_training_runs', ['id|INTEGER|pk','benchmark_run_id|INTEGER|fk:benchmark_runs.id','job_id|INTEGER|fk:jobs.id','algorithm|TEXT|','policy_model|TEXT|','judge_model|TEXT|','base_checkpoint|TEXT|nullable','output_path|TEXT|nullable','config_json|TEXT|','result_json|TEXT|','created_at|TEXT|','updated_at|TEXT|'], 3700, 100, 'training'),
+      spec('verifier_training_environments', ['training_run_id|INTEGER|pk fk:verifier_training_runs.id','environment_id|INTEGER|pk fk:environments.id'], 3700, 600, 'join'),
+      spec('verifier_training_checkpoints', ['id|INTEGER|pk','training_run_id|INTEGER|fk:verifier_training_runs.id','step|INTEGER|','epoch|REAL|nullable','label|TEXT|','path|TEXT|','sha256|TEXT|nullable','size_bytes|INTEGER|nullable','metrics_json|TEXT|','created_at|TEXT|'], 3700, 900, 'training'),
+      spec('verifier_training_artifacts', ['id|INTEGER|pk','training_run_id|INTEGER|fk:verifier_training_runs.id','checkpoint_id|INTEGER|nullable fk:verifier_training_checkpoints.id','kind|TEXT|','path|TEXT|','sha256|TEXT|nullable','size_bytes|INTEGER|nullable','metadata_json|TEXT|','created_at|TEXT|'], 3700, 1450, 'training'),
       spec('progress', ['benchmark_run_id|INTEGER|logical:benchmark_runs.id','label|TEXT|','model|TEXT|','pass_rate|REAL|nullable','benchmark_result_id|INTEGER|nullable logical:benchmark_results.id','failure_map_id|INTEGER|nullable logical:failure_maps.id','data_forge_run_id|INTEGER|nullable logical:data_forge_runs.id','failure_count|INTEGER|','topic_count|INTEGER|','document_count|INTEGER|','environment_count|INTEGER|'], 520, 1450, 'derived'),
       spec('jobs', ['id|INTEGER|pk','kind|TEXT|','subject_type|TEXT|poly','subject_id|INTEGER|poly','status|TEXT|','step|TEXT|','progress|REAL|','pgid|INTEGER|nullable','exit_code|INTEGER|nullable','error|TEXT|nullable','params_json|TEXT|','result_json|TEXT|','created_at|TEXT|','started_at|TEXT|nullable','finished_at|TEXT|nullable'], 80, 1460, 'execution'),
       spec('job_log_lines', ['job_id|INTEGER|pk fk:jobs.id','seq|INTEGER|pk','at|TEXT|','stream|TEXT|','line|TEXT|'], 80, 1900, 'execution'),
@@ -141,7 +148,7 @@
     const viewport = document.querySelector('#viewport');
     const world = document.querySelector('#world');
     const svg = document.querySelector('#edges');
-    const stateKey = 'recursive-schema-layout-v5';
+    const stateKey = 'recursive-schema-layout-v6';
     let zoom = .62, panX = 40, panY = 24, moving = null, search = '';
     const positions = Object.fromEntries(tables.map(table => [table.name, { x: table.x, y: table.y }]));
     let restored = false;
@@ -374,7 +381,7 @@
       document.querySelector('#view-title').textContent = next === 'api' ? 'API routes' : 'Schema map';
       document.querySelector('#view-sub').textContent = next === 'api'
         ? `${totalRoutes} routes · 5 API modules · scripts, tests and future clients`
-        : '24 tables · 1 derived progress read · drag the canvas or any table';
+        : '31 tables · 1 derived progress read · drag the canvas or any table';
       document.querySelector('#search').placeholder = next === 'api' ? 'filter routes' : 'filter tables or fields';
       applyFilter(); updateCount();
     };
