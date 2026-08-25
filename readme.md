@@ -2,7 +2,9 @@
 
 Contains the Harbor framework, NeMo Gym, and NVIDIA Data Designer.
 
-Workflow: run a Harbor benchmark → categorize failures and write verifiers for those topics → create synthetic data → build and test the RL environment locally → push to the cluster.
+Workflow: run a Harbor benchmark → categorize failures and write verifiers for those topics → create synthetic data → build and test the RL environment locally → push to the cluster → benchmark again, looped as many times as you want.
+
+![Benchmarks overview](.assets/01-benchmarks-overview-v1.png)
 
 ## Run locally
 
@@ -28,12 +30,22 @@ Open `http://127.0.0.1:8767`, then configure **Settings**. Keys are stored in th
 | Synthetic generation | Creating novel training documents through Data Designer or a frontier model. |
 | Prime Intellect | Optional publishing and cluster dispatch. |
 
-![Benchmark](.assets/01-benchmark-v2.png)
+**Step 1 — Import benchmark and choose your model**
 
-![Results](.assets/02-results-v2.png)
+![Step 1: import benchmark and choose your model](.assets/01-benchmark-v2.png)
 
-![Failure map](.assets/03-failure-map-v2.png)
+**Step 2 — View benchmark results**
 
-![Forge review](.assets/04-forge-review-v2.png)
+![Step 2: view benchmark results](.assets/02-results-v2.png)
 
-![Environment lab](.assets/05-env-lab-v2.png)
+**Step 3 — Categorize failures and create verifiers**
+
+![Step 3: categorize failures and create verifiers](.assets/03-failure-map-v2.png)
+
+**Step 4 — Create synthetic data**
+
+![Step 4: create synthetic data](.assets/04-forge-review-v2.png)
+
+**Step 5 — Create and test RL envs locally**
+
+![Step 5: create and test RL envs locally](.assets/05-env-lab-v2.png)
