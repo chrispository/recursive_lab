@@ -39,6 +39,7 @@ Thumbs.db
 
 # Logs
 *.log
+*.db
 node_modules/
 data/
 .env

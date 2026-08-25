@@ -64,6 +64,8 @@
       bulk.disabled = pendingRows.length === 0;
       var bulkCount = bulk.querySelector('[data-review-bulk-count]');
       if (bulkCount) bulkCount.textContent = String(pendingRows.length);
+      var bulkSummary = bulk.querySelector('[data-review-bulk-summary]');
+      if (bulkSummary) bulkSummary.hidden = pendingRows.length === 0;
     }
     var empty = inbox.querySelector('[data-review-filter-empty]');
     if (empty) empty.hidden = visible.length > 0;

@@ -129,7 +129,10 @@ export function FocusedReviewInbox({ benchmarkRunId, dataForge, documents }: { b
         </label>
         <div class="m-review-decision-actions">
           <button type="button" class="secondary compact" data-review-bulk="approved" disabled={!pending.length}>
-            Approve all <span data-review-bulk-count>{pending.length}</span> passed
+            Approve all
+            <span data-review-bulk-summary hidden={!pending.length}>
+              {' '}<span data-review-bulk-count>{pending.length}</span> passed
+            </span>
           </button>
           {handoffReady && benchmarkRunId ? (
             <a class="m-review-send compact" href={`/env-lab?run=${benchmarkRunId}`}>Send to Env Lab</a>
