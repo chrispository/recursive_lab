@@ -84,12 +84,20 @@ export const environmentsApi = new Elysia({ name: 'environments-api' })
       return status(error instanceof environments.EnvironmentError ? 400 : 500, { error: errorMessage(error) });
     }
   })
+  .get('/api/v1/environments/:code/training-package', async ({ params, status }) => {
+    try {
+      const bytes = await environments.trainingDownload(params.code);
+      return new Response(bytes, { headers: { 'Content-Type': 'application/gzip',
+        'Content-Disposition': 'attachment; filename="training-package.tar.gz"', 'Cache-Control': 'no-store' } });
+    } catch (error) { return status(400, { error: errorMessage(error) }); }
+  })
   .post('/api/v1/environments/prepare-cluster', async ({ body, status }) => {
     try {
       const source = recordBody(body);
       const runId = benchmarkRunIdOf(body);
       const environmentCode = typeof source.environment_code === 'string' ? source.environment_code.trim() : undefined;
-      const result = await environments.prepareCluster(runId, environmentCode);
+      const result = await environments.prepareCluster(runId, environmentCode,
+        typeof source.training_model === 'string' ? source.training_model : '', source.checkpoint_confirmed === true);
       return { ok: true, ...result };
     } catch (error) {
       return status(error instanceof environments.EnvironmentError ? 400 : 500, { error: errorMessage(error) });

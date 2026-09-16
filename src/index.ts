@@ -23,10 +23,11 @@ import { dataForgeUi } from './http/ui/data_forge.tsx';
 import { environmentsUi } from './http/ui/environments.tsx';
 import { settingsUi } from './http/ui/settings.tsx';
 import { schemaDocument } from './http/schema.ts';
-import { acquireServerLock, autostartGym, autostopGym } from './boot.ts';
+import { acquireServerLock, autostartGym, autostopGym, reconcileInterruptedJobs } from './boot.ts';
 
 const releaseServerLock = await acquireServerLock();
 process.once('exit', releaseServerLock);
+await reconcileInterruptedJobs();
 
 const staticFiles = await staticPlugin({
   assets: `${ROOT}/public`,

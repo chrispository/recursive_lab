@@ -15,6 +15,7 @@ import { resolve } from 'node:path';
 import { ROOT } from './config.ts';
 import * as head from './gym/head.ts';
 import * as lifecycle from './gym/lifecycle.ts';
+import { reconcileOrphans } from './domain/jobs/trace.ts';
 
 const RESOURCES_SERVER = 'legal_agent_bench';
 const MODEL_TYPE = 'inference_provider';
@@ -54,6 +55,25 @@ export async function acquireServerLock(): Promise<() => void> {
       // stale lock remains, so remove it and retry the exclusive create.
       try { unlinkNow(LOCK_PATH); } catch { /* Another starter won the race. */ }
     }
+  }
+}
+
+/**
+ * Close out jobs the previous process was still running.
+ *
+ * Nothing resumes a job across a restart, so an open row is wreckage, not work
+ * in progress. Left alone it reads as live forever: the stage that owns it
+ * keeps polling and keeps its actions disabled. Boot is the only moment where
+ * "still running" can be answered honestly, because no job of ours has started
+ * yet.
+ */
+export async function reconcileInterruptedJobs(): Promise<void> {
+  try {
+    const closed = await reconcileOrphans();
+    if (closed) console.log(`closed ${closed} interrupted job${closed === 1 ? '' : 's'} from the previous process.`);
+  } catch (error) {
+    // A boot must not fail over bookkeeping.
+    console.log(`job reconciliation skipped: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

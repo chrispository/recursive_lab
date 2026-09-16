@@ -106,7 +106,7 @@ describe('writePackage', () => {
     expect(python).toContain('def load_environment(**kwargs):');
     expect(python).toContain('split = str(kwargs.pop("split", "train"))');
     expect(python).toContain('rows = _load_split(split)');
-    expect(python).toContain('pass_threshold=0.30');
+    expect(python).toContain('pass_threshold=pass_threshold');
     expect(python).not.toContain('${');
     const proc = Bun.spawn(['python3', '-c', 'import ast, sys; ast.parse(sys.stdin.read())'], {
       stdin: 'pipe',
@@ -122,9 +122,9 @@ describe('writePackage', () => {
     const toml = clusterToml(spec(), 'glm-5.2', 'gpt-5.2-mini', 4);
 
     expect(toml).toContain('name = "provision-fact-matching-tp00001"');
-    expect(toml).toContain('pass_threshold = 0.30');
-    expect(toml).toContain('inference_model = "glm-5.2"');
-    expect(toml).toContain('train = 1');
+    expect(toml).toContain('group_size = 4');
+    expect(toml).toContain('name = "glm-5.2"');
+    expect(toml).toContain('split = "train"');
   });
 });
 

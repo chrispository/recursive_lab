@@ -4,6 +4,7 @@
  */
 import { all, db, insert, json, one, now, run, type Row } from '../../db/client.ts';
 import { code, parse } from '../../db/ids.ts';
+import { trainingReady } from './model.ts';
 import type {
   BuildDocument,
   BuildTopic,
@@ -27,6 +28,8 @@ type EnvironmentDb = Row & {
   verifier_name: string;
   pass_threshold: number;
   local_path: string | null;
+  package_hash: string;
+  package_version: number;
   scale_ready: number;
   training_toml: string;
   train: number;
@@ -38,7 +41,8 @@ export async function listByBenchmarkRun(benchmarkRunId: number): Promise<Enviro
   const rows = await all<EnvironmentDb>(
     `SELECT e.id, e.topic_id, tp.name AS topic_name, tp.description AS topic_description,
             tp.verifier_strategy, e.slug, e.status, e.base_model, e.inference_model,
-            v.name AS verifier_name, v.pass_threshold, e.local_path, e.scale_ready, e.training_toml,
+            v.name AS verifier_name, v.pass_threshold, e.local_path, e.package_hash, e.scale_ready, e.training_toml,
+            COALESCE(json_extract(e.taskset_json, '$.packageVersion'), 0) AS package_version,
             (SELECT count(*) FROM environment_documents ed
               JOIN documents d ON d.id = ed.document_id
               WHERE ed.environment_id = e.id AND ed.role = 'train') AS train,
@@ -61,6 +65,8 @@ export async function listByBenchmarkRun(benchmarkRunId: number): Promise<Enviro
     const train = Number(row.train);
     const canary = Number(row.canary);
     const heldout = Number(row.heldout);
+    const scaleReady = row.package_version === 2 && train > 0 && row.scale_ready === 1 && trainingReady(measures.validation.get(row.id) ?? null,
+      Number(row.pass_threshold), train + canary + heldout, row.package_hash);
     return {
       environmentId: row.id,
       environmentCode: code('environments', row.id),
@@ -76,8 +82,10 @@ export async function listByBenchmarkRun(benchmarkRunId: number): Promise<Enviro
       verifierName: row.verifier_name,
       passThreshold: Number(row.pass_threshold),
       localPath: row.local_path,
-      scaleReady: row.scale_ready === 1,
-      clusterPrepared: Boolean(row.training_toml),
+      packageHash: row.package_hash,
+      packageVersion: row.package_version,
+      scaleReady,
+      clusterPrepared: scaleReady && Boolean(row.training_toml),
       taskCounts: { tasks: train + canary + heldout, train, canary, heldout },
       rlTest: measures.rl_test.get(row.id) ?? null,
       validation: measures.validation.get(row.id) ?? null,
@@ -92,8 +100,8 @@ async function measuresByBenchmarkRun(benchmarkRunId: number) {
     validation: new Map(),
   };
   for (const kind of ['rl_test', 'validation'] as const) {
-    const evaluation = await one<Row & { metrics_json: string; rollouts_per_example: number }>(
-      `SELECT metrics_json, rollouts_per_example FROM environment_evaluations
+    const evaluation = await one<Row & { id: number; job_status: string; model: string; endpoint_label: string; judge_model: string; judge_endpoint_label: string; metrics_json: string; rollouts_per_example: number }>(
+      `SELECT id, (SELECT status FROM jobs WHERE jobs.id = job_id) AS job_status, model, endpoint_label, judge_model, judge_endpoint_label, metrics_json, rollouts_per_example FROM environment_evaluations
        WHERE benchmark_run_id = ? AND kind = ?
        ORDER BY created_at DESC, id DESC LIMIT 1`,
       [benchmarkRunId, kind],
@@ -102,6 +110,8 @@ async function measuresByBenchmarkRun(benchmarkRunId: number) {
     const metrics = json<EvaluationMetrics>(evaluation.metrics_json, {});
     for (const entry of metrics.environments ?? []) {
       result[kind].set(entry.environment_id, {
+        evidence: { evaluationId: evaluation.id, packageHash: evaluation.job_status === 'succeeded' ? entry.package_hash ?? '' : '', model: evaluation.model,
+          endpointLabel: evaluation.endpoint_label, judgeModel: evaluation.judge_model, judgeEndpointLabel: evaluation.judge_endpoint_label },
         meanReward: entry.error ? null : entry.mean_reward,
         passRate: entry.pass_rate,
         withinTaskStd: entry.within_task_std,
@@ -294,34 +304,32 @@ export async function insertEnvironment(input: {
     `INSERT INTO environments
        (benchmark_run_id, topic_id, verifier_id, name, slug, status, base_model, inference_model,
         harness, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'built', ?, ?, 'pi_verifiers', ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, 'draft', ?, ?, 'pi_verifiers', ?, ?)`,
     [input.benchmarkRunId, input.topicId, input.verifierId, input.name, input.slug, input.baseModel, '', at, at],
   );
 }
 
+/** Switch the current package atomically; old files and evaluation rows remain intact. */
 export async function markBuilt(
   environmentId: number,
   patch: { localPath: string; packageHash: string; inferenceModel: string },
+  documents: BuildDocument[],
 ): Promise<void> {
-  await run(
-    `UPDATE environments SET local_path = ?, package_hash = ?, inference_model = ?, updated_at = ? WHERE id = ?`,
-    [patch.localPath, patch.packageHash, patch.inferenceModel, now(), environmentId],
-  );
-}
-
-export async function markFailed(environmentId: number): Promise<void> {
-  await run(`UPDATE environments SET status = 'failed', updated_at = ? WHERE id = ?`, [now(), environmentId]);
-}
-
-export async function attachDocument(
-  environmentId: number,
-  documentId: number,
-  role: BuildDocument['role'],
-): Promise<void> {
-  await run(
-    `INSERT OR IGNORE INTO environment_documents (environment_id, document_id, role) VALUES (?, ?, ?)`,
-    [environmentId, documentId, role],
-  );
+  await db.execute('BEGIN');
+  try {
+    await run('DELETE FROM environment_documents WHERE environment_id = ?', [environmentId]);
+    for (const doc of documents) await run(
+      'INSERT INTO environment_documents (environment_id, document_id, role) VALUES (?, ?, ?)',
+      [environmentId, doc.documentId, doc.role]);
+    await run(
+      `UPDATE environments SET status = 'built', local_path = ?, package_hash = ?, inference_model = ?,
+       taskset_json = '{"packageVersion":2}', scale_ready = 0, scale_ready_at = NULL, training_toml = '', updated_at = ? WHERE id = ?`,
+      [patch.localPath, patch.packageHash, patch.inferenceModel, now(), environmentId]);
+    await db.execute('COMMIT');
+  } catch (error) {
+    await db.execute('ROLLBACK').catch(() => undefined);
+    throw error;
+  }
 }
 
 export async function insertEvaluation(input: {
@@ -446,11 +454,19 @@ export async function insertEvaluation(input: {
   }
 }
 
-export async function markScaleReady(environmentId: number, trainingToml: string): Promise<void> {
-  await run(
-    `UPDATE environments SET scale_ready = 1, scale_ready_at = ?, training_toml = ?, updated_at = ? WHERE id = ?`,
-    [now(), trainingToml, now(), environmentId],
+export async function markScaleReady(environmentId: number, trainingToml: string, evaluationId: number, packageHash: string): Promise<number> {
+  return run(
+    `UPDATE environments SET scale_ready = 1, scale_ready_at = ?, training_toml = ?, updated_at = ? WHERE id = ? AND package_hash = ?
+     AND EXISTS (SELECT 1 FROM environment_evaluations ee JOIN jobs j ON j.id = ee.job_id
+       WHERE ee.id = ? AND ee.kind = 'validation' AND ee.benchmark_run_id = environments.benchmark_run_id
+       AND j.status IN ('running','succeeded') AND j.id = (SELECT max(id) FROM jobs
+         WHERE subject_type = 'benchmark_runs' AND subject_id = environments.benchmark_run_id AND kind IN ('env_eval','env_build')))`,
+    [now(), trainingToml, now(), environmentId, packageHash, evaluationId],
   );
+}
+
+export async function clearReadiness(benchmarkRunId: number): Promise<void> {
+  await run(`UPDATE environments SET scale_ready = 0, scale_ready_at = NULL, training_toml = '', updated_at = ? WHERE benchmark_run_id = ?`, [now(), benchmarkRunId]);
 }
 
 export async function updateInferenceModel(environmentId: number, model: string): Promise<void> {
