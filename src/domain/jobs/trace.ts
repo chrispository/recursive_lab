@@ -8,8 +8,9 @@
  * A trace is deliberately cheap to use: if tracing were awkward, services would
  * quietly stop doing it and the ledger would lie.
  */
-import { insert, now, run } from '../../db/client.ts';
+import { all, insert, now, run, value, type Row } from '../../db/client.ts';
 import { code } from '../../db/ids.ts';
+import { isProcessGroupAlive, signalProcessGroup } from '../../gym/lifecycle.ts';
 import type { JobStatus } from './model.ts';
 
 export type JobKind =
@@ -123,4 +124,46 @@ export async function start(
 /** Update step/progress on an already-open job, without a Trace handle. */
 export async function setStep(jobId: number, step: string, progress: number): Promise<void> {
   await run(`UPDATE jobs SET step = ?, progress = ? WHERE id = ?`, [step, progress, jobId]);
+}
+
+/**
+ * Fail every job the previous process left open.
+ *
+ * A job only advances while the promise that opened it is alive. Bun's
+ * `--watch` re-enters the app in the same PID without running any exit
+ * handler, so a source edit during a run drops that promise mid-flight: the
+ * row stays `running` forever, its progress frozen, and the env lab polls a
+ * status that will never change while the stage's buttons stay disabled. A
+ * crash leaves the same wreckage.
+ *
+ * The orphaned child cannot be observed either — whatever reads its output and
+ * records its results is gone — so a still-live process group is stopped
+ * rather than left to spend API budget on results nobody will collect.
+ */
+export async function reconcileOrphans(): Promise<number> {
+  const open = await all<Row & { id: number; kind: string; pgid: number | null; step: string }>(
+    `SELECT id, kind, pgid, step FROM jobs WHERE status IN ('running', 'queued')`,
+  );
+  let closed = 0;
+  for (const row of open) {
+    const jobId = Number(row.id);
+    const pgid = row.pgid === null ? null : Number(row.pgid);
+    const orphan = pgid !== null && isProcessGroupAlive(pgid);
+    if (orphan) signalProcessGroup(pgid, 'SIGTERM');
+    const message = `The server restarted while this ${row.kind} job was running, so it can no longer be observed.${
+      orphan ? ` Its process group (${pgid}) was stopped.` : ''
+    }`;
+    const seq = Number(await value<number>(`SELECT COALESCE(MAX(seq), 0) FROM job_log_lines WHERE job_id = ?`, [jobId]) ?? 0);
+    await run(
+      `INSERT INTO job_log_lines (job_id, seq, at, stream, line) VALUES (?, ?, ?, 'err', ?)`,
+      [jobId, seq + 1, now(), message],
+    );
+    closed += await run(
+      `UPDATE jobs
+          SET status = 'failed', step = ?, exit_code = 1, error = ?, finished_at = ?
+        WHERE id = ? AND status IN ('running', 'queued')`,
+      ['Interrupted', message, now(), jobId],
+    );
+  }
+  return closed;
 }

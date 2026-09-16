@@ -6,7 +6,7 @@
  * judge-coverage scoring, and a pass floor. Views render these types only —
  * see AGENTS.md § Domains.
  */
-import type { PiEvalOutcome, PiTask } from '../../gym/pi.ts';
+import type { PiEvalOutcome, PiTask, PiPackageSpec } from '../../gym/pi.ts';
 
 export type EnvironmentRow = {
   environmentId: number;
@@ -23,6 +23,8 @@ export type EnvironmentRow = {
   verifierName: string;
   passThreshold: number;
   localPath: string | null;
+  packageHash: string;
+  packageVersion: number;
   scaleReady: boolean;
   clusterPrepared: boolean;
   /** Documents attached per role — the card's Tasks/Train/Canary/Heldout spec. */
@@ -33,6 +35,7 @@ export type EnvironmentRow = {
 
 /** One environment's result in one evaluation. */
 export type EnvironmentMeasure = {
+  evidence?: ValidationEvidence;
   meanReward: number | null;
   /** Fraction of examples whose rollouts all clear the pass threshold. */
   passRate: number;
@@ -184,6 +187,7 @@ export type EvaluationMetrics = {
   evaluated_environments?: number;
   errored_environments?: number;
   environments?: Array<{
+    package_hash?: string;
     environment_id: number;
     mean_reward: number;
     pass_rate: number;
@@ -193,6 +197,60 @@ export type EvaluationMetrics = {
     error?: string;
   }>;
 };
+
+export type ValidationEvidence = {
+  evaluationId: number;
+  packageHash: string;
+  model: string;
+  endpointLabel: string;
+  judgeModel: string;
+  judgeEndpointLabel: string;
+};
+
+export const TRAINING_ROLLOUTS = 4;
+export function packageSpec(slug: string, topic: BuildTopic, documents: BuildDocument[]): PiPackageSpec {
+  return {
+    slug,
+    title: topic.name,
+    topicDescription: topic.description,
+    verifierStrategy: topic.verifierStrategy,
+    passThreshold: 0.3,
+    splits: {
+      train: documents.filter((d) => d.role === 'train').map((d) => taskOf(d, topic.name)),
+      canary: documents.filter((d) => d.role === 'canary').map((d) => taskOf(d, topic.name)),
+      heldout: documents.filter((d) => d.role === 'heldout').map((d) => taskOf(d, topic.name)),
+    },
+  };
+}
+export const MIN_REWARD_SPREAD = 0.05;
+export const MAX_SATURATION = 0.8;
+
+export function executionChecked(environments: EnvironmentRow[], result: EvaluationSummary | null, policy: string, judge: string) {
+  return Boolean(result && result.model === policy && result.judgeModel === judge && !result.erroredEnvironments
+    && environments.length && environments.every((env) => env.packageHash && !env.rlTest?.error
+      && env.rlTest?.evidence?.packageHash === env.packageHash && env.rlTest?.tasksScored === env.taskCounts.tasks));
+}
+
+export function trainingGates(measure: EnvironmentMeasure | null, threshold: number) {
+  const available = Boolean(measure && !measure.error && measure.tasksScored > 0);
+  return [
+    { label: `Mean reward ≥ ${threshold.toFixed(2)}`, value: measure?.meanReward ?? null,
+      passed: available && measure!.meanReward !== null && measure!.meanReward >= threshold,
+      advice: 'Inspect task answers and judge decisions. Low reward can mean difficult tasks or a grader that needs correction.' },
+    { label: `Reward spread ≥ ${MIN_REWARD_SPREAD}`, value: measure?.withinTaskStd ?? null,
+      passed: available && measure!.withinTaskStd >= MIN_REWARD_SPREAD,
+      advice: 'Attempts receive similar scores. Inspect several answers and targets before changing task difficulty or sampling.' },
+    { label: `Solved tasks ≤ ${MAX_SATURATION}`, value: measure?.saturatedFraction ?? null,
+      passed: available && measure!.saturatedFraction <= MAX_SATURATION,
+      advice: 'Most task averages are nearly perfect. Consider harder tasks that exercise the same skill.' },
+  ];
+}
+
+export function trainingReady(measure: EnvironmentMeasure | null, threshold: number, taskCount: number, packageHash: string) {
+  return Boolean(measure?.evidence?.packageHash && measure.evidence.packageHash === packageHash
+    && measure.rolloutsPerExample === TRAINING_ROLLOUTS && measure.tasksScored === taskCount
+    && taskCount > 0 && trainingGates(measure, threshold).every((gate) => gate.passed));
+}
 
 /** What `build` needs to know about a topic before it can be packaged. */
 export type BuildTopic = {

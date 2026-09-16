@@ -99,7 +99,7 @@ async function pgidOf(pid: number): Promise<number | null> {
   }
 }
 
-const isProcessGroupAlive = (pgid: number) => {
+export const isProcessGroupAlive = (pgid: number) => {
   try {
     process.kill(-pgid, 0);
     return true;
@@ -108,7 +108,7 @@ const isProcessGroupAlive = (pgid: number) => {
   }
 };
 
-const signalProcessGroup = (pgid: number, sig: NodeJS.Signals) => {
+export const signalProcessGroup = (pgid: number, sig: NodeJS.Signals) => {
   try {
     process.kill(-pgid, sig);
   } catch {

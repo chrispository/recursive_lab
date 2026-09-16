@@ -841,6 +841,90 @@
   border-top: 1px solid var(--line-soft);
 }
 
+/* Stage primer -------------------------------------------------------------
+   The one long-form block in the stage. Collapsed by default, so it can afford
+   prose measure and generous leading once it is open — nothing below it pays
+   for that until the reader asks. */
+.m-env-primer {
+  margin-top: var(--s4);
+}
+.m-title + .m-env-primer {
+  margin-top: var(--s3);
+}
+.m-env-primer-body {
+  display: grid;
+  gap: var(--s4);
+  padding: var(--s4);
+}
+.m-env-primer-block > h4 {
+  margin: 0 0 8px;
+  color: var(--text-3);
+  font: 500 var(--t-xs) / 1.3 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.m-env-primer-block p {
+  max-width: 76ch;
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--t-sm);
+  line-height: 1.65;
+}
+.m-env-primer-block p + p {
+  margin-top: 10px;
+}
+.m-env-primer-block strong {
+  color: var(--text-1);
+  font-weight: 500;
+}
+.m-env-primer-block code {
+  padding: 1px 4px;
+  background: var(--code-bg);
+  font: var(--t-2xs) / 1 var(--mono);
+}
+
+/* Terms and gates share one shape: a fixed label column, then the reading. */
+.m-env-primer-terms {
+  display: grid;
+  gap: 1px;
+  max-width: 88ch;
+  margin: 0;
+  background: var(--line-soft);
+  border: 1px solid var(--line-soft);
+}
+.m-env-primer-terms > div {
+  display: grid;
+  grid-template-columns: 19ch minmax(0, 1fr);
+  gap: var(--s3);
+  padding: 9px 12px;
+  background: var(--panel);
+}
+.m-env-primer-terms dt {
+  color: var(--text-1);
+  font: 500 var(--t-sm) / 1.5 var(--sans);
+}
+.m-env-primer-terms dd {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--t-sm);
+  line-height: 1.6;
+}
+
+.m-env-primer-steps {
+  display: grid;
+  gap: 10px;
+  max-width: 82ch;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-2);
+  font-size: var(--t-sm);
+  line-height: 1.65;
+}
+.m-env-primer-steps li::marker {
+  color: var(--brand-ink);
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 1100px) {
   .m-env-command-step {
     flex: 1 1 180px;
@@ -880,5 +964,9 @@
   }
   .m-env-run-settings {
     grid-template-columns: 1fr;
+  }
+  .m-env-primer-terms > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
   }
 }

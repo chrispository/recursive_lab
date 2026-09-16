@@ -8,7 +8,9 @@ export function Handoff({
   stage,
   benchmarkRun,
   progress,
+  oob = false,
 }: {
+  oob?: boolean;
   stage: Stage['tab'];
   benchmarkRun: BenchmarkRunSummary | null;
   progress?: BenchmarkRunProgress | null;
@@ -21,7 +23,7 @@ export function Handoff({
   const gate = next ? handoffGate(next.tab, progress ?? null) : null;
 
   return (
-    <div class="m-handoff">
+    <div id={`${stage}-handoff`} class="m-handoff" hx-swap-oob={oob ? 'true' : undefined}>
       <span class="m-handoff-what">
         {benchmarkRun
           ? <>Carrying <b>{benchmarkRun.benchmarkRunCode}</b> · {failedCriteriaOf(benchmarkRun, progress ?? null)} failed criteria</>
@@ -32,18 +34,18 @@ export function Handoff({
         {next && gate?.open ? (
           <a class="m-handoff-go" href={`/${next.tab}${query}`}>
             <span>{stageNumber(index + 1)}</span>
-            {next.tab === 'results' ? 'View Results' : `Send to ${next.label}`} <Icon name="arrow" />
+            {next.tab === 'results' ? 'View Results' : next.tab === 'cluster' ? 'Prepare training package' : `Send to ${next.label}`} <Icon name="arrow" />
           </a>
         ) : next ? (
           /* `disabled` is not valid on an anchor; no href makes this state
              genuinely inert while the title explains the missing prerequisite. */
           <span class="m-handoff-go is-disabled" aria-disabled="true" title={gate?.reason ?? undefined}>
             <span>{stageNumber(index + 1)}</span>
-            {next.tab === 'results' ? 'View Results' : `Send to ${next.label}`} <Icon name="arrow" />
+            {next.tab === 'results' ? 'View Results' : next.tab === 'cluster' ? 'Prepare training package' : `Send to ${next.label}`} <Icon name="arrow" />
           </span>
         ) : (
           <span class="m-handoff-terminal">
-            {stage === 'cluster' && !progress?.clusterHandoff.count ? 'Prepare the ready environments above' : 'Pipeline handoff complete'}
+            {stage === 'cluster' && !progress?.clusterHandoff.count ? 'Prepare the ready environments above' : 'Training package prepared — no cluster job launched'}
           </span>
         )}
       </div>

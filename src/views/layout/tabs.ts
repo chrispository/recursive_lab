@@ -14,7 +14,7 @@ export const STAGES = [
   { tab: 'forge', label: 'Data forge', title: 'Forge training documents' },
   { tab: 'forge-review', label: 'Forge review', title: 'Review training documents' },
   { tab: 'env-lab', label: 'Env lab', title: 'Environment lab' },
-  { tab: 'cluster', label: 'Cluster handoff', title: 'Cluster handoff' },
+  { tab: 'cluster', label: 'Training export', title: 'Prepare training package' },
 ] as const;
 
 export type Stage = (typeof STAGES)[number];

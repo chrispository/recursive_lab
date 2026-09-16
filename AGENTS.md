@@ -36,9 +36,15 @@ a new reader should know a file's job from its path.
   `/server_instances` discovery—never child ports/paths or benchmark-specific
   server names. Run Gym commands with `cwd: GYM_ROOT`.
 - Env lab packages are Prime Intellect `verifiers` environments, written and run
-  by `src/gym/pi.ts` (`prime eval run` with the policy endpoint for rollouts
+  by `src/gym/pi-package.ts` and `src/gym/pi.ts` (`prime eval run` with the policy endpoint for rollouts
   and `LAB_JUDGE_*` env vars for judge scoring). Judge/policy keys go to the
   child's environment only, never to logs or the browser.
+- Training exports are local downloads, not cluster submissions. `src/gym/pi-training.ts`
+  targets Prime RL v0.8.0 at its recorded commit with verifiers 0.3.0. Export only
+  verified package bytes and the validation's stored policy/judge identity. Rerunning
+  an environment check clears readiness; legacy results without a package hash need
+  a package rebuild and fresh validation. Rebuilds write new revision directories
+  and preserve old files and evaluation rows. Keep screening rules in `environments/model.ts`.
 - Gym startup can take minutes on a cold cache while resources download/prepare.
   Spawn detached and cancel its process group. Never expose `env.yaml` secrets.
 
@@ -69,4 +75,7 @@ a new reader should know a file's job from its path.
   db:reset` when schema changes. Keep this file and `PLAN.md` current when they
   exist. For frontend changes, manually exercise HTMX swaps and interactions.
 - Bare `bun test` is broken on Bun 1.3.14 — always use `bun run test`.
+- For training-export changes, run `PRIME_SCHEMA_CHECK=1 bun run test` too; it checks
+  the actual pinned trainer schema and installs a fixture package in an isolated uv
+  environment. It needs network/cache access but no GPUs or model credentials.
 - If asked to commit/push: use only `git commit` then `git push` (never `gh stack`).

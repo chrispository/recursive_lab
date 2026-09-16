@@ -3,7 +3,7 @@
  * `#env-lab-body` — owns everything below the run context, so build/evaluation
  * actions swap it whole and the job status polls separately.
  */
-import type { EnvironmentRow, EvaluationSummary } from '../../domain/environments/model.ts';
+import { executionChecked, type EnvironmentRow, type EvaluationSummary } from '../../domain/environments/model.ts';
 import type { BenchmarkRunSummary } from '../../domain/runs/model.ts';
 import type { BenchmarkRunProgress } from '../../domain/progress/model.ts';
 import { isLive, type JobLogLine, type JobRow } from '../../domain/jobs/model.ts';
@@ -16,6 +16,7 @@ import { EnvLabStages } from './env-lab/Stages.tsx';
 import { Handoff } from '../layout/Handoff.tsx';
 import { RunContext } from '../layout/RunContext.tsx';
 import { JobLog } from '../jobs/Log.tsx';
+import { EnvLabPrimer } from './env-lab/Primer.tsx';
 
 export type EnvLabSettings = {
   policyModel: string;
@@ -55,10 +56,11 @@ export function EnvLab({
       <div class="m-title">
         <h2>Environment lab</h2>
         <p>
-          Prime runs the package and the policy model here. A passing local validation unlocks the
-          immutable training handoff; the cluster always trains on 4 rollouts per example.
+          Turn approved documents into tasks and a grader. Check that they run, then check for
+          useful training signal. These checks call models but do not train them.
         </p>
       </div>
+      <EnvLabPrimer />
       <RunContext
         benchmarkRun={benchmarkRun}
         availableRuns={availableRuns}
@@ -105,19 +107,19 @@ export function EnvLabBody({
   oob?: boolean;
 }) {
   const built = environments.filter((e) => e.status === 'built' || e.status === 'ready');
-  const rlPassed = built.filter((e) => e.rlTest && !e.rlTest.error && e.rlTest.meanReward !== null && e.rlTest.meanReward >= e.passThreshold).length;
-  const validated = built.filter((e) => e.validation && !e.validation.error && e.validation.meanReward !== null && e.validation.meanReward >= e.passThreshold).length;
+  const rlPassed = built.filter((e) => e.rlTest && !e.rlTest.error && e.rlTest.tasksScored === e.taskCounts.tasks).length;
+  const validated = built.filter((e) => e.validation && !e.validation.error).length;
   const scaleReady = environments.filter((e) => e.scaleReady);
   const hasDocuments = (progress?.dataForgeRun.count ?? 0) > 0;
-  const packageComplete = environments.length > 0 && built.length === environments.length;
-  const canBuild = Boolean(benchmarkRun && hasDocuments && settings.primeInstalled && !packageComplete);
-  const canEval = built.length > 0
+  const canBuild = Boolean(benchmarkRun && hasDocuments && settings.primeInstalled && !isLive(buildJob) && !isLive(evalJob));
+  const canEval = built.length > 0 && built.every((env) => env.packageVersion === 2)
     && settings.policyConfigured && settings.judgeConfigured && settings.primeInstalled;
-  const evalBusy = isLive(evalJob);
-  const cleanRl = Boolean(rlTest && rlTest.erroredEnvironments === 0 && rlTest.tasksScored > 0);
+  const evalBusy = isLive(evalJob) || isLive(buildJob);
+  const cleanRl = executionChecked(environments, rlTest, settings.policyModel, settings.judgeModel);
 
   return (
     <div id="env-lab-body" hx-swap-oob={oob ? 'true' : undefined}>
+      {environments.some((env) => env.packageVersion !== 2) ? <p class="m-env-settings-note">Rebuild packages to update the grader before running checks. Old package files and results are preserved.</p> : null}
       <form
         id="env-lab-run-form"
         class="m-env-run-form"
@@ -152,9 +154,9 @@ export function EnvLabBody({
           <Tally items={[
             { value: environments.length, label: 'environments' },
             { value: built.length, label: 'built' },
-            { value: rlPassed, label: 'rl passed' },
-            { value: validated, label: 'validated' },
-            { value: scaleReady.length, label: 'scale ready', hot: scaleReady.length > 0 },
+            { value: rlPassed, label: 'execution checked' },
+            { value: validated, label: 'signal checked' },
+            { value: scaleReady.length, label: 'ready to export', hot: scaleReady.length > 0 },
             { value: (validation?.meanReward ?? rlTest?.meanReward ?? null)?.toFixed(3) ?? '—', label: 'mean reward' },
           ]} />
         </Cap>
@@ -188,7 +190,7 @@ function ProveLocally({
   validation: EvaluationSummary | null;
   settings: EnvLabSettings;
 }) {
-  const cleanRl = Boolean(rlTest && rlTest.erroredEnvironments === 0 && rlTest.tasksScored > 0);
+  const cleanRl = executionChecked(environments, rlTest, settings.policyModel, settings.judgeModel);
   const totals = environments.reduce(
     (sum, e) => ({
       train: sum.train + e.taskCounts.train,
@@ -205,30 +207,30 @@ function ProveLocally({
   return (
     <section class="m-panel m-env-prove">
       <div class="m-panel-head">
-        <h3>Prove locally</h3>
+        <h3>Check the environment</h3>
         <span class="m-code">RUN SETTINGS · COVERAGE</span>
       </div>
 
       <div class="m-env-run-settings">
-        <div><small>Rollouts per task</small><strong>RL smoke 2 · validation 4</strong></div>
+        <div><small>Attempts per task</small><strong>Execution check 2 · signal check 4</strong></div>
         <label class="m-env-field">
-          <span>Local concurrency</span>
+          <span>Concurrent attempts</span>
           <input type="number" name="max_concurrent" min="1" max="8" value="1" />
         </label>
-        <div class="m-env-cost"><small>Estimated validation cost</small><strong>{estimatedRollouts} rollouts · ~{estimatedRollouts * 2} model calls</strong><span>train + canary + heldout · each rollout calls policy + judge</span></div>
+        <div class="m-env-cost"><small>Training-signal check</small><strong>{estimatedRollouts} attempts</strong><span>Each attempt: 1 policy call + 1 judge call per target, before retries.</span></div>
       </div>
 
       {!settings.policyConfigured || !settings.judgeConfigured ? (
         <div class="m-env-settings-note"><span class="m-field-note">Configure the policy key and judge key + model in Settings first.</span></div>
       ) : null}
       {environments.length && !cleanRl && !validation ? (
-        <div class="m-env-settings-note"><span class="m-field-note">Validation stays locked until the RL smoke test records rewards for the environments without execution errors.</span></div>
+        <div class="m-env-settings-note"><span class="m-field-note">Run the execution check with the current policy and judge before checking training signal.</span></div>
       ) : null}
 
       <div class="m-env-readiness" data-thin={thin ? '1' : undefined}>
         <p class="m-env-readiness-headline">
           {environments.length
-            ? `${totals.train + totals.canary + totals.heldout} approved documents across ${environments.length} topics${thin ? ' — thin. Local validation gates the cluster handoff on very few examples.' : '.'}`
+            ? `${totals.train + totals.canary + totals.heldout} approved documents across ${environments.length} topics${thin ? ' — thin. Training readiness rests on very few examples.' : '.'}`
             : 'No environments yet. Build packages from this run\'s approved documents.'}
         </p>
         <div class="m-env-readiness-detail">
@@ -312,10 +314,18 @@ export function EnvLabStatus({
           <input type="hidden" name="benchmark_run_id" value={String(runId)} />
           <div class="m-env-cancel-copy">
             <strong>ACTIVE RUN</strong>
-            <span>Stop this run; completed work is kept.</span>
+            <span>Stop this check. Logs and result files are kept; an incomplete check cannot approve an export.</span>
           </div>
-          <button class="danger" type="submit">{job.kind === 'env_eval' ? `Cancel ${job.params.kind === 'validation' ? 'validation' : 'RL test'}` : 'Cancel package build'}</button>
+          <button class="danger" type="submit">{job.kind === 'env_eval' ? `Cancel ${job.params.kind === 'validation' ? 'validation' : 'execution check'}` : 'Cancel package build'}</button>
         </form>
+      </div>
+    );
+  }
+  if (runId && job && !isLive(job) && refreshWhenReady) {
+    return (
+      <div id={id} class="m-analysis-status" hx-get={`/ui/env-lab/body?run=${runId}`} hx-trigger="load" hx-target="#env-lab-body" hx-swap="outerHTML">
+        <Badge state="ready">Check finished</Badge>
+        <span>Refreshing the env lab…</span>
       </div>
     );
   }
@@ -335,14 +345,6 @@ export function EnvLabStatus({
       </div>
     );
   }
-  if (runId && job?.status === 'succeeded' && refreshWhenReady) {
-    return (
-      <div id={id} class="m-analysis-status" hx-get={`/env-lab?run=${runId}`} hx-trigger="load" hx-target="#workspace" hx-swap="innerHTML">
-        <Badge state="ready">{job.kind === 'env_eval' ? 'local proof complete' : 'packages built'}</Badge>
-        <span>Refreshing the env lab…</span>
-      </div>
-    );
-  }
   if (runId && job?.status === 'succeeded') {
     const evaluation = job.kind === 'env_eval'
       ? job.params.kind === 'validation' ? validation : rlTest
@@ -355,5 +357,5 @@ export function EnvLabStatus({
       </div>
     );
   }
-  return <div id={id} class="m-analysis-status"><Badge state="pending">idle</Badge><span>Build packages, then run the RL test and validation.</span></div>;
+  return <div id={id} class="m-analysis-status"><Badge state="pending">idle</Badge><span>Build packages, then check execution and training signal.</span></div>;
 }

@@ -7,8 +7,6 @@
  * level) → Validation (learnability gate unlocks scale) → Prepare cluster
  * (immutable taskset + prime-rl TOML). No schema beyond the existing tables.
  */
-import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { benchmarkRunDir } from '../../config.ts';
 import * as audit from '../audit/service.ts';
@@ -17,14 +15,15 @@ import { isLive } from '../jobs/model.ts';
 import * as jobTrace from '../jobs/trace.ts';
 import * as settings from '../../gym/settings.ts';
 import {
-  clusterToml,
   piInstalled,
   runEval,
   writePackage,
-  type PiPackageSpec,
 } from '../../gym/pi.ts';
 import * as repo from './repo.ts';
-import { evaluationEnvironmentOf, labelOf, measureOf, mean, round, taskOf, type BuildTopic, type EnvironmentRow, type EvaluationMetrics, type EvaluationEnvironmentInput } from './model.ts';
+import { hashFiles, verifiedPackage } from '../../gym/pi-artifact.ts';
+import { prepareTrainingExport, verifyTrainingExport } from '../../gym/pi-training.ts';
+import { packageSpec, trainingReady, MIN_REWARD_SPREAD, TRAINING_ROLLOUTS } from './model.ts';
+import { evaluationEnvironmentOf, labelOf, measureOf, mean, round, type BuildTopic, type EnvironmentRow, type EvaluationMetrics, type EvaluationEnvironmentInput } from './model.ts';
 
 export type { EnvironmentRow, EvaluationSummary } from './model.ts';
 export const listByBenchmarkRun = repo.listByBenchmarkRun;
@@ -35,10 +34,9 @@ export class EnvironmentError extends Error {}
 
 const DEFAULT_THRESHOLD = 0.3;
 /** The learnability gate: spread must exist and saturation must not swallow it. */
-const MIN_WITHIN_TASK_STD = 0.05;
-const MAX_SATURATED_FRACTION = 0.8;
+const MIN_WITHIN_TASK_STD = MIN_REWARD_SPREAD;
 /** The cluster always trains on 4 rollouts per example; local may differ. */
-export const CLUSTER_ROLLOUTS = 4;
+export const CLUSTER_ROLLOUTS = TRAINING_ROLLOUTS;
 const DEFAULT_RL_TEST_ROLLOUTS = 2;
 const EVAL_TIMEOUT_MS = 30 * 60_000;
 
@@ -64,9 +62,10 @@ export async function build(benchmarkRunId: number): Promise<{ built: number; jo
   if (!inputs.length) throw new EnvironmentError('No approved data-forged documents for this run yet.');
 
   const existingJob = (await jobRows.listByBenchmarkRun(benchmarkRunId))
-    .find((job) => job.kind === 'env_build' && isLive(job));
+    .find((job) => (job.kind === 'env_build' || job.kind === 'env_eval') && isLive(job));
   if (existingJob) throw new EnvironmentError('An environment build is already running for this benchmark run.');
 
+  await repo.clearReadiness(benchmarkRunId);
   const trace = await jobTrace.start('env_build', 'benchmark_runs', benchmarkRunId, {
     step: 'packaging environments',
     params: { benchmarkRunId, topics: inputs.length },
@@ -97,14 +96,9 @@ async function executeBuild(input: {
     const slug = `${slugify(entry.topic.name) || 'topic'}-${entry.topic.topicCode.toLowerCase().replace('tp-', 'tp')}`;
     await trace.step(`packaging ${entry.topic.topicCode}`, built / input.inputs.length);
     const spec = packageSpec(slug, entry.topic, entry.documents);
-    const environmentDir = resolve(dir, slug);
-    if (await repo.environmentIdBySlug(slug)) {
-      await trace.log(`${slug} already built — skipping`);
-      built += 1;
-      continue;
-    }
+    const environmentDir = resolve(dir, slug, 'revisions', trace.jobCode);
     const verifierId = await ensureVerifier(entry.topic);
-    const environmentId = await repo.insertEnvironment({
+    const environmentId = await repo.environmentIdBySlug(slug) ?? await repo.insertEnvironment({
       benchmarkRunId: input.benchmarkRunId,
       topicId: entry.topic.topicId,
       verifierId,
@@ -114,14 +108,11 @@ async function executeBuild(input: {
     });
     const files = await writePackage(environmentDir, spec);
     const packageHash = await hashFiles(files);
-    for (const document of entry.documents) {
-      await repo.attachDocument(environmentId, document.documentId, document.role);
-    }
     await repo.markBuilt(environmentId, {
       localPath: environmentDir,
       packageHash,
       inferenceModel: '',
-    });
+    }, entry.documents);
     await trace.log(
       `${slug}  tasks ${entry.documents.length}  (train ${spec.splits.train.length}, canary ${spec.splits.canary.length}, heldout ${spec.splits.heldout.length})`,
     );
@@ -143,30 +134,6 @@ async function ensureVerifier(topic: BuildTopic): Promise<number> {
   return repo.insertVerifier(topic, DEFAULT_THRESHOLD);
 }
 
-function packageSpec(slug: string, topic: BuildTopic, documents: repo.BuildInput['documents']): PiPackageSpec {
-  return {
-    slug,
-    title: topic.name,
-    topicDescription: topic.description,
-    verifierStrategy: topic.verifierStrategy,
-    passThreshold: DEFAULT_THRESHOLD,
-    splits: {
-      train: documents.filter((d) => d.role === 'train').map((d) => taskOf(d, topic.name)),
-      canary: documents.filter((d) => d.role === 'canary').map((d) => taskOf(d, topic.name)),
-      heldout: documents.filter((d) => d.role === 'heldout').map((d) => taskOf(d, topic.name)),
-    },
-  };
-}
-
-async function hashFiles(paths: string[]): Promise<string> {
-  const hash = createHash('sha256');
-  for (const path of paths.sort()) {
-    hash.update(path);
-    hash.update(await readFile(path, 'utf8'));
-  }
-  return hash.digest('hex').slice(0, 16);
-}
-
 // --- local proof -------------------------------------------------------------
 
 export type EvalStart = {
@@ -186,9 +153,10 @@ export async function startEval(input: EvalStart): Promise<{ jobId: number; jobC
   const environments = await repo.listByBenchmarkRun(input.benchmarkRunId);
   const built = environments.filter((environment) => environment.status === 'built' || environment.status === 'ready');
   if (!built.length) throw new EnvironmentError('Build the environment packages first.');
+  if (built.some((env) => env.packageVersion !== 2)) throw new EnvironmentError('Rebuild packages to update the grader before running new checks. Old files and results are preserved.');
 
   const liveJob = (await jobRows.listByBenchmarkRun(input.benchmarkRunId))
-    .find((job) => job.kind === 'env_eval' && isLive(job));
+    .find((job) => (job.kind === 'env_eval' || job.kind === 'env_build') && isLive(job));
   if (liveJob) throw new EnvironmentError('A local proof run is already in progress for this benchmark run.');
 
   const policy = await settings.policyProvider(input.model ?? '');
@@ -196,6 +164,18 @@ export async function startEval(input: EvalStart): Promise<{ jobId: number; jobC
   if (!policy.model) throw new EnvironmentError('Configure a policy model in Settings first.');
   const judge = await settings.judgeProvider();
   if (!judge.apiKey || !judge.model) throw new EnvironmentError('Configure a judge API key and model in Settings first.');
+
+  if (input.kind === 'validation') {
+    const smoke = await repo.latestEvaluationOfKind(input.benchmarkRunId, 'rl_test');
+    if (!smoke || smoke.erroredEnvironments || smoke.model !== policy.model || smoke.endpointLabel !== labelOf(policy.baseUrl)
+      || smoke.judgeModel !== judge.model || smoke.judgeEndpointLabel !== labelOf(judge.baseUrl)
+      || built.some((env) => !env.rlTest || env.rlTest.error || env.rlTest.tasksScored !== env.taskCounts.tasks
+        || env.rlTest.evidence?.packageHash !== env.packageHash)) {
+      throw new EnvironmentError('Run the execution check with the current policy and judge before checking training signal.');
+    }
+  }
+  for (const environment of built) await verifiedPackage(environment.localPath!, environment.slug, environment.packageHash);
+  await repo.clearReadiness(input.benchmarkRunId);
 
   const rollouts = input.kind === 'validation'
     ? CLUSTER_ROLLOUTS
@@ -292,6 +272,12 @@ async function executeEval(input: {
         const splitRewards = outcome.rollouts.flatMap((rollout) =>
           rollout.reward === null ? [] : [{ exampleId: rollout.exampleId, reward: rollout.reward }],
         );
+        const counts = new Map<number, number>();
+        for (const rollout of outcome.rollouts) counts.set(rollout.exampleId, (counts.get(rollout.exampleId) ?? 0) + 1);
+        if (splitRewards.length !== environment.taskCounts[split] * input.rollouts
+          || counts.size !== environment.taskCounts[split] || [...counts.values()].some((count) => count !== input.rollouts)) {
+          throw new Error(`${split}: incomplete rollout coverage; rerun the check.`);
+        }
         const splitMeasure = measureOf(splitRewards);
         evaluationEnvironments.push(evaluationEnvironmentOf({
           environmentId: environment.environmentId,
@@ -310,10 +296,12 @@ async function executeEval(input: {
         })));
         exampleOffset += environment.taskCounts[split];
       }
+      await verifiedPackage(environment.localPath!, environment.slug, environment.packageHash);
       const measure = measureOf(rollouts);
       const avgReward = mean(rollouts.map((rollout) => rollout.reward));
       entries.push({
         environment_id: environment.environmentId,
+        package_hash: environment.packageHash,
         mean_reward: round(avgReward),
         pass_rate: round(measure.passRate),
         within_task_std: round(measure.withinTaskStd),
@@ -373,6 +361,7 @@ async function executeEval(input: {
     errored_environments: entries.length - ok.length,
     environments: entries,
   };
+  if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
   const evaluationId = await repo.insertEvaluation({
     benchmarkRunId: input.benchmarkRunId,
     jobId: trace.jobId,
@@ -401,15 +390,15 @@ async function executeEval(input: {
     await trace.step('applying the learnability gate', 0.95);
     let unlocked = 0;
     for (const entry of ok) {
-      const learnable =
-        entry.mean_reward >= DEFAULT_THRESHOLD &&
-        entry.within_task_std >= MIN_WITHIN_TASK_STD &&
-        entry.saturated_fraction <= MAX_SATURATED_FRACTION;
-      if (!learnable) continue;
+      if ((await jobRows.get(trace.jobId))?.status === 'cancelled') return;
       const environment = input.environments.find((candidate) => candidate.environmentId === entry.environment_id);
-      if (!environment || environment.scaleReady) continue;
-      await repo.markScaleReady(entry.environment_id, '');
-      unlocked += 1;
+      if (!environment || !trainingReady({ meanReward: entry.mean_reward, passRate: entry.pass_rate,
+        withinTaskStd: entry.within_task_std, saturatedFraction: entry.saturated_fraction,
+        tasksScored: entry.tasks_scored, rolloutsPerExample: input.rollouts, error: null,
+        evidence: { evaluationId, packageHash: entry.package_hash ?? '', model: input.policy.model,
+          endpointLabel: labelOf(input.policy.baseUrl), judgeModel: input.judge.model, judgeEndpointLabel: labelOf(input.judge.baseUrl) },
+      }, environment.passThreshold, environment.taskCounts.tasks, environment.packageHash)) continue;
+      unlocked += await repo.markScaleReady(entry.environment_id, '', evaluationId, environment.packageHash);
     }
     await trace.log(`learnability gate      ${unlocked} environment${unlocked === 1 ? '' : 's'} unlocked`);
   }
@@ -430,61 +419,33 @@ async function executeEval(input: {
 
 // --- cluster handoff ---------------------------------------------------------
 
-/** Writes cluster.toml next to each scale-ready package and persists it. */
-export async function prepareCluster(
-  benchmarkRunId: number,
-  environmentCode?: string,
-): Promise<{ prepared: number }> {
+/** Export only verified package bytes and the validation that approved them. */
+export async function prepareCluster(benchmarkRunId: number, environmentCode?: string, trainingModel = '', checkpointConfirmed = false): Promise<{ prepared: number }> {
   if (!Number.isInteger(benchmarkRunId) || benchmarkRunId < 1) throw new EnvironmentError('Select a benchmark run.');
-  const context = await repo.runContext(benchmarkRunId);
-  if (!context) throw new EnvironmentError('Benchmark run not found.');
-  const environments = await repo.listByBenchmarkRun(benchmarkRunId);
-
-  let targets = environments.filter((environment) => environment.scaleReady && environment.localPath);
-  if (environmentCode) {
-    const parsed = await repo.environmentByCode(environmentCode);
-    if (!parsed) throw new EnvironmentError('Select a valid environment.');
-    targets = targets.filter((environment) => environment.environmentId === parsed.environmentId);
-  }
-  if (!targets.length) {
-    throw new EnvironmentError('No scale-ready environments — pass local validation first.');
-  }
-
-  const judge = await settings.judgeProvider();
+  if (!trainingModel.trim() || !checkpointConfirmed) throw new EnvironmentError('Enter the trainable checkpoint and confirm it is the policy you validated.');
+  const live = (await jobRows.listByBenchmarkRun(benchmarkRunId)).some((job) => isLive(job) && ['env_eval', 'env_build'].includes(job.kind));
+  if (live) throw new EnvironmentError('Wait for the current environment check to finish before exporting.');
+  const targets = (await repo.listByBenchmarkRun(benchmarkRunId)).filter((env) => env.scaleReady && env.localPath && (!environmentCode || env.environmentCode === environmentCode));
+  if (!targets.length) throw new EnvironmentError('No environments have a current passing validation. Check training signal first.');
   let prepared = 0;
   for (const environment of targets) {
-    const spec = await specFromEnvironment(environment, benchmarkRunId);
-    const toml = clusterToml(spec, environment.inferenceModel || judge.model, judge.model, CLUSTER_ROLLOUTS);
-    await writeFile(resolve(environment.localPath!, 'cluster.toml'), toml, 'utf8');
-    await repo.markScaleReady(environment.environmentId, toml);
-    prepared += 1;
+    const toml = await prepareTrainingExport(environment, trainingModel.trim());
+    if (!await repo.markScaleReady(environment.environmentId, toml, environment.validation!.evidence!.evaluationId, environment.packageHash)) {
+      throw new EnvironmentError('Readiness changed during export. Finish the current check before preparing again.');
+    }
+    prepared++;
   }
-  await audit.audit('environments', benchmarkRunId, 'prepare_cluster', {
-    benchmarkRunId,
-    prepared,
-    environmentCode: environmentCode ?? null,
-  });
+  await audit.audit('environments', benchmarkRunId, 'prepare_cluster', { benchmarkRunId, prepared, trainingModel });
   return { prepared };
 }
 
-/** Rebuilds the package spec from stored state — the files are the artifact. */
-async function specFromEnvironment(
-  environment: EnvironmentRow,
-  benchmarkRunId: number,
-): Promise<PiPackageSpec> {
-  const inputs = await repo.buildInputs(benchmarkRunId);
-  const entry = inputs.find((candidate) => candidate.topic.topicId === environment.topicId);
-  return packageSpec(
-    environment.slug,
-    entry?.topic ?? {
-      topicId: environment.topicId,
-      topicCode: environment.topicCode,
-      name: environment.topicName,
-      description: environment.topicDescription,
-      verifierStrategy: environment.verifierStrategy,
-    },
-    entry?.documents ?? [],
-  );
+export async function trainingDownload(environmentCode: string) {
+  const identity = await repo.environmentByCode(environmentCode);
+  if (!identity) throw new EnvironmentError('Environment not found.');
+  const environment = (await repo.listByBenchmarkRun(identity.benchmarkRunId)).find((env) => env.environmentCode === environmentCode);
+  if (!environment?.clusterPrepared) throw new EnvironmentError('Prepare a training package from a current passing validation first.');
+  await verifiedPackage(environment.localPath!, environment.slug, environment.packageHash);
+  return verifyTrainingExport(environment);
 }
 
 function bounded(value: number | undefined, fallback: number, min: number, max: number): number {

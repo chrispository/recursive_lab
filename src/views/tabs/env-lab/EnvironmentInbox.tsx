@@ -1,4 +1,5 @@
 import type { EnvironmentMeasure, EnvironmentRow, EvaluationMetrics } from '../../../domain/environments/model.ts';
+import { trainingGates } from '../../../domain/environments/model.ts';
 import { isLive, type JobRow } from '../../../domain/jobs/model.ts';
 import { Badge } from '../../ui/Badge.tsx';
 import { Id } from '../../ui/Id.tsx';
@@ -68,25 +69,25 @@ function bucketOf(environment: EnvironmentRow, activeStage: ActiveStage, liveEva
   }
   if (activeStage) return 'active';
   if (environment.status === 'failed' || environment.rlTest?.error || environment.validation?.error) return 'error';
-  if (packageReady(environment) && environment.rlTest && environment.validation) return 'ready';
+  if (environment.scaleReady) return 'ready';
   return 'pending';
 }
 
 function bucketLabel(bucket: QueueBucket) {
-  return bucket === 'active' ? 'running' : bucket === 'pending' ? 'next action' : bucket === 'ready' ? 'proof recorded' : 'needs attention';
+  return bucket === 'active' ? 'running' : bucket === 'pending' ? 'next action' : bucket === 'ready' ? 'ready to export' : 'needs attention';
 }
 
 function nextAction(environment: EnvironmentRow, activeStage: ActiveStage = null, liveEvaluation: LiveEvaluation | null = null) {
   if (activeStage === 'package') return 'Building package';
-  if (activeStage === 'rl_test') return liveEntryOf(liveEvaluation, activeStage, environment.environmentId)?.error ? 'Rerun RL test' : liveEntryOf(liveEvaluation, activeStage, environment.environmentId) ? 'RL test complete' : 'RL test running';
-  if (activeStage === 'validation') return liveEntryOf(liveEvaluation, activeStage, environment.environmentId)?.error ? 'Rerun validation' : liveEntryOf(liveEvaluation, activeStage, environment.environmentId) ? 'Validation complete' : 'Validation running';
+  if (activeStage === 'rl_test') return liveEntryOf(liveEvaluation, activeStage, environment.environmentId)?.error ? 'Rerun Execution check' : liveEntryOf(liveEvaluation, activeStage, environment.environmentId) ? 'Execution check complete' : 'Execution check running';
+  if (activeStage === 'validation') return liveEntryOf(liveEvaluation, activeStage, environment.environmentId)?.error ? 'Recheck training signal' : liveEntryOf(liveEvaluation, activeStage, environment.environmentId) ? 'Training signal recorded' : 'Checking training signal';
   if (!packageReady(environment)) return 'Build package';
-  if (!environment.rlTest) return 'Run RL test';
-  if (environment.rlTest.error) return 'Rerun RL test';
-  if (!environment.validation) return 'Run validation';
-  if (environment.validation.error) return 'Rerun validation';
-  if (!environment.scaleReady) return 'Review scale gate';
-  return 'Ready for scale';
+  if (!environment.rlTest) return 'Run Execution check';
+  if (environment.rlTest.error) return 'Rerun Execution check';
+  if (!environment.validation) return 'Check training signal';
+  if (environment.validation.error) return 'Recheck training signal';
+  if (!environment.scaleReady) return 'Review training signal';
+  return 'Prepare training package';
 }
 
 function stageState(done: boolean, error = false): StageState {
@@ -113,13 +114,13 @@ function EnvStage({ number, label, state, copy }: { number: string; label: strin
 
 function MeasureSummary({ label, measure, threshold, running = false }: { label: string; measure: EnvironmentMeasure | null; threshold: number; running?: boolean }) {
   const passed = measurePassed(measure, threshold);
-  const state = running ? 'active' : measure?.error ? 'error' : measure === null ? 'pending' : passed ? 'ready' : 'failed';
+  const state = running ? 'active' : measure?.error ? 'error' : measure === null ? 'pending' : 'ready';
   const meterState = running ? 'none' : measure?.error ? 'error' : measure === null ? 'none' : passed ? 'pass' : 'fail';
   const reward = running ? '…' : measure?.meanReward === null || measure?.meanReward === undefined ? '—' : measure.meanReward.toFixed(3);
 
   return (
     <div class="m-env-inbox-measure" data-state={state}>
-      <div class="m-env-inbox-measure-head"><strong>{label}</strong><Badge state={running ? 'running' : state}>{running ? 'running' : measure === null ? 'not run' : measure?.error ? 'error' : passed ? 'pass' : 'below floor'}</Badge></div>
+      <div class="m-env-inbox-measure-head"><strong>{label}</strong><Badge state={running ? 'running' : state}>{running ? 'running' : measure === null ? 'not run' : measure?.error ? 'error' : 'check completed'}</Badge></div>
       <div class="m-env-inbox-measure-meter"><Meter value={running || measure?.error ? null : measure?.meanReward ?? null} threshold={threshold} state={meterState} label={label} /><b>{reward}</b></div>
       <small>{running ? `Current run in progress${measure ? ` · previous result ${measure.meanReward === null ? 'unscored' : measure.meanReward.toFixed(3)}` : ''}` : measure ? `${measure.tasksScored} task${measure.tasksScored === 1 ? '' : 's'} scored · ${measure.rolloutsPerExample} rollout${measure.rolloutsPerExample === 1 ? '' : 's'} · spread ±${measure.withinTaskStd.toFixed(3)}` : 'No reward has been recorded yet.'}</small>
       {!running && measure?.error ? <p class="m-env-inbox-error">{measure.error}</p> : null}
@@ -130,32 +131,16 @@ function MeasureSummary({ label, measure, threshold, running = false }: { label:
 function LearnabilityGates({ environment, measure, running = false }: { environment: EnvironmentRow; measure: EnvironmentMeasure | null; running?: boolean }) {
   const errored = Boolean(measure?.error);
   const available = measure !== null && !errored;
-  const gates = [
-    {
-      label: `Mean ≥ ${environment.passThreshold.toFixed(2)}`,
-      value: measure?.meanReward,
-      passed: available && measure.meanReward !== null && measure.meanReward >= environment.passThreshold,
-    },
-    {
-      label: 'Spread ≥ 0.05',
-      value: measure?.withinTaskStd,
-      passed: available && measure.withinTaskStd >= 0.05,
-    },
-    {
-      label: 'Saturation ≤ 0.80',
-      value: measure?.saturatedFraction,
-      passed: available && measure.saturatedFraction <= 0.8,
-    },
-  ];
+  const gates = trainingGates(measure, environment.passThreshold);
 
   return (
     <div class="m-env-inbox-gates">
       <div class="m-env-inbox-gates-head">
         <div>
-          <h5>Learnability gates</h5>
-          <p>Validation must clear all three independently; a run mean cannot hide a weak topic.</p>
+          <h5>Training signal</h5>
+          <p>Each topic must meet these screening rules on a complete four-attempt validation.</p>
         </div>
-        <Badge state={environment.scaleReady ? 'ready' : 'pending'}>{environment.scaleReady ? 'READY FOR SCALE' : 'GATED'}</Badge>
+        <Badge state={environment.scaleReady ? 'ready' : 'pending'}>{environment.scaleReady ? 'READY TO EXPORT' : 'NOT READY'}</Badge>
       </div>
       <div class="m-env-inbox-gate-list">
         {gates.map((gate) => {
@@ -171,7 +156,7 @@ function LearnabilityGates({ environment, measure, running = false }: { environm
           );
         })}
       </div>
-      <p class="m-env-inbox-gates-note">Healthy signal is usually a 0.35–0.75 mean with spread ≥ 0.05 and saturation ≤ 0.80. High reward with no spread teaches nothing.</p>
+      <p class="m-env-inbox-gates-note">{running ? 'Checking the same tasks with four attempts each.' : errored ? 'Resolve the execution error, then rerun the check.' : !available ? 'Run the training-signal check to measure readiness.' : !environment.scaleReady && gates.every((gate) => gate.passed) ? 'Run a fresh validation to record current package evidence before exporting.' : gates.filter((gate) => !gate.passed).map((gate) => gate.advice).join(' ') || 'Screening rules passed. This is evidence to try training, not a guarantee of improvement.'}</p>
     </div>
   );
 }
@@ -207,23 +192,23 @@ function EnvironmentDetail({ environment, selected, activeStage, liveEvaluation 
 
       <div class="m-env-inbox-stage-strip" aria-label="Environment readiness stages">
         <EnvStage number="01" label="Package" state={currentPackage ? 'active' : packageState} copy={currentPackage ? 'building' : stageCopy(packageState, 'ready', 'not built', 'failed')} />
-        <EnvStage number="02" label="RL test" state={rlState} copy={stageCopy(rlState, 'reward recorded', 'not run', 'errored')} />
-        <EnvStage number="03" label="Validation" state={validationState} copy={stageCopy(validationState, 'reward recorded', 'not run', 'errored')} />
-        <EnvStage number="04" label="Scale" state={scaleState} copy={scaleState === 'done' ? 'ready' : 'gated'} />
+        <EnvStage number="02" label="Execution check" state={rlState} copy={stageCopy(rlState, 'reward recorded', 'not run', 'errored')} />
+        <EnvStage number="03" label="Training signal" state={validationState} copy={stageCopy(validationState, 'reward recorded', 'not run', 'errored')} />
+        <EnvStage number="04" label="Export" state={scaleState} copy={scaleState === 'done' ? 'ready' : 'not ready'} />
       </div>
 
       <div class="m-review-tabs" role="tablist" aria-label={`Environment ${environment.environmentCode}`}>
-        <button type="button" class="is-active" data-review-tab="proof" aria-selected="true">Proof signal</button>
+        <button type="button" class="is-active" data-review-tab="proof" aria-selected="true">Training signal</button>
         <button type="button" data-review-tab="verifier" aria-selected="false">Verifier</button>
         <button type="button" data-review-tab="taskset" aria-selected="false">Taskset</button>
       </div>
 
       <div class="m-review-reading" data-review-tab-panel="proof">
-        <h5>Latest local proof</h5>
-        <p class="m-env-inbox-explainer">The RL test is a small smoke test. Validation repeats the same environment with broader coverage. The meter fill is mean reward; the notch is this environment’s pass floor.</p>
+        <h5>Latest checks</h5>
+        <p class="m-env-inbox-explainer">The execution check confirms that tasks can run and be scored. The training-signal check makes four attempts on the same tasks. Reward describes the policy’s answers; completing a check does not mean the model scored highly.</p>
         <div class="m-env-inbox-measures">
-          <MeasureSummary label={activeStage === 'rl_test' ? 'RL test · current run' : 'RL test · 2 rollouts'} measure={rlMeasure} threshold={environment.passThreshold} running={rlRunning} />
-          <MeasureSummary label={activeStage === 'validation' ? 'Validation · current run' : 'Validation · 4 rollouts'} measure={validationMeasure} threshold={environment.passThreshold} running={validationRunning} />
+          <MeasureSummary label={activeStage === 'rl_test' ? 'Execution check · current run' : 'Execution check · 2 rollouts'} measure={rlMeasure} threshold={environment.passThreshold} running={rlRunning} />
+          <MeasureSummary label={activeStage === 'validation' ? 'Training signal · current run' : 'Training signal · 4 rollouts'} measure={validationMeasure} threshold={environment.passThreshold} running={validationRunning} />
         </div>
         <LearnabilityGates environment={environment} measure={validationMeasure} running={validationRunning} />
       </div>
@@ -275,7 +260,7 @@ export function EnvironmentInbox({ environments, buildJob, evalJob, oob = false 
       hx-swap-oob={oob ? 'true' : undefined}
     >
       <div class="m-env-inbox-status" role="status" aria-live="polite">
-        <strong>{activeStage && activeStage !== 'package' && liveEvaluation?.kind === activeStage ? `${active.length} environment${active.length === 1 ? '' : 's'} in progress${liveCompleted ? ` · ${liveCompleted} complete` : ''}` : activeStage ? `${active.length} environment${active.length === 1 ? '' : 's'} in progress` : pending.length ? `${pending.length} environment${pending.length === 1 ? '' : 's'} need the next step` : errors.length ? `${errors.length} environment${errors.length === 1 ? '' : 's'} need attention` : 'All local proof stages have recorded results'}</strong>
+        <strong>{activeStage && activeStage !== 'package' && liveEvaluation?.kind === activeStage ? `${active.length} environment${active.length === 1 ? '' : 's'} in progress${liveCompleted ? ` · ${liveCompleted} complete` : ''}` : activeStage ? `${active.length} environment${active.length === 1 ? '' : 's'} in progress` : pending.length ? `${pending.length} environment${pending.length === 1 ? '' : 's'} need the next step` : errors.length ? `${errors.length} environment${errors.length === 1 ? '' : 's'} need attention` : 'All environments are ready to export'}</strong>
       </div>
 
       <div class="m-review-split">
@@ -283,7 +268,7 @@ export function EnvironmentInbox({ environments, buildJob, evalJob, oob = false 
           <div class="m-review-queue-tools" role="tablist" aria-label="Environment readiness filter">
             <button type="button" class={initialBucket === 'pending' ? 'm-review-filter is-active' : 'm-review-filter'} data-review-filter="pending" aria-pressed={initialBucket === 'pending' ? 'true' : 'false'}>Next action {pending.length}</button>
             <button type="button" class={initialBucket === 'active' ? 'm-review-filter is-active' : 'm-review-filter'} data-review-filter="active" aria-pressed={initialBucket === 'active' ? 'true' : 'false'}>Running {active.length}</button>
-            <button type="button" class={initialBucket === 'ready' ? 'm-review-filter is-active' : 'm-review-filter'} data-review-filter="ready" aria-pressed={initialBucket === 'ready' ? 'true' : 'false'}>Proof recorded {ready.length}</button>
+            <button type="button" class={initialBucket === 'ready' ? 'm-review-filter is-active' : 'm-review-filter'} data-review-filter="ready" aria-pressed={initialBucket === 'ready' ? 'true' : 'false'}>Ready to export {ready.length}</button>
             <button type="button" class={initialBucket === 'error' ? 'm-review-filter is-active' : 'm-review-filter'} data-review-filter="error" aria-pressed={initialBucket === 'error' ? 'true' : 'false'}>Errors {errors.length}</button>
             <button type="button" class="m-review-filter" data-review-filter="all" aria-pressed="false">All {environments.length}</button>
           </div>

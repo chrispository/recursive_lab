@@ -13,6 +13,7 @@ import { Badge } from '../../views/ui/Badge.tsx';
 import { EnvLabBody, EnvLabStatus, type EnvLabSettings } from '../../views/tabs/EnvLab.tsx';
 import { ClusterHandoffBody } from '../../views/tabs/ClusterHandoff.tsx';
 import { EnvironmentInbox } from '../../views/tabs/env-lab/EnvironmentInbox.tsx';
+import { Handoff } from '../../views/layout/Handoff.tsx';
 import { JobLog } from '../../views/jobs/Log.tsx';
 import { benchmarkRunIdOf, errorMessage, recordBody } from '../request.ts';
 
@@ -71,6 +72,7 @@ async function body(runId: number, oob = false) {
   const latest = await latestJobs(runId);
   const job = displayJob(latest.buildJob, latest.evalJob);
   return (
+    <>
     <EnvLabBody
       benchmarkRun={selectedProgress ? await runs.byBenchmarkRunId(runId) : null}
       progress={selectedProgress}
@@ -82,18 +84,23 @@ async function body(runId: number, oob = false) {
       settings={await labSettings()}
       oob={oob}
     />
+    <Handoff stage="env-lab" benchmarkRun={selectedProgress ? await runs.byBenchmarkRunId(runId) : null} progress={selectedProgress} oob />
+    </>
   );
 }
 
 async function clusterBody(runId: number, notice?: string) {
   const selectedProgress = await progress.byBenchmarkRun(runId);
   return (
+    <>
     <ClusterHandoffBody
       benchmarkRun={selectedProgress ? await runs.byBenchmarkRunId(runId) : null}
       environments={selectedProgress ? await environments.listByBenchmarkRun(runId) : []}
       validation={selectedProgress ? await environments.latestEvaluationOfKind(runId, 'validation') : null}
       notice={notice}
     />
+    <Handoff stage="cluster" benchmarkRun={selectedProgress ? await runs.byBenchmarkRunId(runId) : null} progress={selectedProgress} oob />
+    </>
   );
 }
 
@@ -104,7 +111,7 @@ export const environmentsUi = new Elysia({ name: 'environments-ui' })
       await environments.build(runId);
       return await body(runId);
     } catch (error) {
-      return errorStatus(errorMessage(error));
+      return <>{await body(runId)}{errorStatus(errorMessage(error), true)}</>;
     }
   })
   .post('/ui/env-lab/start', async ({ body: payload }) => {
@@ -124,6 +131,7 @@ export const environmentsUi = new Elysia({ name: 'environments-ui' })
       return errorStatus(errorMessage(error), true);
     }
   })
+  .get('/ui/env-lab/body', async ({ query }) => body(Number(query.run)))
   .get('/ui/env-lab/status', async ({ query }) => {
     const runId = Number(query.run);
     if (!Number.isInteger(runId) || runId < 1) return errorStatus('Select a benchmark run.');
@@ -146,7 +154,8 @@ export const environmentsUi = new Elysia({ name: 'environments-ui' })
     const runId = benchmarkRunIdOf(payload);
     const environmentCode = typeof source.environment_code === 'string' ? source.environment_code.trim() : '';
     try {
-      await environments.prepareCluster(runId, environmentCode || undefined);
+      await environments.prepareCluster(runId, environmentCode || undefined,
+        typeof source.training_model === 'string' ? source.training_model : '', source.checkpoint_confirmed === 'on');
       return await clusterBody(runId);
     } catch (error) {
       return await clusterBody(runId, errorMessage(error));
